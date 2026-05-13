@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pavement"
+version = "0.1.0"
+description = "Quantile-based pavement plots with matplotlib."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Aaron Schumacher" }]
+dependencies = ["matplotlib"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/ajschumacher/pavement"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pavement"]
