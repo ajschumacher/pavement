@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 dist/
 build/
+examples/.ipynb_checkpoints/
