@@ -47,7 +47,7 @@ def test_plot_single():
 
 def test_plot_wide():
     plt.figure()
-    plot([[1, 2, 3], [4, 5, 6]], labels=["a", "b"])
+    plot([[1, 2, 3], [4, 5, 6]], tick_labels=["a", "b"])
     plt.close()
 
 
@@ -59,7 +59,7 @@ def test_plot_tidy():
 
 def test_plot_horizontal():
     plt.figure()
-    plot([[1, 2, 3], [4, 5, 6]], labels=["a", "b"], orientation="horizontal")
+    plot([[1, 2, 3], [4, 5, 6]], tick_labels=["a", "b"], orientation="horizontal")
     plt.close()
 
 
