@@ -1,5 +1,8 @@
 # Pavement plots
 
+[![PyPI](https://img.shields.io/pypi/v/pavement.svg)](https://pypi.org/project/pavement/)
+[![CI](https://github.com/ajschumacher/pavement/actions/workflows/ci.yml/badge.svg)](https://github.com/ajschumacher/pavement/actions/workflows/ci.yml)
+
 Quantile-based pavement plots with matplotlib. Every box contains an
 equal share of the data.
 
@@ -19,7 +22,7 @@ See more in the [demo notebook](https://github.com/ajschumacher/pavement/blob/ma
     pavement.plot([1, 2, 3, 4, 5])
 
 
-## Tests
+## Development
 
     pip install -e '.[test]'
     pytest
