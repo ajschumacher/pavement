@@ -42,12 +42,13 @@ def draw_pavement(values, ypos=0, height=0.6,
     plt.vlines(values,
                ymin=ypos - height/2, ymax=ypos + height/2,
                color='black')
-    dupes = [x for x, n in Counter(values).items() if n > 1]
-    if dupes and show_whiskers:
-        plt.vlines(dupes,
-                   ymin=ypos - height/2 - whisker,
-                   ymax=ypos + height/2 + whisker,
-                   color='black')
+    if show_whiskers:
+        dupes = [x for x, n in Counter(values).items() if n > 1]
+        if dupes:
+            plt.vlines(dupes,
+                       ymin=ypos - height/2 - whisker,
+                       ymax=ypos + height/2 + whisker,
+                       color='black')
     plt.hlines([ypos - height/2, ypos + height/2],
                xmin=values[0], xmax=values[-1],
                color='black')
