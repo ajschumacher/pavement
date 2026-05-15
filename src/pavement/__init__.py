@@ -1,14 +1,19 @@
+"""Quantile-based pavement plots with matplotlib."""
+
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Hashable, Mapping, Sequence
+from collections.abc import Hashable, Iterable, Mapping, Sequence
+from numbers import Number
 from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 
+__all__ = ["quantiles", "pavement_stats", "draw_pavement", "plot"]
+
 
 def quantiles(
-    data: Sequence[float],
+    data: Iterable[float],
     levels: Sequence[float],
     weights: Sequence[float] | None = None,
     presorted: bool = False,
@@ -79,7 +84,7 @@ def quantiles(
 
 
 def pavement_stats(
-    data: Sequence[float],
+    data: Iterable[float],
     bins: int = 4,
     weights: Sequence[float] | None = None,
 ) -> list[float]:
@@ -189,7 +194,7 @@ def draw_pavement(
 
 
 def plot(
-    data: Sequence[float] | Sequence[Sequence[float]],
+    data: Sequence[float] | Sequence[Iterable[float]],
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
     positions: Sequence[float] | None = None,
     categories: Sequence[Hashable] | None = None,
@@ -282,7 +287,7 @@ def plot(
     elif len(positions) != n:
         raise ValueError(
             f"positions has length {len(positions)}, expected {n}")
-    if isinstance(widths, (int, float)):
+    if isinstance(widths, Number):
         widths = [widths] * n
     elif len(widths) != n:
         raise ValueError(
