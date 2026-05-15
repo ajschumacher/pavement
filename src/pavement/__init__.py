@@ -180,7 +180,8 @@ def plot(
 
     - A 1D sequence of values: a single row at *ypos*.
     - A sequence of 1D sequences: one row per dataset, stacked
-      top-to-bottom starting at ``ypos + len(data) - 1``.
+      bottom-to-top starting at *ypos* (matching matplotlib's
+      ``boxplot`` order).
     - A 1D sequence plus *categories*: tidy/long form. The data is
       split by category and rendered as in the wide form.
 
@@ -196,7 +197,7 @@ def plot(
         given, *data* is treated as tidy/long form and split by
         category.
     labels : sequence of str, optional
-        Y-tick labels, one per row, ordered top-to-bottom. In tidy
+        Y-tick labels, one per row, ordered bottom-to-top. In tidy
         form, also selects which categories to include and their
         order. Y-ticks are only set when this is provided.
     bins : int, default: 4
@@ -231,7 +232,7 @@ def plot(
     for index, dataset in enumerate(data):
         subweights = weights[index] if weights is not None else None
         values = pavement_stats(dataset, bins=bins, weights=subweights)
-        draw_pavement(values, ypos=ypos + n - 1 - index, height=height,
+        draw_pavement(values, ypos=ypos + index, height=height,
                       whisker=whisker, show_whiskers=show_whiskers)
     if labels is not None:
-        plt.gca().set_yticks(range(ypos, ypos + n), list(reversed(labels)))
+        plt.gca().set_yticks(range(ypos, ypos + n), list(labels))
