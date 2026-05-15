@@ -1,6 +1,6 @@
 import pytest
 
-from pavement import quantiles
+from pavement import pavement_stats, quantiles
 
 
 def test_quantiles_median_odd():
@@ -30,3 +30,7 @@ def test_quantiles_sorts_unsorted_input():
 def test_quantiles_presorted_rejects_unsorted():
     with pytest.raises(ValueError, match="sorted"):
         quantiles([3, 1, 2], [0.5], presorted=True)
+
+
+def test_pavement_stats_default_bins():
+    assert pavement_stats([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]

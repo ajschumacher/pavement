@@ -54,11 +54,15 @@ def draw_pavement(values, ypos=0, height=0.6,
                color='black')
 
 
+def pavement_stats(data, bins=4, weights=None):
+    levels = [x/bins for x in range(bins + 1)]
+    return quantiles(data, levels, weights)
+
+
 def plot(data, weights=None,
          bins=4, ypos=0, height=0.6,
          whisker=0.1, show_whiskers=True):
-    levels = [x/bins for x in range(bins + 1)]
-    values = quantiles(data, levels, weights)
+    values = pavement_stats(data, bins=bins, weights=weights)
     draw_pavement(values, ypos=ypos, height=height,
                   whisker=whisker, show_whiskers=show_whiskers)
 
