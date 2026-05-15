@@ -10,13 +10,26 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Aaron Schumacher" }]
-dependencies = ["matplotlib"]
+keywords = ["quantile", "boxplot", "visualization", "matplotlib", "statistics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = ["matplotlib>=3.5"]
 
 [project.optional-dependencies]
 test = ["pytest"]
 
 [project.urls]
 Homepage = "https://github.com/ajschumacher/pavement"
+Issues = "https://github.com/ajschumacher/pavement/issues"
+Changelog = "https://github.com/ajschumacher/pavement/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pavement"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
