@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Hashable, Sequence
-from typing import Literal
+from collections.abc import Hashable, Mapping, Sequence
+from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 
@@ -121,6 +121,7 @@ def draw_pavement(
     whisker: float = 0.1,
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
+    line_props: Mapping[str, Any] | None = None,
 ) -> None:
     """
     Draw a single pavement row from precomputed quantile values.
@@ -152,6 +153,13 @@ def draw_pavement(
         Direction of the value axis. 'vertical' puts values on the
         y-axis (matplotlib's boxplot default); 'horizontal' puts them
         on the x-axis.
+    line_props : dict, optional
+        Line2D properties (color, linewidth, linestyle, alpha, ...)
+        passed through to the underlying ``plt.vlines`` /
+        ``plt.hlines`` calls. Applied uniformly to the quantile ticks,
+        whisker marks, and box edges. Defaults to ``{'color': 'black'}``;
+        partial overrides merge on top of that default (e.g. passing
+        ``{'linewidth': 2}`` keeps lines black).
 
     Raises
     ------
@@ -170,13 +178,14 @@ def draw_pavement(
     else:
         raise ValueError(
             f"orientation must be 'vertical' or 'horizontal', got {orientation!r}")
+    props = {'color': 'black', **(line_props or {})}
     pos_lo, pos_hi = position - width/2, position + width/2
-    perp(values, pos_lo, pos_hi, color='black')
+    perp(values, pos_lo, pos_hi, **props)
     if show_whiskers:
         dupes = [x for x, n in Counter(values).items() if n > 1]
         if dupes:
-            perp(dupes, pos_lo - whisker, pos_hi + whisker, color='black')
-    along([pos_lo, pos_hi], values[0], values[-1], color='black')
+            perp(dupes, pos_lo - whisker, pos_hi + whisker, **props)
+    along([pos_lo, pos_hi], values[0], values[-1], **props)
 
 
 def plot(
@@ -190,6 +199,7 @@ def plot(
     whisker: float = 0.1,
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
+    line_props: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
 ) -> None:
     """
     Draw one or more pavement rows.
@@ -238,12 +248,17 @@ def plot(
         Direction of the value axis. 'vertical' puts values on the
         y-axis (matplotlib's boxplot default); 'horizontal' puts them
         on the x-axis.
+    line_props : dict or sequence of dict, optional
+        Per-row line styling. A single dict applies to every row; a
+        sequence sets each row individually and must have length equal
+        to the number of rows. See `draw_pavement` for the dict
+        semantics.
 
     Raises
     ------
     ValueError
-        If *positions* or *widths* is given as a sequence and its
-        length doesn't match the number of rows.
+        If *positions*, *widths*, or *line_props* is given as a
+        sequence and its length doesn't match the number of rows.
 
     See Also
     --------
@@ -272,12 +287,18 @@ def plot(
     elif len(widths) != n:
         raise ValueError(
             f"widths has length {len(widths)}, expected {n}")
+    if line_props is None or isinstance(line_props, Mapping):
+        line_props = [line_props] * n
+    elif len(line_props) != n:
+        raise ValueError(
+            f"line_props has length {len(line_props)}, expected {n}")
     weight_iter = weights if weights is not None else [None] * n
-    for dataset, w, pos, width in zip(data, weight_iter, positions, widths):
+    for dataset, w, pos, width, props in zip(
+            data, weight_iter, positions, widths, line_props):
         values = pavement_stats(dataset, bins=bins, weights=w)
         draw_pavement(values, position=pos, width=width,
                       whisker=whisker, show_whiskers=show_whiskers,
-                      orientation=orientation)
+                      orientation=orientation, line_props=props)
     if tick_labels is not None:
         ax = plt.gca()
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
