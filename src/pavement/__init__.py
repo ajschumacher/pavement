@@ -59,23 +59,25 @@ def pavement_stats(data, bins=4, weights=None):
     return quantiles(data, levels, weights)
 
 
-def plot(data, weights=None,
+def plot(data, weights=None, categories=None, labels=None,
          bins=4, ypos=0, height=0.6,
          whisker=0.1, show_whiskers=True):
-    values = pavement_stats(data, bins=bins, weights=weights)
-    draw_pavement(values, ypos=ypos, height=height,
-                  whisker=whisker, show_whiskers=show_whiskers)
-
-
-def multi(data, categories, labels=None, weights=None,
-          bins=4, height=0.6,
-          whisker=0.1, show_whiskers=True):
-    if labels is None:
-        labels = sorted(list(set(categories)))
-    for index, label in enumerate(labels[::-1]):
-        subdata = [d for d, c in zip(data, categories) if c == label]
-        subweights = ([w for w, c in zip(weights, categories) if c == label]
-                      if weights is not None else None)
-        plot(subdata, weights=subweights, bins=bins, ypos=index, height=height,
-             whisker=whisker, show_whiskers=show_whiskers)
-    plt.gca().set_yticks(list(range(len(labels))), labels[::-1])
+    if categories is not None:
+        if labels is None:
+            labels = sorted(set(categories))
+        data = [[d for d, c in zip(data, categories) if c == label]
+                for label in labels]
+        if weights is not None:
+            weights = [[w for w, c in zip(weights, categories) if c == label]
+                       for label in labels]
+    if not hasattr(data[0], '__iter__'):
+        data = [data]
+        weights = [weights] if weights is not None else None
+    n = len(data)
+    for index, dataset in enumerate(data):
+        subweights = weights[index] if weights is not None else None
+        values = pavement_stats(dataset, bins=bins, weights=subweights)
+        draw_pavement(values, ypos=ypos + n - 1 - index, height=height,
+                      whisker=whisker, show_whiskers=show_whiskers)
+    if labels is not None:
+        plt.gca().set_yticks(range(ypos, ypos + n), list(reversed(labels)))

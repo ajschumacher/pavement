@@ -1,6 +1,9 @@
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import pytest
 
-from pavement import pavement_stats, quantiles
+from pavement import pavement_stats, plot, quantiles
 
 
 def test_quantiles_median_odd():
@@ -34,3 +37,21 @@ def test_quantiles_presorted_rejects_unsorted():
 
 def test_pavement_stats_default_bins():
     assert pavement_stats([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]
+
+
+def test_plot_single():
+    plt.figure()
+    plot([1, 2, 3, 4, 5])
+    plt.close()
+
+
+def test_plot_wide():
+    plt.figure()
+    plot([[1, 2, 3], [4, 5, 6]], labels=["a", "b"])
+    plt.close()
+
+
+def test_plot_tidy():
+    plt.figure()
+    plot([1, 2, 3, 4, 5, 6], categories=["a", "a", "a", "b", "b", "b"])
+    plt.close()
