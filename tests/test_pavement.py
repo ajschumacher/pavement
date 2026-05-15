@@ -55,3 +55,14 @@ def test_plot_tidy():
     plt.figure()
     plot([1, 2, 3, 4, 5, 6], categories=["a", "a", "a", "b", "b", "b"])
     plt.close()
+
+
+def test_plot_horizontal():
+    plt.figure()
+    plot([[1, 2, 3], [4, 5, 6]], labels=["a", "b"], orientation="horizontal")
+    plt.close()
+
+
+def test_plot_invalid_orientation():
+    with pytest.raises(ValueError, match="orientation"):
+        plot([1, 2, 3], orientation="sideways")

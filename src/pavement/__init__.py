@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Hashable, Sequence
+from typing import Literal
 
 import matplotlib.pyplot as plt
 
@@ -119,14 +120,15 @@ def draw_pavement(
     height: float = 0.6,
     whisker: float = 0.1,
     show_whiskers: bool = True,
+    orientation: Literal['vertical', 'horizontal'] = 'vertical',
 ) -> None:
     """
     Draw a single pavement row from precomputed quantile values.
 
-    Renders a vertical tick at each value, a box outline spanning
-    ``values[0]`` to ``values[-1]``, and whisker marks at any value
-    that occurs more than once (a sign that the data is concentrated
-    there).
+    Renders a tick at each value perpendicular to the value axis, a
+    box outline spanning ``values[0]`` to ``values[-1]``, and whisker
+    marks at any value that occurs more than once (a sign that the
+    data is concentrated there).
 
     Parameters
     ----------
@@ -134,32 +136,45 @@ def draw_pavement(
         Quantile values in ascending order, as returned by
         `pavement_stats`.
     ypos : float, default: 0
-        Vertical center of the row.
+        Center of the row along the axis perpendicular to the value
+        axis. For ``orientation='vertical'`` this is an x-coordinate;
+        for ``orientation='horizontal'`` it is a y-coordinate.
     height : float, default: 0.6
-        Total height of the box outline.
+        Total thickness of the box outline (perpendicular to the
+        value axis).
     whisker : float, default: 0.1
-        Extra vertical extent of the whisker marks beyond the box.
+        Extra extent of the whisker marks beyond the box.
     show_whiskers : bool, default: True
         If False, suppress the whisker marks even at repeated values.
+    orientation : {'vertical', 'horizontal'}, default: 'vertical'
+        Direction of the value axis. 'vertical' puts values on the
+        y-axis (matplotlib's boxplot default); 'horizontal' puts them
+        on the x-axis.
+
+    Raises
+    ------
+    ValueError
+        If *orientation* is not 'vertical' or 'horizontal'.
 
     See Also
     --------
     pavement_stats : Compute the values to pass in.
     plot : One-call convenience that combines stats and drawing.
     """
-    plt.vlines(values,
-               ymin=ypos - height/2, ymax=ypos + height/2,
-               color='black')
+    if orientation == 'vertical':
+        perp, along = plt.hlines, plt.vlines
+    elif orientation == 'horizontal':
+        perp, along = plt.vlines, plt.hlines
+    else:
+        raise ValueError(
+            f"orientation must be 'vertical' or 'horizontal', got {orientation!r}")
+    pos_lo, pos_hi = ypos - height/2, ypos + height/2
+    perp(values, pos_lo, pos_hi, color='black')
     if show_whiskers:
         dupes = [x for x, n in Counter(values).items() if n > 1]
         if dupes:
-            plt.vlines(dupes,
-                       ymin=ypos - height/2 - whisker,
-                       ymax=ypos + height/2 + whisker,
-                       color='black')
-    plt.hlines([ypos - height/2, ypos + height/2],
-               xmin=values[0], xmax=values[-1],
-               color='black')
+            perp(dupes, pos_lo - whisker, pos_hi + whisker, color='black')
+    along([pos_lo, pos_hi], values[0], values[-1], color='black')
 
 
 def plot(
@@ -172,6 +187,7 @@ def plot(
     height: float = 0.6,
     whisker: float = 0.1,
     show_whiskers: bool = True,
+    orientation: Literal['vertical', 'horizontal'] = 'vertical',
 ) -> None:
     """
     Draw one or more pavement rows.
@@ -179,9 +195,9 @@ def plot(
     Accepts three input shapes:
 
     - A 1D sequence of values: a single row at *ypos*.
-    - A sequence of 1D sequences: one row per dataset, stacked
-      bottom-to-top starting at *ypos* (matching matplotlib's
-      ``boxplot`` order).
+    - A sequence of 1D sequences: one row per dataset, laid out
+      starting at *ypos* and incrementing by 1 (matching matplotlib's
+      ``boxplot`` order: ``data[0]`` at the smallest position).
     - A 1D sequence plus *categories*: tidy/long form. The data is
       split by category and rendered as in the wide form.
 
@@ -197,20 +213,25 @@ def plot(
         given, *data* is treated as tidy/long form and split by
         category.
     labels : sequence of str, optional
-        Y-tick labels, one per row, ordered bottom-to-top. In tidy
-        form, also selects which categories to include and their
-        order. Y-ticks are only set when this is provided.
+        Tick labels, one per row, in the same order as the rows. In
+        tidy form, also selects which categories to include and their
+        order. Ticks are only set when this is provided, on the x-axis
+        for ``orientation='vertical'`` and the y-axis otherwise.
     bins : int, default: 4
         Number of equal-mass bins per row.
     ypos : float, default: 0
-        Vertical position of the bottom row. In single-row mode this
-        is the row's center.
+        Position of the first row along the axis perpendicular to the
+        value axis. In single-row mode this is the row's center.
     height : float, default: 0.6
-        Height of each row's box outline.
+        Thickness of each row's box outline.
     whisker : float, default: 0.1
-        Extra vertical extent of the whisker marks beyond the box.
+        Extra extent of the whisker marks beyond the box.
     show_whiskers : bool, default: True
         If False, suppress whisker marks at repeated quantile values.
+    orientation : {'vertical', 'horizontal'}, default: 'vertical'
+        Direction of the value axis. 'vertical' puts values on the
+        y-axis (matplotlib's boxplot default); 'horizontal' puts them
+        on the x-axis.
 
     See Also
     --------
@@ -233,6 +254,9 @@ def plot(
         subweights = weights[index] if weights is not None else None
         values = pavement_stats(dataset, bins=bins, weights=subweights)
         draw_pavement(values, ypos=ypos + index, height=height,
-                      whisker=whisker, show_whiskers=show_whiskers)
+                      whisker=whisker, show_whiskers=show_whiskers,
+                      orientation=orientation)
     if labels is not None:
-        plt.gca().set_yticks(range(ypos, ypos + n), list(labels))
+        ax = plt.gca()
+        set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
+        set_ticks(range(ypos, ypos + n), list(labels))
