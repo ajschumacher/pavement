@@ -117,7 +117,7 @@ def pavement_stats(
 def draw_pavement(
     values: Sequence[float],
     position: float = 1,
-    height: float = 0.6,
+    width: float = 0.6,
     whisker: float = 0.1,
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
@@ -141,7 +141,7 @@ def draw_pavement(
         for ``orientation='horizontal'`` it is a y-coordinate. The
         default matches matplotlib's ``boxplot``, which places a
         single box at position 1.
-    height : float, default: 0.6
+    width : float, default: 0.6
         Total thickness of the box outline (perpendicular to the
         value axis).
     whisker : float, default: 0.1
@@ -170,7 +170,7 @@ def draw_pavement(
     else:
         raise ValueError(
             f"orientation must be 'vertical' or 'horizontal', got {orientation!r}")
-    pos_lo, pos_hi = position - height/2, position + height/2
+    pos_lo, pos_hi = position - width/2, position + width/2
     perp(values, pos_lo, pos_hi, color='black')
     if show_whiskers:
         dupes = [x for x, n in Counter(values).items() if n > 1]
@@ -186,7 +186,7 @@ def plot(
     categories: Sequence[Hashable] | None = None,
     tick_labels: Sequence[Hashable] | None = None,
     bins: int = 4,
-    height: float = 0.6,
+    widths: float | Sequence[float] = 0.6,
     whisker: float = 0.1,
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
@@ -226,8 +226,10 @@ def plot(
         for ``orientation='vertical'`` and the y-axis otherwise.
     bins : int, default: 4
         Number of equal-mass bins per row.
-    height : float, default: 0.6
-        Thickness of each row's box outline.
+    widths : float or sequence of float, default: 0.6
+        Thickness of each row's box outline. A scalar applies to
+        every row; a sequence sets each row's width individually and
+        must have length equal to the number of rows.
     whisker : float, default: 0.1
         Extra extent of the whisker marks beyond the box.
     show_whiskers : bool, default: True
@@ -240,8 +242,8 @@ def plot(
     Raises
     ------
     ValueError
-        If *positions* is given and its length doesn't match the
-        number of rows.
+        If *positions* or *widths* is given as a sequence and its
+        length doesn't match the number of rows.
 
     See Also
     --------
@@ -265,10 +267,15 @@ def plot(
     elif len(positions) != n:
         raise ValueError(
             f"positions has length {len(positions)}, expected {n}")
+    if isinstance(widths, (int, float)):
+        widths = [widths] * n
+    elif len(widths) != n:
+        raise ValueError(
+            f"widths has length {len(widths)}, expected {n}")
     weight_iter = weights if weights is not None else [None] * n
-    for dataset, w, pos in zip(data, weight_iter, positions):
+    for dataset, w, pos, width in zip(data, weight_iter, positions, widths):
         values = pavement_stats(dataset, bins=bins, weights=w)
-        draw_pavement(values, position=pos, height=height,
+        draw_pavement(values, position=pos, width=width,
                       whisker=whisker, show_whiskers=show_whiskers,
                       orientation=orientation)
     if tick_labels is not None:
