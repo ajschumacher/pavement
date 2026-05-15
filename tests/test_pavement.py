@@ -77,3 +77,14 @@ def test_plot_custom_positions():
     plt.figure()
     plot([[1, 2, 3], [4, 5, 6]], positions=[0, 10])
     plt.close()
+
+
+def test_plot_widths_array():
+    plt.figure()
+    plot([[1, 2, 3], [4, 5, 6]], widths=[0.3, 0.8])
+    plt.close()
+
+
+def test_plot_widths_length_mismatch():
+    with pytest.raises(ValueError, match="widths"):
+        plot([[1, 2, 3], [4, 5, 6]], widths=[0.3])
