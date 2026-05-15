@@ -3,9 +3,9 @@
 Quantile-based pavement plots with matplotlib. Every box contains an
 equal share of the data.
 
-![plot of four data sets](examples/four_sets.png)
+![plot of four data sets](https://raw.githubusercontent.com/ajschumacher/pavement/main/examples/four_sets.png)
 
-See more in the [demo notebook](examples/demo.ipynb).
+See more in the [demo notebook](https://github.com/ajschumacher/pavement/blob/main/examples/demo.ipynb).
 
 
 ## Install
