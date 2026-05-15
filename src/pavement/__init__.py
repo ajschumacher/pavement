@@ -70,16 +70,14 @@ def plot(data, weights=None, categories=None, labels=None,
         if weights is not None:
             weights = [[w for w, c in zip(weights, categories) if c == label]
                        for label in labels]
-    if data and hasattr(data[0], '__iter__') and not isinstance(data[0], str):
-        n = len(data)
-        for index, dataset in enumerate(data):
-            subweights = weights[index] if weights is not None else None
-            values = pavement_stats(dataset, bins=bins, weights=subweights)
-            draw_pavement(values, ypos=n - 1 - index, height=height,
-                          whisker=whisker, show_whiskers=show_whiskers)
-        if labels is not None:
-            plt.gca().set_yticks(range(n), list(reversed(labels)))
-        return
-    values = pavement_stats(data, bins=bins, weights=weights)
-    draw_pavement(values, ypos=ypos, height=height,
-                  whisker=whisker, show_whiskers=show_whiskers)
+    if not hasattr(data[0], '__iter__'):
+        data = [data]
+        weights = [weights] if weights is not None else None
+    n = len(data)
+    for index, dataset in enumerate(data):
+        subweights = weights[index] if weights is not None else None
+        values = pavement_stats(dataset, bins=bins, weights=subweights)
+        draw_pavement(values, ypos=ypos + n - 1 - index, height=height,
+                      whisker=whisker, show_whiskers=show_whiskers)
+    if labels is not None:
+        plt.gca().set_yticks(range(ypos, ypos + n), list(reversed(labels)))
