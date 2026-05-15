@@ -88,3 +88,21 @@ def test_plot_widths_array():
 def test_plot_widths_length_mismatch():
     with pytest.raises(ValueError, match="widths"):
         plot([[1, 2, 3], [4, 5, 6]], widths=[0.3])
+
+
+def test_plot_line_props_dict():
+    plt.figure()
+    plot([[1, 2, 3], [4, 5, 6]], line_props={'color': 'red', 'linewidth': 2})
+    plt.close()
+
+
+def test_plot_line_props_per_row():
+    plt.figure()
+    plot([[1, 2, 3], [4, 5, 6]],
+         line_props=[{'color': 'red'}, {'color': 'blue'}])
+    plt.close()
+
+
+def test_plot_line_props_length_mismatch():
+    with pytest.raises(ValueError, match="line_props"):
+        plot([[1, 2, 3], [4, 5, 6]], line_props=[{'color': 'red'}])
