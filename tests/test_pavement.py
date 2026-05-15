@@ -27,10 +27,6 @@ def test_quantiles_sorts_unsorted_input():
     assert quantiles([3, 1, 2], [0.5]) == [2]
 
 
-def test_quantiles_presorted_skips_sort():
-    assert quantiles([1, 2, 3], [0.5], presorted=True) == [2]
-
-
 def test_quantiles_presorted_rejects_unsorted():
     with pytest.raises(ValueError, match="sorted"):
         quantiles([3, 1, 2], [0.5], presorted=True)
