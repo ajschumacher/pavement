@@ -66,3 +66,14 @@ def test_plot_horizontal():
 def test_plot_invalid_orientation():
     with pytest.raises(ValueError, match="orientation"):
         plot([1, 2, 3], orientation="sideways")
+
+
+def test_plot_positions_length_mismatch():
+    with pytest.raises(ValueError, match="positions"):
+        plot([[1, 2, 3], [4, 5, 6]], positions=[0])
+
+
+def test_plot_custom_positions():
+    plt.figure()
+    plot([[1, 2, 3], [4, 5, 6]], positions=[0, 10])
+    plt.close()

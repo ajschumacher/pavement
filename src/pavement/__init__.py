@@ -116,7 +116,7 @@ def pavement_stats(
 
 def draw_pavement(
     values: Sequence[float],
-    ypos: float = 0,
+    position: float = 1,
     height: float = 0.6,
     whisker: float = 0.1,
     show_whiskers: bool = True,
@@ -135,10 +135,12 @@ def draw_pavement(
     values : sequence of float
         Quantile values in ascending order, as returned by
         `pavement_stats`.
-    ypos : float, default: 0
+    position : float, default: 1
         Center of the row along the axis perpendicular to the value
         axis. For ``orientation='vertical'`` this is an x-coordinate;
-        for ``orientation='horizontal'`` it is a y-coordinate.
+        for ``orientation='horizontal'`` it is a y-coordinate. The
+        default matches matplotlib's ``boxplot``, which places a
+        single box at position 1.
     height : float, default: 0.6
         Total thickness of the box outline (perpendicular to the
         value axis).
@@ -168,7 +170,7 @@ def draw_pavement(
     else:
         raise ValueError(
             f"orientation must be 'vertical' or 'horizontal', got {orientation!r}")
-    pos_lo, pos_hi = ypos - height/2, ypos + height/2
+    pos_lo, pos_hi = position - height/2, position + height/2
     perp(values, pos_lo, pos_hi, color='black')
     if show_whiskers:
         dupes = [x for x, n in Counter(values).items() if n > 1]
@@ -180,10 +182,10 @@ def draw_pavement(
 def plot(
     data: Sequence[float] | Sequence[Sequence[float]],
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
+    positions: Sequence[float] | None = None,
     categories: Sequence[Hashable] | None = None,
     labels: Sequence[Hashable] | None = None,
     bins: int = 4,
-    ypos: float = 0,
     height: float = 0.6,
     whisker: float = 0.1,
     show_whiskers: bool = True,
@@ -194,10 +196,10 @@ def plot(
 
     Accepts three input shapes:
 
-    - A 1D sequence of values: a single row at *ypos*.
-    - A sequence of 1D sequences: one row per dataset, laid out
-      starting at *ypos* and incrementing by 1 (matching matplotlib's
-      ``boxplot`` order: ``data[0]`` at the smallest position).
+    - A 1D sequence of values: a single row.
+    - A sequence of 1D sequences: one row per dataset, at *positions*
+      (matching matplotlib's ``boxplot``: ``data[0]`` at the smallest
+      position).
     - A 1D sequence plus *categories*: tidy/long form. The data is
       split by category and rendered as in the wide form.
 
@@ -208,6 +210,11 @@ def plot(
     weights : sequence, optional
         Positive weights. Must match the shape of *data*: flat for a
         single row or tidy form, nested for wide form.
+    positions : sequence of float, optional
+        Position of each row along the axis perpendicular to the
+        value axis. Defaults to ``[1, 2, ..., N]``, matching
+        matplotlib's ``boxplot``. Length must equal the number of
+        rows.
     categories : sequence, optional
         Category label per entry in *data*, parallel to *data*. If
         given, *data* is treated as tidy/long form and split by
@@ -219,9 +226,6 @@ def plot(
         for ``orientation='vertical'`` and the y-axis otherwise.
     bins : int, default: 4
         Number of equal-mass bins per row.
-    ypos : float, default: 0
-        Position of the first row along the axis perpendicular to the
-        value axis. In single-row mode this is the row's center.
     height : float, default: 0.6
         Thickness of each row's box outline.
     whisker : float, default: 0.1
@@ -232,6 +236,12 @@ def plot(
         Direction of the value axis. 'vertical' puts values on the
         y-axis (matplotlib's boxplot default); 'horizontal' puts them
         on the x-axis.
+
+    Raises
+    ------
+    ValueError
+        If *positions* is given and its length doesn't match the
+        number of rows.
 
     See Also
     --------
@@ -250,13 +260,18 @@ def plot(
         data = [data]
         weights = [weights] if weights is not None else None
     n = len(data)
-    for index, dataset in enumerate(data):
-        subweights = weights[index] if weights is not None else None
-        values = pavement_stats(dataset, bins=bins, weights=subweights)
-        draw_pavement(values, ypos=ypos + index, height=height,
+    if positions is None:
+        positions = list(range(1, n + 1))
+    elif len(positions) != n:
+        raise ValueError(
+            f"positions has length {len(positions)}, expected {n}")
+    weight_iter = weights if weights is not None else [None] * n
+    for dataset, w, pos in zip(data, weight_iter, positions):
+        values = pavement_stats(dataset, bins=bins, weights=w)
+        draw_pavement(values, position=pos, height=height,
                       whisker=whisker, show_whiskers=show_whiskers,
                       orientation=orientation)
     if labels is not None:
         ax = plt.gca()
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
-        set_ticks(range(ypos, ypos + n), list(labels))
+        set_ticks(list(positions), list(labels))
