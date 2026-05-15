@@ -184,7 +184,7 @@ def plot(
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
     positions: Sequence[float] | None = None,
     categories: Sequence[Hashable] | None = None,
-    labels: Sequence[Hashable] | None = None,
+    tick_labels: Sequence[Hashable] | None = None,
     bins: int = 4,
     height: float = 0.6,
     whisker: float = 0.1,
@@ -219,7 +219,7 @@ def plot(
         Category label per entry in *data*, parallel to *data*. If
         given, *data* is treated as tidy/long form and split by
         category.
-    labels : sequence of str, optional
+    tick_labels : sequence of str, optional
         Tick labels, one per row, in the same order as the rows. In
         tidy form, also selects which categories to include and their
         order. Ticks are only set when this is provided, on the x-axis
@@ -249,13 +249,13 @@ def plot(
     draw_pavement : Render one row from precomputed values.
     """
     if categories is not None:
-        if labels is None:
-            labels = sorted(set(categories))
+        if tick_labels is None:
+            tick_labels = sorted(set(categories))
         data = [[d for d, c in zip(data, categories) if c == label]
-                for label in labels]
+                for label in tick_labels]
         if weights is not None:
             weights = [[w for w, c in zip(weights, categories) if c == label]
-                       for label in labels]
+                       for label in tick_labels]
     if not hasattr(data[0], '__iter__'):
         data = [data]
         weights = [weights] if weights is not None else None
@@ -271,7 +271,7 @@ def plot(
         draw_pavement(values, position=pos, height=height,
                       whisker=whisker, show_whiskers=show_whiskers,
                       orientation=orientation)
-    if labels is not None:
+    if tick_labels is not None:
         ax = plt.gca()
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
-        set_ticks(list(positions), list(labels))
+        set_ticks(list(positions), list(tick_labels))
