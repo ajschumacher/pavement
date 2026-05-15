@@ -1,9 +1,17 @@
+from __future__ import annotations
+
 from collections import Counter
+from collections.abc import Hashable, Sequence
 
 import matplotlib.pyplot as plt
 
 
-def quantiles(data, levels, weights=None, presorted=False):
+def quantiles(
+    data: Sequence[float],
+    levels: Sequence[float],
+    weights: Sequence[float] | None = None,
+    presorted: bool = False,
+) -> list[float]:
     """
     Compute Type 2 quantiles, optionally weighted.
 
@@ -69,7 +77,11 @@ def quantiles(data, levels, weights=None, presorted=False):
     return results
 
 
-def pavement_stats(data, bins=4, weights=None):
+def pavement_stats(
+    data: Sequence[float],
+    bins: int = 4,
+    weights: Sequence[float] | None = None,
+) -> list[float]:
     """
     Compute the quantile values that define a single pavement plot.
 
@@ -101,8 +113,13 @@ def pavement_stats(data, bins=4, weights=None):
     return quantiles(data, levels, weights)
 
 
-def draw_pavement(values, ypos=0, height=0.6,
-                  whisker=0.1, show_whiskers=True):
+def draw_pavement(
+    values: Sequence[float],
+    ypos: float = 0,
+    height: float = 0.6,
+    whisker: float = 0.1,
+    show_whiskers: bool = True,
+) -> None:
     """
     Draw a single pavement row from precomputed quantile values.
 
@@ -145,9 +162,17 @@ def draw_pavement(values, ypos=0, height=0.6,
                color='black')
 
 
-def plot(data, weights=None, categories=None, labels=None,
-         bins=4, ypos=0, height=0.6,
-         whisker=0.1, show_whiskers=True):
+def plot(
+    data: Sequence[float] | Sequence[Sequence[float]],
+    weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
+    categories: Sequence[Hashable] | None = None,
+    labels: Sequence[Hashable] | None = None,
+    bins: int = 4,
+    ypos: float = 0,
+    height: float = 0.6,
+    whisker: float = 0.1,
+    show_whiskers: bool = True,
+) -> None:
     """
     Draw one or more pavement rows.
 
