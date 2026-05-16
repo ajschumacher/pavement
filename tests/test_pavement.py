@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pytest
 
-from pavement import pavement_stats, plot, quantiles
+from pavement import draw_pavement, pavement_stats, plot, quantiles
 
 
 def test_quantiles_median_odd():
@@ -115,3 +115,37 @@ def test_plot_bins_array():
 def test_plot_bins_length_mismatch():
     with pytest.raises(ValueError, match="bins"):
         plot([[1, 2, 3], [4, 5, 6]], bins=[4])
+
+
+def test_draw_pavement_returns_artist_dict():
+    plt.figure()
+    artists = draw_pavement([1, 2, 3, 4, 5])
+    assert set(artists) == {"ticks", "whiskers", "box"}
+    assert artists["ticks"] is not None
+    assert artists["box"] is not None
+    assert artists["whiskers"] is None  # no repeated values
+    plt.close()
+
+
+def test_draw_pavement_returns_whiskers_when_dupes():
+    plt.figure()
+    artists = draw_pavement([1, 1, 2, 3])  # 1 repeats -> whisker mark
+    assert artists["whiskers"] is not None
+    plt.close()
+
+
+def test_plot_returns_list_of_artist_dicts():
+    plt.figure()
+    artists = plot([[1, 2, 3], [4, 5, 6]])
+    assert isinstance(artists, list)
+    assert len(artists) == 2
+    assert all(set(d) == {"ticks", "whiskers", "box"} for d in artists)
+    plt.close()
+
+
+def test_plot_respects_ax_argument():
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    plot([1, 2, 3], ax=ax2)
+    assert len(ax1.collections) == 0
+    assert len(ax2.collections) > 0
+    plt.close(fig)
