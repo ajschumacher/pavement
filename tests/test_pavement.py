@@ -104,3 +104,14 @@ def test_plot_line_props_per_row():
 def test_plot_line_props_length_mismatch():
     with pytest.raises(ValueError, match="line_props"):
         plot([[1, 2, 3], [4, 5, 6]], line_props=[{'color': 'red'}])
+
+
+def test_plot_bins_array():
+    plt.figure()
+    plot([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[2, 4])
+    plt.close()
+
+
+def test_plot_bins_length_mismatch():
+    with pytest.raises(ValueError, match="bins"):
+        plot([[1, 2, 3], [4, 5, 6]], bins=[4])
