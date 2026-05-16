@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Hashable, Iterable, Mapping, Sequence
-from numbers import Number
+from numbers import Integral, Number
 from typing import Any, Literal
 
 import matplotlib.pyplot as plt
@@ -199,7 +199,7 @@ def plot(
     positions: Sequence[float] | None = None,
     categories: Sequence[Hashable] | None = None,
     tick_labels: Sequence[Hashable] | None = None,
-    bins: int = 4,
+    bins: int | Sequence[int] = 4,
     widths: float | Sequence[float] = 0.6,
     whisker: float = 0.1,
     show_whiskers: bool = True,
@@ -239,8 +239,10 @@ def plot(
         tidy form, also selects which categories to include and their
         order. Ticks are only set when this is provided, on the x-axis
         for ``orientation='vertical'`` and the y-axis otherwise.
-    bins : int, default: 4
-        Number of equal-mass bins per row.
+    bins : int or sequence of int, default: 4
+        Number of equal-mass bins per row. A scalar applies to every
+        row; a sequence sets each row's bin count individually and
+        must have length equal to the number of rows.
     widths : float or sequence of float, default: 0.6
         Thickness of each row's box outline. A scalar applies to
         every row; a sequence sets each row's width individually and
@@ -262,8 +264,8 @@ def plot(
     Raises
     ------
     ValueError
-        If *positions*, *widths*, or *line_props* is given as a
-        sequence and its length doesn't match the number of rows.
+        If *positions*, *bins*, *widths*, or *line_props* is given as
+        a sequence and its length doesn't match the number of rows.
 
     See Also
     --------
@@ -287,6 +289,11 @@ def plot(
     elif len(positions) != n:
         raise ValueError(
             f"positions has length {len(positions)}, expected {n}")
+    if isinstance(bins, Integral):
+        bins = [bins] * n
+    elif len(bins) != n:
+        raise ValueError(
+            f"bins has length {len(bins)}, expected {n}")
     if isinstance(widths, Number):
         widths = [widths] * n
     elif len(widths) != n:
@@ -298,9 +305,9 @@ def plot(
         raise ValueError(
             f"line_props has length {len(line_props)}, expected {n}")
     weight_iter = weights if weights is not None else [None] * n
-    for dataset, w, pos, width, props in zip(
-            data, weight_iter, positions, widths, line_props):
-        values = pavement_stats(dataset, bins=bins, weights=w)
+    for dataset, w, pos, b, width, props in zip(
+            data, weight_iter, positions, bins, widths, line_props):
+        values = pavement_stats(dataset, bins=b, weights=w)
         draw_pavement(values, position=pos, width=width,
                       whisker=whisker, show_whiskers=show_whiskers,
                       orientation=orientation, line_props=props)
