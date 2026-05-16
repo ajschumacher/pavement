@@ -33,6 +33,11 @@ def test_quantiles_presorted_rejects_unsorted():
         quantiles([3, 1, 2], [0.5], presorted=True)
 
 
+def test_quantiles_weights_length_mismatch():
+    with pytest.raises(ValueError, match="weights"):
+        quantiles([1, 2, 3], [0.5], weights=[0.5])
+
+
 def test_pavement_stats_default_bins():
     assert pavement_stats([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]
 
@@ -40,6 +45,11 @@ def test_pavement_stats_default_bins():
 def test_pavement_stats_presorted_rejects_unsorted():
     with pytest.raises(ValueError, match="sorted"):
         pavement_stats([3, 1, 2], presorted=True)
+
+
+def test_pavement_stats_invalid_bins():
+    with pytest.raises(ValueError, match="bins"):
+        pavement_stats([1, 2, 3, 4, 5], bins=0)
 
 
 def test_plot_single():
@@ -154,3 +164,15 @@ def test_plot_respects_ax_argument():
     assert len(ax1.collections) == 0
     assert len(ax2.collections) > 0
     plt.close(fig)
+
+
+def test_draw_pavement_empty_values():
+    plt.figure()
+    with pytest.raises(ValueError, match="empty"):
+        draw_pavement([])
+    plt.close()
+
+
+def test_plot_empty_data():
+    with pytest.raises(ValueError, match="empty"):
+        plot([])

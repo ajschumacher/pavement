@@ -50,12 +50,17 @@ def quantiles(
     Raises
     ------
     ValueError
-        If *levels* is not strictly increasing in [0, 1], if *data* is
-        not sorted when *presorted* is True, or if any weight is not
+        If *levels* is not strictly increasing in [0, 1]; if *weights*
+        is given and its length doesn't match *data*; if *data* is not
+        sorted when *presorted* is True; or if any weight is not
         positive.
     """
     if not all(0 <= a < b <= 1 for a, b in zip(levels, levels[1:])):
         raise ValueError("levels must be strictly increasing in [0, 1]")
+    data = list(data)
+    if weights is not None and len(weights) != len(data):
+        raise ValueError(
+            f"weights has length {len(weights)}, expected {len(data)}")
     if not presorted:
         if weights is None:
             data = sorted(data)
@@ -116,11 +121,19 @@ def pavement_stats(
     list of float
         ``bins + 1`` quantile values in ascending order.
 
+    Raises
+    ------
+    ValueError
+        If *bins* is less than 1, or for any reason raised by
+        `quantiles`.
+
     See Also
     --------
     quantiles : The underlying quantile computation.
     draw_pavement : Render these values as a pavement row.
     """
+    if bins < 1:
+        raise ValueError(f"bins must be a positive integer, got {bins}")
     levels = [x/bins for x in range(bins + 1)]
     return quantiles(data, levels, weights, presorted=presorted)
 
@@ -191,13 +204,16 @@ def draw_pavement(
     Raises
     ------
     ValueError
-        If *orientation* is not 'vertical' or 'horizontal'.
+        If *values* is empty, or if *orientation* is not 'vertical' or
+        'horizontal'.
 
     See Also
     --------
     pavement_stats : Compute the values to pass in.
     plot : One-call convenience that combines stats and drawing.
     """
+    if len(values) == 0:
+        raise ValueError("values must be non-empty")
     if ax is None:
         ax = plt.gca()
     if orientation == 'vertical':
@@ -306,8 +322,11 @@ def plot(
     Raises
     ------
     ValueError
-        If *positions*, *bins*, *widths*, or *line_props* is given as
-        a sequence and its length doesn't match the number of rows.
+        If *data* is empty; if *positions*, *bins*, *widths*, or
+        *line_props* is given as a sequence with the wrong length;
+        or for any reason raised by the underlying `pavement_stats`
+        or `draw_pavement` calls (e.g. non-positive *bins* or
+        invalid *orientation*).
 
     See Also
     --------
@@ -322,6 +341,8 @@ def plot(
         if weights is not None:
             weights = [[w for w, c in zip(weights, categories) if c == label]
                        for label in tick_labels]
+    if len(data) == 0:
+        raise ValueError("data must be non-empty")
     if not hasattr(data[0], '__iter__'):
         data = [data]
         weights = [weights] if weights is not None else None
