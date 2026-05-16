@@ -29,7 +29,7 @@ def quantiles(
 
     Parameters
     ----------
-    data : sequence of float
+    data : iterable of float
         The values to take quantiles of. Sorted internally unless
         *presorted* is True.
     levels : sequence of float
@@ -89,6 +89,7 @@ def pavement_stats(
     data: Iterable[float],
     bins: int = 4,
     weights: Sequence[float] | None = None,
+    presorted: bool = False,
 ) -> list[float]:
     """
     Compute the quantile values that define a single pavement plot.
@@ -98,7 +99,7 @@ def pavement_stats(
 
     Parameters
     ----------
-    data : sequence of float
+    data : iterable of float
         The values to summarize.
     bins : int, default: 4
         Number of equal-mass bins. Yields ``bins + 1`` quantile values:
@@ -106,6 +107,9 @@ def pavement_stats(
     weights : sequence of float, optional
         Positive weights parallel to *data*. If None, each value
         contributes equally.
+    presorted : bool, default: False
+        Passed through to `quantiles`. If True, *data* (and *weights*)
+        are assumed already sorted by *data* in ascending order.
 
     Returns
     -------
@@ -118,7 +122,7 @@ def pavement_stats(
     draw_pavement : Render these values as a pavement row.
     """
     levels = [x/bins for x in range(bins + 1)]
-    return quantiles(data, levels, weights)
+    return quantiles(data, levels, weights, presorted=presorted)
 
 
 def draw_pavement(
@@ -244,7 +248,7 @@ def plot(
 
     Parameters
     ----------
-    data : sequence of float, or sequence of sequences of float
+    data : sequence of float, or sequence of iterables of float
         The values to plot. Shape determines which mode is used.
     weights : sequence, optional
         Positive weights. Must match the shape of *data*: flat for a

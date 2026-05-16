@@ -37,6 +37,11 @@ def test_pavement_stats_default_bins():
     assert pavement_stats([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]
 
 
+def test_pavement_stats_presorted_rejects_unsorted():
+    with pytest.raises(ValueError, match="sorted"):
+        pavement_stats([3, 1, 2], presorted=True)
+
+
 def test_plot_single():
     plt.figure()
     plot([1, 2, 3, 4, 5])
