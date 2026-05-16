@@ -63,7 +63,7 @@ def quantiles(
             f"weights has length {len(weights)}, expected {len(data)}")
     if not presorted:
         if weights is None:
-            data.sort()
+            data = sorted(data)
         else:
             data, weights = zip(*sorted(zip(data, weights)))
     total = len(data) if weights is None else sum(weights)
