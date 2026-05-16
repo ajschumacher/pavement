@@ -129,7 +129,7 @@ def draw_pavement(
     values: Sequence[float],
     position: float = 1,
     width: float = 0.6,
-    whisker: float = 0.1,
+    whisker_extent: float = 0.1,
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | None = None,
@@ -157,8 +157,10 @@ def draw_pavement(
     width : float, default: 0.6
         Total thickness of the box outline (perpendicular to the
         value axis).
-    whisker : float, default: 0.1
-        Extra extent of the whisker marks beyond the box.
+    whisker_extent : float, default: 0.1
+        How far the whisker marks extend beyond the box, perpendicular
+        to the value axis. Unrelated to matplotlib's ``boxplot(whis=)``,
+        which controls outlier cutoffs on the value axis.
     show_whiskers : bool, default: True
         If False, suppress the whisker marks even at repeated values.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
@@ -215,7 +217,9 @@ def draw_pavement(
         dupes = [x for x, n in Counter(values).items() if n > 1]
         if dupes:
             artists['whiskers'] = perp(
-                dupes, pos_lo - whisker, pos_hi + whisker, **props)
+                dupes,
+                pos_lo - whisker_extent, pos_hi + whisker_extent,
+                **props)
     artists['box'] = along([pos_lo, pos_hi], values[0], values[-1], **props)
     return artists
 
@@ -228,7 +232,7 @@ def plot(
     tick_labels: Sequence[Hashable] | None = None,
     bins: int | Sequence[int] = 4,
     widths: float | Sequence[float] = 0.6,
-    whisker: float = 0.1,
+    whisker_extent: float = 0.1,
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
@@ -275,8 +279,10 @@ def plot(
         Thickness of each row's box outline. A scalar applies to
         every row; a sequence sets each row's width individually and
         must have length equal to the number of rows.
-    whisker : float, default: 0.1
-        Extra extent of the whisker marks beyond the box.
+    whisker_extent : float, default: 0.1
+        How far the whisker marks extend beyond the box, perpendicular
+        to the value axis. Unrelated to matplotlib's ``boxplot(whis=)``,
+        which controls outlier cutoffs on the value axis.
     show_whiskers : bool, default: True
         If False, suppress whisker marks at repeated quantile values.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
@@ -349,7 +355,7 @@ def plot(
         values = pavement_stats(dataset, bins=b, weights=w)
         artists.append(draw_pavement(
             values, position=pos, width=width,
-            whisker=whisker, show_whiskers=show_whiskers,
+            whisker_extent=whisker_extent, show_whiskers=show_whiskers,
             orientation=orientation, line_props=props, ax=ax))
     if tick_labels is not None:
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
