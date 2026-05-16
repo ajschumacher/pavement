@@ -8,6 +8,8 @@ from numbers import Integral, Number
 from typing import Any, Literal
 
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.collections import LineCollection
 
 __all__ = ["quantiles", "pavement_stats", "draw_pavement", "plot"]
 
@@ -127,7 +129,8 @@ def draw_pavement(
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | None = None,
-) -> None:
+    ax: Axes | None = None,
+) -> dict[str, LineCollection | None]:
     """
     Draw a single pavement row from precomputed quantile values.
 
@@ -160,11 +163,24 @@ def draw_pavement(
         on the x-axis.
     line_props : dict, optional
         Line2D properties (color, linewidth, linestyle, alpha, ...)
-        passed through to the underlying ``plt.vlines`` /
-        ``plt.hlines`` calls. Applied uniformly to the quantile ticks,
+        passed through to the underlying ``Axes.vlines`` /
+        ``Axes.hlines`` calls. Applied uniformly to the quantile ticks,
         whisker marks, and box edges. Defaults to ``{'color': 'black'}``;
         partial overrides merge on top of that default (e.g. passing
         ``{'linewidth': 2}`` keeps lines black).
+    ax : matplotlib Axes, optional
+        Axes to draw on. Defaults to ``plt.gca()``.
+
+    Returns
+    -------
+    dict
+        Maps component name to the `~matplotlib.collections.LineCollection`
+        artist that was added to the axes:
+
+        - ``"ticks"``: vertical (or horizontal) tick at each quantile.
+        - ``"whiskers"``: the whisker marks at repeated values, or
+          ``None`` if no whiskers were drawn.
+        - ``"box"``: the two long edges of the box.
 
     Raises
     ------
@@ -176,21 +192,28 @@ def draw_pavement(
     pavement_stats : Compute the values to pass in.
     plot : One-call convenience that combines stats and drawing.
     """
+    if ax is None:
+        ax = plt.gca()
     if orientation == 'vertical':
-        perp, along = plt.hlines, plt.vlines
+        perp, along = ax.hlines, ax.vlines
     elif orientation == 'horizontal':
-        perp, along = plt.vlines, plt.hlines
+        perp, along = ax.vlines, ax.hlines
     else:
         raise ValueError(
             f"orientation must be 'vertical' or 'horizontal', got {orientation!r}")
     props = {'color': 'black', **(line_props or {})}
     pos_lo, pos_hi = position - width/2, position + width/2
-    perp(values, pos_lo, pos_hi, **props)
+    artists: dict[str, LineCollection | None] = {
+        'ticks': perp(values, pos_lo, pos_hi, **props),
+        'whiskers': None,
+    }
     if show_whiskers:
         dupes = [x for x, n in Counter(values).items() if n > 1]
         if dupes:
-            perp(dupes, pos_lo - whisker, pos_hi + whisker, **props)
-    along([pos_lo, pos_hi], values[0], values[-1], **props)
+            artists['whiskers'] = perp(
+                dupes, pos_lo - whisker, pos_hi + whisker, **props)
+    artists['box'] = along([pos_lo, pos_hi], values[0], values[-1], **props)
+    return artists
 
 
 def plot(
@@ -205,7 +228,8 @@ def plot(
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
-) -> None:
+    ax: Axes | None = None,
+) -> list[dict[str, LineCollection | None]]:
     """
     Draw one or more pavement rows.
 
@@ -260,6 +284,14 @@ def plot(
         sequence sets each row individually and must have length equal
         to the number of rows. See `draw_pavement` for the dict
         semantics.
+    ax : matplotlib Axes, optional
+        Axes to draw on. Defaults to ``plt.gca()``.
+
+    Returns
+    -------
+    list of dict
+        One artist dict per row, in the same order as the rows. Each
+        dict has the shape returned by `draw_pavement`.
 
     Raises
     ------
@@ -304,14 +336,18 @@ def plot(
     elif len(line_props) != n:
         raise ValueError(
             f"line_props has length {len(line_props)}, expected {n}")
+    if ax is None:
+        ax = plt.gca()
     weight_iter = weights if weights is not None else [None] * n
+    artists = []
     for dataset, w, pos, b, width, props in zip(
             data, weight_iter, positions, bins, widths, line_props):
         values = pavement_stats(dataset, bins=b, weights=w)
-        draw_pavement(values, position=pos, width=width,
-                      whisker=whisker, show_whiskers=show_whiskers,
-                      orientation=orientation, line_props=props)
+        artists.append(draw_pavement(
+            values, position=pos, width=width,
+            whisker=whisker, show_whiskers=show_whiskers,
+            orientation=orientation, line_props=props, ax=ax))
     if tick_labels is not None:
-        ax = plt.gca()
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
         set_ticks(list(positions), list(tick_labels))
+    return artists
