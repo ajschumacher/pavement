@@ -214,9 +214,9 @@ def test_pavement_stats2d_xy_length_mismatch():
         pavement_stats2d([1, 2, 3], [1, 2])
 
 
-def test_pavement_stats2d_xweights_length_mismatch():
-    with pytest.raises(ValueError, match="x_weights"):
-        pavement_stats2d([1, 2, 3], [1, 2, 3], x_weights=[1, 1])
+def test_pavement_stats2d_weights_length_mismatch():
+    with pytest.raises(ValueError, match="weights"):
+        pavement_stats2d([1, 2, 3], [1, 2, 3], weights=[1, 1])
 
 
 def test_pavement_stats2d_invalid_first_split():

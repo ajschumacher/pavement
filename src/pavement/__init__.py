@@ -395,8 +395,7 @@ def plot(
 def pavement_stats2d(
     x: Iterable[float],
     y: Iterable[float],
-    x_weights: Sequence[float] | None = None,
-    y_weights: Sequence[float] | None = None,
+    weights: Sequence[float] | None = None,
     bins: int = 4,
     x_bins: int | None = None,
     y_bins: int | None = None,
@@ -415,11 +414,9 @@ def pavement_stats2d(
     ----------
     x, y : iterable of float
         Paired coordinates. Must have the same length.
-    x_weights, y_weights : sequence of float, optional
-        Positive weights parallel to the data. *x_weights* governs
-        the partition into chunks along x and the x-quantiles;
-        *y_weights* governs the y-quantiles inside each chunk. If
-        the data is unweighted, leave both as None.
+    weights : sequence of float, optional
+        Positive weights, one per (x, y) pair. Used for both the
+        partition step and the inner quantile step.
     bins : int, default: 4
         Default number of bins along each axis.
     x_bins, y_bins : int, optional
@@ -446,10 +443,10 @@ def pavement_stats2d(
     ------
     ValueError
         If *x* and *y* have different lengths or are empty; if
-        *x_weights* or *y_weights* has a length that doesn't match;
-        if *x_bins* or *y_bins* is less than 1; if there are fewer
-        data points than the primary-axis bin count; or if a chunk
-        ends up empty (which can happen with heavily skewed weights).
+        *weights* has a length that doesn't match; if *x_bins* or
+        *y_bins* is less than 1; if there are fewer data points than
+        the primary-axis bin count; or if a chunk ends up empty
+        (which can happen with heavily skewed weights).
 
     See Also
     --------
@@ -477,20 +474,15 @@ def pavement_stats2d(
             f"x and y must have the same length, got {n} and {len(y)}")
     if n == 0:
         raise ValueError("x and y must be non-empty")
-    if x_weights is not None and len(x_weights) != n:
+    if weights is not None and len(weights) != n:
         raise ValueError(
-            f"x_weights has length {len(x_weights)}, expected {n}")
-    if y_weights is not None and len(y_weights) != n:
-        raise ValueError(
-            f"y_weights has length {len(y_weights)}, expected {n}")
+            f"weights has length {len(weights)}, expected {n}")
 
     if first_split == 'x':
         primary, secondary = x, y
-        pw, sw = x_weights, y_weights
         primary_bins, secondary_bins = x_bins, y_bins
     else:
         primary, secondary = y, x
-        pw, sw = y_weights, x_weights
         primary_bins, secondary_bins = y_bins, x_bins
 
     if n < primary_bins:
@@ -502,13 +494,12 @@ def pavement_stats2d(
     indices = sorted(range(n), key=lambda i: primary[i])
     p_sorted = [primary[i] for i in indices]
     s_sorted = [secondary[i] for i in indices]
-    pw_sorted = [pw[i] for i in indices] if pw is not None else None
-    sw_sorted = [sw[i] for i in indices] if sw is not None else None
+    w_sorted = [weights[i] for i in indices] if weights is not None else None
 
     p_levels = [k/primary_bins for k in range(primary_bins + 1)]
-    primary_edges = quantiles(p_sorted, p_levels, pw_sorted, presorted=True)
+    primary_edges = quantiles(p_sorted, p_levels, w_sorted, presorted=True)
 
-    weights_for_partition = pw_sorted if pw_sorted is not None else [1] * n
+    weights_for_partition = w_sorted if w_sorted is not None else [1] * n
     total = sum(weights_for_partition)
     targets = [k * total / primary_bins for k in range(1, primary_bins + 1)]
 
@@ -530,8 +521,8 @@ def pavement_stats2d(
     secondary_edges_per_chunk = []
     for chunk_idx in chunks:
         s_chunk = [s_sorted[i] for i in chunk_idx]
-        sw_chunk = [sw_sorted[i] for i in chunk_idx] if sw_sorted is not None else None
-        secondary_edges_per_chunk.append(quantiles(s_chunk, s_levels, sw_chunk))
+        w_chunk = [w_sorted[i] for i in chunk_idx] if w_sorted is not None else None
+        secondary_edges_per_chunk.append(quantiles(s_chunk, s_levels, w_chunk))
 
     return {
         'first_split': first_split,
@@ -615,8 +606,7 @@ def draw_pavement2d(
 def plot2d(
     x: Iterable[float],
     y: Iterable[float],
-    x_weights: Sequence[float] | None = None,
-    y_weights: Sequence[float] | None = None,
+    weights: Sequence[float] | None = None,
     bins: int = 4,
     x_bins: int | None = None,
     y_bins: int | None = None,
@@ -634,9 +624,8 @@ def plot2d(
     ----------
     x, y : iterable of float
         Paired coordinates. Must have the same length.
-    x_weights, y_weights : sequence of float, optional
-        Positive weights for the x-direction and y-direction
-        quantile computations.
+    weights : sequence of float, optional
+        Positive weights, one per (x, y) pair.
     bins : int, default: 4
         Default number of bins along each axis.
     x_bins, y_bins : int, optional
@@ -663,7 +652,7 @@ def plot2d(
     """
     stats = pavement_stats2d(
         x, y,
-        x_weights=x_weights, y_weights=y_weights,
+        weights=weights,
         bins=bins, x_bins=x_bins, y_bins=y_bins,
         first_split=first_split,
     )
