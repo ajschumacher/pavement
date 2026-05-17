@@ -11,7 +11,15 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
 
-__all__ = ["quantiles", "pavement_stats", "draw_pavement", "plot"]
+__all__ = [
+    "quantiles",
+    "pavement_stats",
+    "draw_pavement",
+    "plot",
+    "pavement_stats2d",
+    "draw_pavement2d",
+    "plot2d",
+]
 
 
 def quantiles(
@@ -382,3 +390,281 @@ def plot(
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
         set_ticks(list(positions), list(tick_labels))
     return artists
+
+
+def pavement_stats2d(
+    x: Iterable[float],
+    y: Iterable[float],
+    x_weights: Sequence[float] | None = None,
+    y_weights: Sequence[float] | None = None,
+    bins: int = 4,
+    x_bins: int | None = None,
+    y_bins: int | None = None,
+    first_split: Literal['x', 'y'] = 'x',
+) -> dict[str, Any]:
+    """
+    Compute the box edges for a 2D pavement plot.
+
+    Sort the data along the *first_split* axis and partition it into
+    *primary_bins* chunks of equal weight. Within each chunk, sort
+    along the other axis and compute *secondary_bins* equal-weight
+    quantiles. Every cell of the resulting grid holds the same
+    fraction of the data, ``1 / (x_bins * y_bins)``.
+
+    Parameters
+    ----------
+    x, y : iterable of float
+        Paired coordinates. Must have the same length.
+    x_weights, y_weights : sequence of float, optional
+        Positive weights parallel to the data. *x_weights* governs
+        the partition into chunks along x and the x-quantiles;
+        *y_weights* governs the y-quantiles inside each chunk. If
+        the data is unweighted, leave both as None.
+    bins : int, default: 4
+        Default number of bins along each axis.
+    x_bins, y_bins : int, optional
+        Override *bins* for the respective axis.
+    first_split : {'x', 'y'}, default: 'x'
+        Which axis to partition first. ``'x'`` produces columns split
+        further into y-bands; ``'y'`` produces rows split further into
+        x-bands. The two orderings generally give different grids.
+
+    Returns
+    -------
+    dict
+        ``{'first_split': 'x' | 'y',
+           'primary_edges': list[float] of length primary_bins+1,
+           'secondary_edges_per_chunk':
+               list of primary_bins lists, each of length
+               secondary_bins+1}``
+
+        When *first_split* is ``'x'``, primary edges are x-edges and
+        secondary edges (per chunk) are y-edges; when ``'y'``, vice
+        versa.
+
+    Raises
+    ------
+    ValueError
+        If *x* and *y* have different lengths or are empty; if
+        *x_weights* or *y_weights* has a length that doesn't match;
+        if *x_bins* or *y_bins* is less than 1; if there are fewer
+        data points than the primary-axis bin count; or if a chunk
+        ends up empty (which can happen with heavily skewed weights).
+
+    See Also
+    --------
+    quantiles : The underlying 1D quantile computation.
+    draw_pavement2d : Render a stats dict as a 2D pavement.
+    plot2d : One-call convenience that combines stats and drawing.
+    """
+    if first_split not in ('x', 'y'):
+        raise ValueError(
+            f"first_split must be 'x' or 'y', got {first_split!r}")
+    if x_bins is None:
+        x_bins = bins
+    if y_bins is None:
+        y_bins = bins
+    if x_bins < 1:
+        raise ValueError(f"x_bins must be a positive integer, got {x_bins}")
+    if y_bins < 1:
+        raise ValueError(f"y_bins must be a positive integer, got {y_bins}")
+
+    x = list(x)
+    y = list(y)
+    n = len(x)
+    if n != len(y):
+        raise ValueError(
+            f"x and y must have the same length, got {n} and {len(y)}")
+    if n == 0:
+        raise ValueError("x and y must be non-empty")
+    if x_weights is not None and len(x_weights) != n:
+        raise ValueError(
+            f"x_weights has length {len(x_weights)}, expected {n}")
+    if y_weights is not None and len(y_weights) != n:
+        raise ValueError(
+            f"y_weights has length {len(y_weights)}, expected {n}")
+
+    if first_split == 'x':
+        primary, secondary = x, y
+        pw, sw = x_weights, y_weights
+        primary_bins, secondary_bins = x_bins, y_bins
+    else:
+        primary, secondary = y, x
+        pw, sw = y_weights, x_weights
+        primary_bins, secondary_bins = y_bins, x_bins
+
+    if n < primary_bins:
+        axis = first_split
+        raise ValueError(
+            f"need at least {axis}_bins ({primary_bins}) data points "
+            f"to split along {axis!r}, got {n}")
+
+    indices = sorted(range(n), key=lambda i: primary[i])
+    p_sorted = [primary[i] for i in indices]
+    s_sorted = [secondary[i] for i in indices]
+    pw_sorted = [pw[i] for i in indices] if pw is not None else None
+    sw_sorted = [sw[i] for i in indices] if sw is not None else None
+
+    p_levels = [k/primary_bins for k in range(primary_bins + 1)]
+    primary_edges = quantiles(p_sorted, p_levels, pw_sorted, presorted=True)
+
+    weights_for_partition = pw_sorted if pw_sorted is not None else [1] * n
+    total = sum(weights_for_partition)
+    targets = [k * total / primary_bins for k in range(1, primary_bins + 1)]
+
+    chunks: list[list[int]] = [[] for _ in range(primary_bins)]
+    current = 0
+    cumulative: float = 0
+    for i, w in enumerate(weights_for_partition):
+        chunks[current].append(i)
+        cumulative += w
+        while current < primary_bins - 1 and cumulative >= targets[current]:
+            current += 1
+
+    if any(len(c) == 0 for c in chunks):
+        raise ValueError(
+            "some chunks are empty (typically caused by heavily skewed "
+            "weights); reduce bins or rebalance weights")
+
+    s_levels = [k/secondary_bins for k in range(secondary_bins + 1)]
+    secondary_edges_per_chunk = []
+    for chunk_idx in chunks:
+        s_chunk = [s_sorted[i] for i in chunk_idx]
+        sw_chunk = [sw_sorted[i] for i in chunk_idx] if sw_sorted is not None else None
+        secondary_edges_per_chunk.append(quantiles(s_chunk, s_levels, sw_chunk))
+
+    return {
+        'first_split': first_split,
+        'primary_edges': primary_edges,
+        'secondary_edges_per_chunk': secondary_edges_per_chunk,
+    }
+
+
+def draw_pavement2d(
+    stats: Mapping[str, Any],
+    line_props: Mapping[str, Any] | None = None,
+    ax: Axes | None = None,
+) -> dict[str, LineCollection]:
+    """
+    Draw a 2D pavement from precomputed stats.
+
+    Renders every box edge. Edges shared between adjacent cells are
+    drawn once per cell (twice total), which is invisible for line
+    art but worth knowing if you post-modify the returned artists.
+
+    Parameters
+    ----------
+    stats : dict
+        Output of `pavement_stats2d`.
+    line_props : dict, optional
+        Line2D properties passed through to ``Axes.vlines`` and
+        ``Axes.hlines``. Defaults to ``{'color': 'black'}``.
+    ax : matplotlib Axes, optional
+        Axes to draw on. Defaults to ``plt.gca()``.
+
+    Returns
+    -------
+    dict
+        ``{'verticals': LineCollection, 'horizontals': LineCollection}``
+        for the two artist groups that were added to the axes.
+
+    See Also
+    --------
+    pavement_stats2d : Compute the stats dict to pass in.
+    plot2d : One-call convenience that combines stats and drawing.
+    """
+    if ax is None:
+        ax = plt.gca()
+    props = {'color': 'black', **(line_props or {})}
+
+    primary_edges = stats['primary_edges']
+    secondary_edges_per_chunk = stats['secondary_edges_per_chunk']
+    first_split = stats['first_split']
+
+    primary_positions = []
+    primary_perp_min = []
+    primary_perp_max = []
+    secondary_positions = []
+    secondary_perp_min = []
+    secondary_perp_max = []
+    for k, sec_edges in enumerate(secondary_edges_per_chunk):
+        p_lo, p_hi = primary_edges[k], primary_edges[k + 1]
+        s_lo, s_hi = sec_edges[0], sec_edges[-1]
+        for p_val in (p_lo, p_hi):
+            primary_positions.append(p_val)
+            primary_perp_min.append(s_lo)
+            primary_perp_max.append(s_hi)
+        for s_val in sec_edges:
+            secondary_positions.append(s_val)
+            secondary_perp_min.append(p_lo)
+            secondary_perp_max.append(p_hi)
+
+    if first_split == 'x':
+        verticals = ax.vlines(
+            primary_positions, primary_perp_min, primary_perp_max, **props)
+        horizontals = ax.hlines(
+            secondary_positions, secondary_perp_min, secondary_perp_max, **props)
+    else:
+        horizontals = ax.hlines(
+            primary_positions, primary_perp_min, primary_perp_max, **props)
+        verticals = ax.vlines(
+            secondary_positions, secondary_perp_min, secondary_perp_max, **props)
+    return {'verticals': verticals, 'horizontals': horizontals}
+
+
+def plot2d(
+    x: Iterable[float],
+    y: Iterable[float],
+    x_weights: Sequence[float] | None = None,
+    y_weights: Sequence[float] | None = None,
+    bins: int = 4,
+    x_bins: int | None = None,
+    y_bins: int | None = None,
+    first_split: Literal['x', 'y'] = 'x',
+    line_props: Mapping[str, Any] | None = None,
+    ax: Axes | None = None,
+) -> dict[str, LineCollection]:
+    """
+    Draw a 2D pavement plot from paired data.
+
+    Equivalent to ``draw_pavement2d(pavement_stats2d(...))``. Every
+    cell of the resulting grid holds an equal share of the data.
+
+    Parameters
+    ----------
+    x, y : iterable of float
+        Paired coordinates. Must have the same length.
+    x_weights, y_weights : sequence of float, optional
+        Positive weights for the x-direction and y-direction
+        quantile computations.
+    bins : int, default: 4
+        Default number of bins along each axis.
+    x_bins, y_bins : int, optional
+        Override *bins* for the respective axis.
+    first_split : {'x', 'y'}, default: 'x'
+        Which axis to partition first.
+    line_props : dict, optional
+        Line2D properties for all box edges. Defaults to
+        ``{'color': 'black'}``.
+    ax : matplotlib Axes, optional
+        Axes to draw on. Defaults to ``plt.gca()``.
+
+    Returns
+    -------
+    dict
+        ``{'verticals': LineCollection, 'horizontals': LineCollection}``
+        as returned by `draw_pavement2d`.
+
+    See Also
+    --------
+    pavement_stats2d : Compute the stats without drawing.
+    draw_pavement2d : Render from a stats dict.
+    plot : The 1D equivalent.
+    """
+    stats = pavement_stats2d(
+        x, y,
+        x_weights=x_weights, y_weights=y_weights,
+        bins=bins, x_bins=x_bins, y_bins=y_bins,
+        first_split=first_split,
+    )
+    return draw_pavement2d(stats, line_props=line_props, ax=ax)
