@@ -10,16 +10,22 @@ from typing import Any, Literal
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
+from matplotlib.transforms import blended_transform_factory
 
 __all__ = [
     "quantiles",
     "pavement_stats",
     "draw_pavement",
     "plot",
+    "margin",
     "pavement_stats2d",
     "draw_pavement2d",
     "plot2d",
 ]
+
+# Assumed axes-fraction extent of tick labels, used to place a
+# margin() strip clear of them on the tick-label side ('bottom'/'left').
+_TICK_LABEL_CLEARANCE = 0.1
 
 
 def quantiles(
@@ -390,6 +396,183 @@ def plot(
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
         set_ticks(list(positions), list(tick_labels))
     return artists
+
+
+def margin(
+    data: Iterable[float],
+    axis: Literal['x', 'y'] = 'x',
+    where: str | None = None,
+    bins: int = 4,
+    weights: Sequence[float] | None = None,
+    pad: float = 0.03,
+    size: float = 0.04,
+    expand_margins: bool = True,
+    show_whiskers: bool = True,
+    line_props: Mapping[str, Any] | None = None,
+    clip_on: bool = False,
+    ax: Axes | None = None,
+) -> dict[str, LineCollection | None]:
+    """
+    Draw a pavement plot in the margin of an existing plot.
+
+    A marginal pavement is a richer drop-in for a rug plot: it shows
+    the 1D distribution of one variable as a thin strip just outside
+    the axes frame, aligned with the data on that axis.
+
+    The strip is drawn with a blended transform, so it stays pinned
+    to the edge at a fixed thickness — the same for x- and y-axis
+    marginals — regardless of the data range on the other axis. By
+    default it sits just *outside* the frame (*clip_on* is False) on
+    the side opposite the tick labels — above the axes for
+    ``axis='x'``, to the right for ``axis='y'``. The *where* argument
+    moves it to any edge, inside or outside the frame.
+
+    Call this after the main plot so the data-axis limits are
+    already set; the marginal aligns to whatever limits the axes
+    has when it is drawn. For ``axis='x'`` with ``where='top'``, if
+    the axes already has a title, it is lifted clear of the marginal
+    — so set the title before calling this.
+
+    Parameters
+    ----------
+    data : iterable of float
+        The values whose distribution to summarize.
+    axis : {'x', 'y'}, default: 'x'
+        Which axis the data belongs to. ``'x'`` draws a horizontal
+        pavement; ``'y'`` draws a vertical one.
+    where : str, optional
+        Which side of the axes to place the strip on, optionally
+        prefixed with 'inside' or 'outside' (e.g. 'bottom',
+        'inside top', 'outside left'). The side is 'top' or 'bottom'
+        for ``axis='x'`` and 'left' or 'right' for ``axis='y'``,
+        defaulting to 'top'/'right'. The prefix defaults to
+        'outside' — the strip sits beyond the frame, and beyond the
+        tick labels on the label side — while 'inside' places it
+        just within the frame, overlapping the data.
+    bins : int, default: 4
+        Number of equal-mass bins.
+    weights : sequence of float, optional
+        Positive weights parallel to *data*.
+    pad : float, default: 0.03
+        Gap between the axes frame and the box, as a fraction of the
+        axes height (aspect-scaled for y-axis marginals, like *size*).
+    size : float, default: 0.04
+        Thickness of the box, as a fraction of the axes height.
+        y-axis marginals are scaled by the axes aspect ratio so they
+        render at the same physical thickness as x-axis ones.
+    expand_margins : bool, default: True
+        For an 'inside' placement, expand the axes margins on the
+        perpendicular axis so the strip does not overlap the data.
+        No effect for 'outside' placements. Mirrors the argument of
+        the same name on seaborn's ``rugplot``.
+    show_whiskers : bool, default: True
+        Whether to draw whisker marks at repeated quantile values.
+    line_props : dict, optional
+        Line2D properties for the box edges. Defaults to
+        ``{'color': 'black'}``.
+    clip_on : bool, default: False
+        Whether to clip the marginal to the axes box. False (the
+        default) lets it render in the exterior margin.
+    ax : matplotlib Axes, optional
+        Axes to draw on. Defaults to ``plt.gca()``.
+
+    Returns
+    -------
+    dict
+        The artist dict from `draw_pavement`.
+
+    Raises
+    ------
+    ValueError
+        If *axis* is not 'x' or 'y', or *where* is not valid for
+        the given *axis*.
+
+    See Also
+    --------
+    plot : Draw a pavement in the main data area.
+    draw_pavement : The underlying single-row renderer.
+    """
+    if ax is None:
+        ax = plt.gca()
+    sides = {'x': ('top', 'bottom'), 'y': ('right', 'left')}
+    if axis not in sides:
+        raise ValueError(f"axis must be 'x' or 'y', got {axis!r}")
+    if where is None:
+        placement, side = 'outside', sides[axis][0]
+    else:
+        parts = where.split()
+        if len(parts) == 1:
+            placement, side = 'outside', parts[0]
+        elif len(parts) == 2:
+            placement, side = parts
+        else:
+            raise ValueError(
+                "where must be a side, optionally prefixed with "
+                f"'inside' or 'outside'; got {where!r}")
+        if placement not in ('inside', 'outside'):
+            raise ValueError(
+                f"where prefix must be 'inside' or 'outside', got {placement!r}")
+        if side not in sides[axis]:
+            raise ValueError(
+                f"where side for axis={axis!r} must be one of "
+                f"{sides[axis]}, got {side!r}")
+    if axis == 'x':
+        transform = blended_transform_factory(ax.transData, ax.transAxes)
+        orientation: Literal['vertical', 'horizontal'] = 'horizontal'
+        box_size, box_pad = size, pad
+    else:
+        transform = blended_transform_factory(ax.transAxes, ax.transData)
+        orientation = 'vertical'
+        # A y-axis strip's thickness is an axes-fraction of width, an
+        # x-axis strip's of height. Scale by the axes aspect ratio so
+        # both render at the same physical thickness.
+        aspect = ax.bbox.height / ax.bbox.width
+        box_size, box_pad = size * aspect, pad * aspect
+    whisker_extent = 0.3 * box_size
+    # Place the box. The far edge is the axes-fraction 1.0 side
+    # (top/right); into_axes points from that edge toward the interior.
+    far_edge = side in ('top', 'right')
+    edge = 1.0 if far_edge else 0.0
+    into_axes = -1.0 if far_edge else 1.0
+    if placement == 'inside':
+        position = edge + into_axes * (box_pad + box_size/2)
+    else:  # outside; on the near edge, also clear the tick labels
+        clearance = 0.0 if far_edge else _TICK_LABEL_CLEARANCE
+        position = edge - into_axes * (clearance + box_pad + box_size/2)
+    values = pavement_stats(data, bins=bins, weights=weights)
+    props = {**(line_props or {}), 'transform': transform, 'clip_on': clip_on}
+    result = draw_pavement(
+        values,
+        position=position,
+        width=box_size,
+        whisker_extent=whisker_extent,
+        show_whiskers=show_whiskers,
+        orientation=orientation,
+        line_props=props,
+        ax=ax,
+    )
+    if placement == 'inside' and expand_margins:
+        # Reserve room so the strip doesn't sit on top of the data:
+        # the strip's own inward footprint (pad + box + whisker) plus
+        # another pad of breathing room on the data side, matching the
+        # strip's gap from the frame edge. ax.margins(m) leaves
+        # m/(1+2m) of the view empty per side; invert that to cover it.
+        footprint = min(2*box_pad + box_size + whisker_extent, 0.45)
+        required = footprint / (1 - 2*footprint)
+        mx, my = ax.margins()
+        if axis == 'x':
+            ax.margins(y=max(my, required))
+        else:
+            ax.margins(x=max(mx, required))
+    if (axis == 'x' and side == 'top' and placement == 'outside'
+            and ax.get_title()):
+        # Lift the title above the marginal (box + whiskers) so they
+        # don't overlap. Setting _autotitlepos stops matplotlib's
+        # auto title positioning from clobbering this on the next draw.
+        marginal_top = 1 + box_pad + box_size + whisker_extent
+        ax.title.set_y(max(ax.title.get_position()[1], marginal_top + 0.04))
+        ax._autotitlepos = False
+    return result
 
 
 def pavement_stats2d(

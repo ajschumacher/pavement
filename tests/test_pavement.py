@@ -4,6 +4,7 @@ import pytest
 from pavement import (
     draw_pavement,
     draw_pavement2d,
+    margin,
     pavement_stats,
     pavement_stats2d,
     plot,
@@ -184,6 +185,158 @@ def test_draw_pavement_empty_values():
 def test_plot_empty_data():
     with pytest.raises(ValueError, match="empty"):
         plot([])
+
+
+def test_margin_smoke():
+    plt.figure()
+    artists = margin([1, 2, 3, 4, 5])
+    assert set(artists) == {"ticks", "whiskers", "box"}
+    plt.close()
+
+
+def test_margin_axis_y():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="y")
+    plt.close()
+
+
+def test_margin_invalid_axis():
+    with pytest.raises(ValueError, match="axis"):
+        margin([1, 2, 3], axis="z")
+
+
+def test_margin_clip_on_default_false():
+    plt.figure()
+    artists = margin([1, 2, 3, 4, 5])
+    assert artists["box"].get_clip_on() is False
+    plt.close()
+
+
+def test_margin_respects_ax():
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    margin([1, 2, 3, 4, 5], ax=ax2)
+    assert len(ax1.collections) == 0
+    assert len(ax2.collections) > 0
+    plt.close(fig)
+
+
+def test_margin_x_lifts_title_clear():
+    fig, ax = plt.subplots()
+    ax.set_title("a title")
+    margin([1, 2, 3, 4, 5], axis="x", ax=ax)
+    assert ax.title.get_position()[1] > 1.0
+    plt.close(fig)
+
+
+def test_margin_y_leaves_title_alone():
+    fig, ax = plt.subplots()
+    ax.set_title("a title")
+    margin([1, 2, 3, 4, 5], axis="y", ax=ax)
+    assert ax.title.get_position()[1] == 1.0
+    plt.close(fig)
+
+
+def test_margin_where_bottom():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="x", where="bottom")
+    plt.close()
+
+
+def test_margin_where_left():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="y", where="left")
+    plt.close()
+
+
+def test_margin_where_invalid_for_axis():
+    with pytest.raises(ValueError, match="where"):
+        margin([1, 2, 3], axis="x", where="left")
+
+
+def test_margin_where_bottom_leaves_title_alone():
+    fig, ax = plt.subplots()
+    ax.set_title("a title")
+    margin([1, 2, 3, 4, 5], axis="x", where="bottom", ax=ax)
+    assert ax.title.get_position()[1] == 1.0
+    plt.close(fig)
+
+
+def test_margin_inside_smoke():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="x", where="inside bottom")
+    margin([1, 2, 3, 4, 5], axis="y", where="inside left")
+    plt.close()
+
+
+def test_margin_outside_prefix_explicit():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="x", where="outside top")
+    plt.close()
+
+
+def test_margin_invalid_placement():
+    with pytest.raises(ValueError, match="inside.*outside"):
+        margin([1, 2, 3], axis="x", where="upside top")
+
+
+def test_margin_where_too_many_words():
+    with pytest.raises(ValueError, match="where"):
+        margin([1, 2, 3], axis="x", where="a b c")
+
+
+def test_margin_inside_top_leaves_title_alone():
+    fig, ax = plt.subplots()
+    ax.set_title("a title")
+    margin([1, 2, 3, 4, 5], axis="x", where="inside top", ax=ax)
+    assert ax.title.get_position()[1] == 1.0
+    plt.close(fig)
+
+
+def test_margin_inside_stays_within_axes():
+    fig, ax = plt.subplots()
+    art = margin([1, 2, 3, 4, 5], axis="x", where="inside bottom", ax=ax)
+    ys = [pt[1] for seg in art["box"].get_segments() for pt in seg]
+    assert all(0 <= y <= 1 for y in ys)
+    plt.close(fig)
+
+
+def test_margin_inside_expands_margins():
+    fig, ax = plt.subplots()
+    margin([1, 2, 3, 4, 5], axis="x", where="inside bottom", ax=ax)
+    assert ax.margins()[1] > 0.05  # y-margin grew past the default
+    plt.close(fig)
+
+
+def test_margin_inside_expand_false_keeps_margins():
+    fig, ax = plt.subplots()
+    margin([1, 2, 3, 4, 5], axis="x", where="inside bottom",
+           expand_margins=False, ax=ax)
+    assert ax.margins()[1] == 0.05
+    plt.close(fig)
+
+
+def test_margin_outside_does_not_expand():
+    fig, ax = plt.subplots()
+    margin([1, 2, 3, 4, 5], axis="x", where="outside top", ax=ax)
+    assert ax.margins()[1] == 0.05
+    plt.close(fig)
+
+
+def test_margin_x_and_y_same_physical_thickness():
+    fig, ax = plt.subplots(figsize=(8, 4))  # wide: width != height
+    x_art = margin([1, 2, 3, 4, 5], axis="x", ax=ax)
+    y_art = margin([1, 2, 3, 4, 5], axis="y", ax=ax)
+
+    def frac_thickness(box, index):
+        pts = [pt[index] for seg in box.get_segments() for pt in seg]
+        return max(pts) - min(pts)
+
+    # x-marginal thickness runs along y (index 1), as an axes-fraction
+    # of height; the y-marginal along x (index 0), fraction of width.
+    x_frac = frac_thickness(x_art["box"], 1)
+    y_frac = frac_thickness(y_art["box"], 0)
+    assert x_frac * ax.bbox.height == pytest.approx(y_frac * ax.bbox.width)
+    plt.close(fig)
 
 
 def test_pavement_stats2d_shape():
