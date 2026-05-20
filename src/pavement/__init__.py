@@ -10,12 +10,14 @@ from typing import Any, Literal
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
+from matplotlib.transforms import blended_transform_factory
 
 __all__ = [
     "quantiles",
     "pavement_stats",
     "draw_pavement",
     "plot",
+    "margin",
     "pavement_stats2d",
     "draw_pavement2d",
     "plot2d",
@@ -390,6 +392,102 @@ def plot(
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
         set_ticks(list(positions), list(tick_labels))
     return artists
+
+
+def margin(
+    data: Iterable[float],
+    axis: Literal['x', 'y'] = 'x',
+    bins: int = 4,
+    weights: Sequence[float] | None = None,
+    pad: float = 0.03,
+    size: float = 0.06,
+    show_whiskers: bool = True,
+    line_props: Mapping[str, Any] | None = None,
+    clip_on: bool = False,
+    ax: Axes | None = None,
+) -> dict[str, LineCollection | None]:
+    """
+    Draw a pavement plot in the margin of an existing plot.
+
+    A marginal pavement is a richer drop-in for a rug plot: it shows
+    the 1D distribution of one variable as a thin strip just outside
+    the axes frame, aligned with the data on that axis.
+
+    The strip is drawn with a blended transform, so it stays pinned
+    to the edge at a fixed thickness regardless of the data range on
+    the other axis. By default it sits *outside* the frame (*clip_on*
+    is False) on the side opposite the tick labels: above the axes
+    for ``axis='x'``, to the right for ``axis='y'``.
+
+    Call this after the main plot so the data-axis limits are
+    already set; the marginal aligns to whatever limits the axes
+    has when it is drawn.
+
+    Parameters
+    ----------
+    data : iterable of float
+        The values whose distribution to summarize.
+    axis : {'x', 'y'}, default: 'x'
+        Which axis the data belongs to. ``'x'`` draws a horizontal
+        pavement above the axes; ``'y'`` draws a vertical one to the
+        right.
+    bins : int, default: 4
+        Number of equal-mass bins.
+    weights : sequence of float, optional
+        Positive weights parallel to *data*.
+    pad : float, default: 0.03
+        Gap between the axes frame and the box, in axes-fraction
+        units.
+    size : float, default: 0.06
+        Thickness of the box, in axes-fraction units.
+    show_whiskers : bool, default: True
+        Whether to draw whisker marks at repeated quantile values.
+    line_props : dict, optional
+        Line2D properties for the box edges. Defaults to
+        ``{'color': 'black'}``.
+    clip_on : bool, default: False
+        Whether to clip the marginal to the axes box. False (the
+        default) lets it render in the exterior margin.
+    ax : matplotlib Axes, optional
+        Axes to draw on. Defaults to ``plt.gca()``.
+
+    Returns
+    -------
+    dict
+        The artist dict from `draw_pavement`.
+
+    Raises
+    ------
+    ValueError
+        If *axis* is not 'x' or 'y'.
+
+    See Also
+    --------
+    plot : Draw a pavement in the main data area.
+    draw_pavement : The underlying single-row renderer.
+    """
+    if ax is None:
+        ax = plt.gca()
+    if axis == 'x':
+        transform = blended_transform_factory(ax.transData, ax.transAxes)
+        orientation: Literal['vertical', 'horizontal'] = 'horizontal'
+    elif axis == 'y':
+        transform = blended_transform_factory(ax.transAxes, ax.transData)
+        orientation = 'vertical'
+    else:
+        raise ValueError(f"axis must be 'x' or 'y', got {axis!r}")
+    values = pavement_stats(data, bins=bins, weights=weights)
+    props = {**(line_props or {}), 'transform': transform, 'clip_on': clip_on}
+    return draw_pavement(
+        values,
+        position=1 + pad + size/2,
+        width=size,
+        whisker_extent=0.3 * size,
+        show_whiskers=show_whiskers,
+        orientation=orientation,
+        line_props=props,
+        ax=ax,
+    )
 
 
 def pavement_stats2d(

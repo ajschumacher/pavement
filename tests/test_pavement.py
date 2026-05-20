@@ -4,6 +4,7 @@ import pytest
 from pavement import (
     draw_pavement,
     draw_pavement2d,
+    margin,
     pavement_stats,
     pavement_stats2d,
     plot,
@@ -184,6 +185,39 @@ def test_draw_pavement_empty_values():
 def test_plot_empty_data():
     with pytest.raises(ValueError, match="empty"):
         plot([])
+
+
+def test_margin_smoke():
+    plt.figure()
+    artists = margin([1, 2, 3, 4, 5])
+    assert set(artists) == {"ticks", "whiskers", "box"}
+    plt.close()
+
+
+def test_margin_axis_y():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="y")
+    plt.close()
+
+
+def test_margin_invalid_axis():
+    with pytest.raises(ValueError, match="axis"):
+        margin([1, 2, 3], axis="z")
+
+
+def test_margin_clip_on_default_false():
+    plt.figure()
+    artists = margin([1, 2, 3, 4, 5])
+    assert artists["box"].get_clip_on() is False
+    plt.close()
+
+
+def test_margin_respects_ax():
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    margin([1, 2, 3, 4, 5], ax=ax2)
+    assert len(ax1.collections) == 0
+    assert len(ax2.collections) > 0
+    plt.close(fig)
 
 
 def test_pavement_stats2d_shape():
