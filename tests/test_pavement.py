@@ -1,7 +1,15 @@
 import matplotlib.pyplot as plt
 import pytest
 
-from pavement import draw_pavement, pavement_stats, plot, quantiles
+from pavement import (
+    draw_pavement,
+    draw_pavement2d,
+    pavement_stats,
+    pavement_stats2d,
+    plot,
+    plot2d,
+    quantiles,
+)
 
 
 def test_quantiles_median_odd():
@@ -176,3 +184,71 @@ def test_draw_pavement_empty_values():
 def test_plot_empty_data():
     with pytest.raises(ValueError, match="empty"):
         plot([])
+
+
+def test_pavement_stats2d_shape():
+    stats = pavement_stats2d([1, 2, 3, 4], [1, 2, 3, 4], bins=2)
+    assert stats["first_split"] == "x"
+    assert len(stats["primary_edges"]) == 3  # x_bins + 1
+    assert len(stats["secondary_edges_per_chunk"]) == 2  # x_bins
+    assert all(len(e) == 3 for e in stats["secondary_edges_per_chunk"])
+
+
+def test_pavement_stats2d_first_split_y():
+    stats = pavement_stats2d(
+        [1, 2, 3, 4], [4, 3, 2, 1], bins=2, first_split="y")
+    assert stats["first_split"] == "y"
+    assert len(stats["primary_edges"]) == 3  # y_bins + 1
+    assert len(stats["secondary_edges_per_chunk"]) == 2  # y_bins
+
+
+def test_pavement_stats2d_different_bins_per_axis():
+    stats = pavement_stats2d(
+        list(range(20)), list(range(20)), x_bins=2, y_bins=5)
+    assert len(stats["primary_edges"]) == 3
+    assert all(len(e) == 6 for e in stats["secondary_edges_per_chunk"])
+
+
+def test_pavement_stats2d_xy_length_mismatch():
+    with pytest.raises(ValueError, match="same length"):
+        pavement_stats2d([1, 2, 3], [1, 2])
+
+
+def test_pavement_stats2d_weights_length_mismatch():
+    with pytest.raises(ValueError, match="weights"):
+        pavement_stats2d([1, 2, 3], [1, 2, 3], weights=[1, 1])
+
+
+def test_pavement_stats2d_invalid_first_split():
+    with pytest.raises(ValueError, match="first_split"):
+        pavement_stats2d([1, 2], [1, 2], first_split="diagonal")
+
+
+def test_pavement_stats2d_invalid_bins():
+    with pytest.raises(ValueError, match="x_bins"):
+        pavement_stats2d([1, 2, 3, 4], [1, 2, 3, 4], x_bins=0)
+
+
+def test_pavement_stats2d_empty():
+    with pytest.raises(ValueError, match="non-empty"):
+        pavement_stats2d([], [])
+
+
+def test_pavement_stats2d_too_few_points():
+    with pytest.raises(ValueError, match="data points"):
+        pavement_stats2d([1, 2], [1, 2], bins=4)
+
+
+def test_plot2d_smoke():
+    plt.figure()
+    artists = plot2d(list(range(16)), list(range(16)))
+    assert set(artists) == {"verticals", "horizontals"}
+    plt.close()
+
+
+def test_plot2d_respects_ax():
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    plot2d(list(range(16)), list(range(16)), ax=ax2)
+    assert len(ax1.collections) == 0
+    assert len(ax2.collections) > 0
+    plt.close(fig)
