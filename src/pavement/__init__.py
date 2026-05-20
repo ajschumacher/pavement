@@ -401,7 +401,7 @@ def plot(
 def margin(
     data: Iterable[float],
     axis: Literal['x', 'y'] = 'x',
-    where: Literal['top', 'bottom', 'left', 'right'] | None = None,
+    where: str | None = None,
     bins: int = 4,
     weights: Sequence[float] | None = None,
     pad: float = 0.03,
@@ -421,10 +421,10 @@ def margin(
     The strip is drawn with a blended transform, so it stays pinned
     to the edge at a fixed thickness — the same for x- and y-axis
     marginals — regardless of the data range on the other axis. By
-    default it sits *outside* the frame (*clip_on* is False) on the
-    side opposite the tick labels — above the axes for ``axis='x'``,
-    to the right for ``axis='y'`` — but *where* can place it on the
-    tick-label side instead, beyond the labels.
+    default it sits just *outside* the frame (*clip_on* is False) on
+    the side opposite the tick labels — above the axes for
+    ``axis='x'``, to the right for ``axis='y'``. The *where* argument
+    moves it to any edge, inside or outside the frame.
 
     Call this after the main plot so the data-axis limits are
     already set; the marginal aligns to whatever limits the axes
@@ -439,11 +439,15 @@ def margin(
     axis : {'x', 'y'}, default: 'x'
         Which axis the data belongs to. ``'x'`` draws a horizontal
         pavement; ``'y'`` draws a vertical one.
-    where : {'top', 'bottom', 'left', 'right'}, optional
-        Which side of the axes to place the strip on. For
-        ``axis='x'`` it must be 'top' (default) or 'bottom'; for
-        ``axis='y'`` it must be 'right' (default) or 'left'. The
-        non-default side places the strip beyond the tick labels.
+    where : str, optional
+        Which side of the axes to place the strip on, optionally
+        prefixed with 'inside' or 'outside' (e.g. 'bottom',
+        'inside top', 'outside left'). The side is 'top' or 'bottom'
+        for ``axis='x'`` and 'left' or 'right' for ``axis='y'``,
+        defaulting to 'top'/'right'. The prefix defaults to
+        'outside' — the strip sits beyond the frame, and beyond the
+        tick labels on the label side — while 'inside' places it
+        just within the frame, overlapping the data.
     bins : int, default: 4
         Number of equal-mass bins.
     weights : sequence of float, optional
@@ -488,11 +492,24 @@ def margin(
     if axis not in sides:
         raise ValueError(f"axis must be 'x' or 'y', got {axis!r}")
     if where is None:
-        where = sides[axis][0]
-    elif where not in sides[axis]:
-        raise ValueError(
-            f"where for axis={axis!r} must be one of {sides[axis]}, "
-            f"got {where!r}")
+        placement, side = 'outside', sides[axis][0]
+    else:
+        parts = where.split()
+        if len(parts) == 1:
+            placement, side = 'outside', parts[0]
+        elif len(parts) == 2:
+            placement, side = parts
+        else:
+            raise ValueError(
+                "where must be a side, optionally prefixed with "
+                f"'inside' or 'outside'; got {where!r}")
+        if placement not in ('inside', 'outside'):
+            raise ValueError(
+                f"where prefix must be 'inside' or 'outside', got {placement!r}")
+        if side not in sides[axis]:
+            raise ValueError(
+                f"where side for axis={axis!r} must be one of "
+                f"{sides[axis]}, got {side!r}")
     if axis == 'x':
         transform = blended_transform_factory(ax.transData, ax.transAxes)
         orientation: Literal['vertical', 'horizontal'] = 'horizontal'
@@ -506,10 +523,16 @@ def margin(
         aspect = ax.bbox.height / ax.bbox.width
         box_size, box_pad = size * aspect, pad * aspect
     whisker_extent = 0.3 * box_size
-    if where in ('top', 'right'):
-        position = 1 + box_pad + box_size/2
-    else:  # 'bottom' / 'left': sit beyond the tick labels
-        position = -(_TICK_LABEL_CLEARANCE + box_pad + box_size/2)
+    # Place the box. The far edge is the axes-fraction 1.0 side
+    # (top/right); into_axes points from that edge toward the interior.
+    far_edge = side in ('top', 'right')
+    edge = 1.0 if far_edge else 0.0
+    into_axes = -1.0 if far_edge else 1.0
+    if placement == 'inside':
+        position = edge + into_axes * (box_pad + box_size/2)
+    else:  # outside; on the near edge, also clear the tick labels
+        clearance = 0.0 if far_edge else _TICK_LABEL_CLEARANCE
+        position = edge - into_axes * (clearance + box_pad + box_size/2)
     values = pavement_stats(data, bins=bins, weights=weights)
     props = {**(line_props or {}), 'transform': transform, 'clip_on': clip_on}
     result = draw_pavement(
@@ -522,7 +545,8 @@ def margin(
         line_props=props,
         ax=ax,
     )
-    if axis == 'x' and where == 'top' and ax.get_title():
+    if (axis == 'x' and side == 'top' and placement == 'outside'
+            and ax.get_title()):
         # Lift the title above the marginal (box + whiskers) so they
         # don't overlap. Setting _autotitlepos stops matplotlib's
         # auto title positioning from clobbering this on the next draw.

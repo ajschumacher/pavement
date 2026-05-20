@@ -261,6 +261,45 @@ def test_margin_where_bottom_leaves_title_alone():
     plt.close(fig)
 
 
+def test_margin_inside_smoke():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="x", where="inside bottom")
+    margin([1, 2, 3, 4, 5], axis="y", where="inside left")
+    plt.close()
+
+
+def test_margin_outside_prefix_explicit():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="x", where="outside top")
+    plt.close()
+
+
+def test_margin_invalid_placement():
+    with pytest.raises(ValueError, match="inside.*outside"):
+        margin([1, 2, 3], axis="x", where="upside top")
+
+
+def test_margin_where_too_many_words():
+    with pytest.raises(ValueError, match="where"):
+        margin([1, 2, 3], axis="x", where="a b c")
+
+
+def test_margin_inside_top_leaves_title_alone():
+    fig, ax = plt.subplots()
+    ax.set_title("a title")
+    margin([1, 2, 3, 4, 5], axis="x", where="inside top", ax=ax)
+    assert ax.title.get_position()[1] == 1.0
+    plt.close(fig)
+
+
+def test_margin_inside_stays_within_axes():
+    fig, ax = plt.subplots()
+    art = margin([1, 2, 3, 4, 5], axis="x", where="inside bottom", ax=ax)
+    ys = [pt[1] for seg in art["box"].get_segments() for pt in seg]
+    assert all(0 <= y <= 1 for y in ys)
+    plt.close(fig)
+
+
 def test_margin_x_and_y_same_physical_thickness():
     fig, ax = plt.subplots(figsize=(8, 4))  # wide: width != height
     x_art = margin([1, 2, 3, 4, 5], axis="x", ax=ax)
