@@ -400,7 +400,7 @@ def margin(
     bins: int = 4,
     weights: Sequence[float] | None = None,
     pad: float = 0.03,
-    size: float = 0.06,
+    size: float = 0.04,
     show_whiskers: bool = True,
     line_props: Mapping[str, Any] | None = None,
     clip_on: bool = False,
@@ -421,7 +421,9 @@ def margin(
 
     Call this after the main plot so the data-axis limits are
     already set; the marginal aligns to whatever limits the axes
-    has when it is drawn.
+    has when it is drawn. For ``axis='x'``, if the axes already has
+    a title, it is lifted clear of the marginal — so set the title
+    before calling this.
 
     Parameters
     ----------
@@ -438,7 +440,7 @@ def margin(
     pad : float, default: 0.03
         Gap between the axes frame and the box, in axes-fraction
         units.
-    size : float, default: 0.06
+    size : float, default: 0.04
         Thickness of the box, in axes-fraction units.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
@@ -477,17 +479,26 @@ def margin(
     else:
         raise ValueError(f"axis must be 'x' or 'y', got {axis!r}")
     values = pavement_stats(data, bins=bins, weights=weights)
+    whisker_extent = 0.3 * size
     props = {**(line_props or {}), 'transform': transform, 'clip_on': clip_on}
-    return draw_pavement(
+    result = draw_pavement(
         values,
         position=1 + pad + size/2,
         width=size,
-        whisker_extent=0.3 * size,
+        whisker_extent=whisker_extent,
         show_whiskers=show_whiskers,
         orientation=orientation,
         line_props=props,
         ax=ax,
     )
+    if axis == 'x' and ax.get_title():
+        # Lift the title above the marginal (box + whiskers) so they
+        # don't overlap. Setting _autotitlepos stops matplotlib's
+        # auto title positioning from clobbering this on the next draw.
+        marginal_top = 1 + pad + size + whisker_extent
+        ax.title.set_y(max(ax.title.get_position()[1], marginal_top + 0.04))
+        ax._autotitlepos = False
+    return result
 
 
 def pavement_stats2d(

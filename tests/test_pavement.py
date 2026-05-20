@@ -220,6 +220,22 @@ def test_margin_respects_ax():
     plt.close(fig)
 
 
+def test_margin_x_lifts_title_clear():
+    fig, ax = plt.subplots()
+    ax.set_title("a title")
+    margin([1, 2, 3, 4, 5], axis="x", ax=ax)
+    assert ax.title.get_position()[1] > 1.0
+    plt.close(fig)
+
+
+def test_margin_y_leaves_title_alone():
+    fig, ax = plt.subplots()
+    ax.set_title("a title")
+    margin([1, 2, 3, 4, 5], axis="y", ax=ax)
+    assert ax.title.get_position()[1] == 1.0
+    plt.close(fig)
+
+
 def test_pavement_stats2d_shape():
     stats = pavement_stats2d([1, 2, 3, 4], [1, 2, 3, 4], bins=2)
     assert stats["first_split"] == "x"
