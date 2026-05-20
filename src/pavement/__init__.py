@@ -552,10 +552,12 @@ def margin(
         ax=ax,
     )
     if placement == 'inside' and expand_margins:
-        # Reserve room so the strip doesn't sit on top of the data.
-        # ax.margins(m) leaves m/(1+2m) of the view empty per side;
-        # invert that to cover the strip's inward footprint.
-        footprint = min(box_pad + box_size + whisker_extent, 0.45)
+        # Reserve room so the strip doesn't sit on top of the data:
+        # the strip's own inward footprint (pad + box + whisker) plus
+        # another pad of breathing room on the data side, matching the
+        # strip's gap from the frame edge. ax.margins(m) leaves
+        # m/(1+2m) of the view empty per side; invert that to cover it.
+        footprint = min(2*box_pad + box_size + whisker_extent, 0.45)
         required = footprint / (1 - 2*footprint)
         mx, my = ax.margins()
         if axis == 'x':
