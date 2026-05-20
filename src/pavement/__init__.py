@@ -23,6 +23,10 @@ __all__ = [
     "plot2d",
 ]
 
+# Assumed axes-fraction extent of tick labels, used to place a
+# margin() strip clear of them on the tick-label side ('bottom'/'left').
+_TICK_LABEL_CLEARANCE = 0.1
+
 
 def quantiles(
     data: Iterable[float],
@@ -397,6 +401,7 @@ def plot(
 def margin(
     data: Iterable[float],
     axis: Literal['x', 'y'] = 'x',
+    where: Literal['top', 'bottom', 'left', 'right'] | None = None,
     bins: int = 4,
     weights: Sequence[float] | None = None,
     pad: float = 0.03,
@@ -416,14 +421,15 @@ def margin(
     The strip is drawn with a blended transform, so it stays pinned
     to the edge at a fixed thickness regardless of the data range on
     the other axis. By default it sits *outside* the frame (*clip_on*
-    is False) on the side opposite the tick labels: above the axes
-    for ``axis='x'``, to the right for ``axis='y'``.
+    is False) on the side opposite the tick labels — above the axes
+    for ``axis='x'``, to the right for ``axis='y'`` — but *where* can
+    place it on the tick-label side instead, beyond the labels.
 
     Call this after the main plot so the data-axis limits are
     already set; the marginal aligns to whatever limits the axes
-    has when it is drawn. For ``axis='x'``, if the axes already has
-    a title, it is lifted clear of the marginal — so set the title
-    before calling this.
+    has when it is drawn. For ``axis='x'`` with ``where='top'``, if
+    the axes already has a title, it is lifted clear of the marginal
+    — so set the title before calling this.
 
     Parameters
     ----------
@@ -431,8 +437,12 @@ def margin(
         The values whose distribution to summarize.
     axis : {'x', 'y'}, default: 'x'
         Which axis the data belongs to. ``'x'`` draws a horizontal
-        pavement above the axes; ``'y'`` draws a vertical one to the
-        right.
+        pavement; ``'y'`` draws a vertical one.
+    where : {'top', 'bottom', 'left', 'right'}, optional
+        Which side of the axes to place the strip on. For
+        ``axis='x'`` it must be 'top' (default) or 'bottom'; for
+        ``axis='y'`` it must be 'right' (default) or 'left'. The
+        non-default side places the strip beyond the tick labels.
     bins : int, default: 4
         Number of equal-mass bins.
     weights : sequence of float, optional
@@ -461,7 +471,8 @@ def margin(
     Raises
     ------
     ValueError
-        If *axis* is not 'x' or 'y'.
+        If *axis* is not 'x' or 'y', or *where* is not valid for
+        the given *axis*.
 
     See Also
     --------
@@ -470,20 +481,31 @@ def margin(
     """
     if ax is None:
         ax = plt.gca()
+    sides = {'x': ('top', 'bottom'), 'y': ('right', 'left')}
+    if axis not in sides:
+        raise ValueError(f"axis must be 'x' or 'y', got {axis!r}")
+    if where is None:
+        where = sides[axis][0]
+    elif where not in sides[axis]:
+        raise ValueError(
+            f"where for axis={axis!r} must be one of {sides[axis]}, "
+            f"got {where!r}")
     if axis == 'x':
         transform = blended_transform_factory(ax.transData, ax.transAxes)
         orientation: Literal['vertical', 'horizontal'] = 'horizontal'
-    elif axis == 'y':
+    else:
         transform = blended_transform_factory(ax.transAxes, ax.transData)
         orientation = 'vertical'
-    else:
-        raise ValueError(f"axis must be 'x' or 'y', got {axis!r}")
-    values = pavement_stats(data, bins=bins, weights=weights)
     whisker_extent = 0.3 * size
+    if where in ('top', 'right'):
+        position = 1 + pad + size/2
+    else:  # 'bottom' / 'left': sit beyond the tick labels
+        position = -(_TICK_LABEL_CLEARANCE + pad + size/2)
+    values = pavement_stats(data, bins=bins, weights=weights)
     props = {**(line_props or {}), 'transform': transform, 'clip_on': clip_on}
     result = draw_pavement(
         values,
-        position=1 + pad + size/2,
+        position=position,
         width=size,
         whisker_extent=whisker_extent,
         show_whiskers=show_whiskers,
@@ -491,7 +513,7 @@ def margin(
         line_props=props,
         ax=ax,
     )
-    if axis == 'x' and ax.get_title():
+    if axis == 'x' and where == 'top' and ax.get_title():
         # Lift the title above the marginal (box + whiskers) so they
         # don't overlap. Setting _autotitlepos stops matplotlib's
         # auto title positioning from clobbering this on the next draw.

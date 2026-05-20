@@ -236,6 +236,31 @@ def test_margin_y_leaves_title_alone():
     plt.close(fig)
 
 
+def test_margin_where_bottom():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="x", where="bottom")
+    plt.close()
+
+
+def test_margin_where_left():
+    plt.figure()
+    margin([1, 2, 3, 4, 5], axis="y", where="left")
+    plt.close()
+
+
+def test_margin_where_invalid_for_axis():
+    with pytest.raises(ValueError, match="where"):
+        margin([1, 2, 3], axis="x", where="left")
+
+
+def test_margin_where_bottom_leaves_title_alone():
+    fig, ax = plt.subplots()
+    ax.set_title("a title")
+    margin([1, 2, 3, 4, 5], axis="x", where="bottom", ax=ax)
+    assert ax.title.get_position()[1] == 1.0
+    plt.close(fig)
+
+
 def test_pavement_stats2d_shape():
     stats = pavement_stats2d([1, 2, 3, 4], [1, 2, 3, 4], bins=2)
     assert stats["first_split"] == "x"
