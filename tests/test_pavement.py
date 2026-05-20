@@ -261,6 +261,23 @@ def test_margin_where_bottom_leaves_title_alone():
     plt.close(fig)
 
 
+def test_margin_x_and_y_same_physical_thickness():
+    fig, ax = plt.subplots(figsize=(8, 4))  # wide: width != height
+    x_art = margin([1, 2, 3, 4, 5], axis="x", ax=ax)
+    y_art = margin([1, 2, 3, 4, 5], axis="y", ax=ax)
+
+    def frac_thickness(box, index):
+        pts = [pt[index] for seg in box.get_segments() for pt in seg]
+        return max(pts) - min(pts)
+
+    # x-marginal thickness runs along y (index 1), as an axes-fraction
+    # of height; the y-marginal along x (index 0), fraction of width.
+    x_frac = frac_thickness(x_art["box"], 1)
+    y_frac = frac_thickness(y_art["box"], 0)
+    assert x_frac * ax.bbox.height == pytest.approx(y_frac * ax.bbox.width)
+    plt.close(fig)
+
+
 def test_pavement_stats2d_shape():
     stats = pavement_stats2d([1, 2, 3, 4], [1, 2, 3, 4], bins=2)
     assert stats["first_split"] == "x"

@@ -419,11 +419,12 @@ def margin(
     the axes frame, aligned with the data on that axis.
 
     The strip is drawn with a blended transform, so it stays pinned
-    to the edge at a fixed thickness regardless of the data range on
-    the other axis. By default it sits *outside* the frame (*clip_on*
-    is False) on the side opposite the tick labels — above the axes
-    for ``axis='x'``, to the right for ``axis='y'`` — but *where* can
-    place it on the tick-label side instead, beyond the labels.
+    to the edge at a fixed thickness — the same for x- and y-axis
+    marginals — regardless of the data range on the other axis. By
+    default it sits *outside* the frame (*clip_on* is False) on the
+    side opposite the tick labels — above the axes for ``axis='x'``,
+    to the right for ``axis='y'`` — but *where* can place it on the
+    tick-label side instead, beyond the labels.
 
     Call this after the main plot so the data-axis limits are
     already set; the marginal aligns to whatever limits the axes
@@ -448,10 +449,12 @@ def margin(
     weights : sequence of float, optional
         Positive weights parallel to *data*.
     pad : float, default: 0.03
-        Gap between the axes frame and the box, in axes-fraction
-        units.
+        Gap between the axes frame and the box, as a fraction of the
+        axes height (aspect-scaled for y-axis marginals, like *size*).
     size : float, default: 0.04
-        Thickness of the box, in axes-fraction units.
+        Thickness of the box, as a fraction of the axes height.
+        y-axis marginals are scaled by the axes aspect ratio so they
+        render at the same physical thickness as x-axis ones.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
     line_props : dict, optional
@@ -493,20 +496,26 @@ def margin(
     if axis == 'x':
         transform = blended_transform_factory(ax.transData, ax.transAxes)
         orientation: Literal['vertical', 'horizontal'] = 'horizontal'
+        box_size, box_pad = size, pad
     else:
         transform = blended_transform_factory(ax.transAxes, ax.transData)
         orientation = 'vertical'
-    whisker_extent = 0.3 * size
+        # A y-axis strip's thickness is an axes-fraction of width, an
+        # x-axis strip's of height. Scale by the axes aspect ratio so
+        # both render at the same physical thickness.
+        aspect = ax.bbox.height / ax.bbox.width
+        box_size, box_pad = size * aspect, pad * aspect
+    whisker_extent = 0.3 * box_size
     if where in ('top', 'right'):
-        position = 1 + pad + size/2
+        position = 1 + box_pad + box_size/2
     else:  # 'bottom' / 'left': sit beyond the tick labels
-        position = -(_TICK_LABEL_CLEARANCE + pad + size/2)
+        position = -(_TICK_LABEL_CLEARANCE + box_pad + box_size/2)
     values = pavement_stats(data, bins=bins, weights=weights)
     props = {**(line_props or {}), 'transform': transform, 'clip_on': clip_on}
     result = draw_pavement(
         values,
         position=position,
-        width=size,
+        width=box_size,
         whisker_extent=whisker_extent,
         show_whiskers=show_whiskers,
         orientation=orientation,
@@ -517,7 +526,7 @@ def margin(
         # Lift the title above the marginal (box + whiskers) so they
         # don't overlap. Setting _autotitlepos stops matplotlib's
         # auto title positioning from clobbering this on the next draw.
-        marginal_top = 1 + pad + size + whisker_extent
+        marginal_top = 1 + box_pad + box_size + whisker_extent
         ax.title.set_y(max(ax.title.get_position()[1], marginal_top + 0.04))
         ax._autotitlepos = False
     return result
