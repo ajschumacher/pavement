@@ -406,6 +406,7 @@ def margin(
     weights: Sequence[float] | None = None,
     pad: float = 0.03,
     size: float = 0.04,
+    expand_margins: bool = True,
     show_whiskers: bool = True,
     line_props: Mapping[str, Any] | None = None,
     clip_on: bool = False,
@@ -459,6 +460,11 @@ def margin(
         Thickness of the box, as a fraction of the axes height.
         y-axis marginals are scaled by the axes aspect ratio so they
         render at the same physical thickness as x-axis ones.
+    expand_margins : bool, default: True
+        For an 'inside' placement, expand the axes margins on the
+        perpendicular axis so the strip does not overlap the data.
+        No effect for 'outside' placements. Mirrors the argument of
+        the same name on seaborn's ``rugplot``.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
     line_props : dict, optional
@@ -545,6 +551,17 @@ def margin(
         line_props=props,
         ax=ax,
     )
+    if placement == 'inside' and expand_margins:
+        # Reserve room so the strip doesn't sit on top of the data.
+        # ax.margins(m) leaves m/(1+2m) of the view empty per side;
+        # invert that to cover the strip's inward footprint.
+        footprint = min(box_pad + box_size + whisker_extent, 0.45)
+        required = footprint / (1 - 2*footprint)
+        mx, my = ax.margins()
+        if axis == 'x':
+            ax.margins(y=max(my, required))
+        else:
+            ax.margins(x=max(mx, required))
     if (axis == 'x' and side == 'top' and placement == 'outside'
             and ax.get_title()):
         # Lift the title above the marginal (box + whiskers) so they

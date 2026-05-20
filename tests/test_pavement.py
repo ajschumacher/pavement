@@ -300,6 +300,28 @@ def test_margin_inside_stays_within_axes():
     plt.close(fig)
 
 
+def test_margin_inside_expands_margins():
+    fig, ax = plt.subplots()
+    margin([1, 2, 3, 4, 5], axis="x", where="inside bottom", ax=ax)
+    assert ax.margins()[1] > 0.05  # y-margin grew past the default
+    plt.close(fig)
+
+
+def test_margin_inside_expand_false_keeps_margins():
+    fig, ax = plt.subplots()
+    margin([1, 2, 3, 4, 5], axis="x", where="inside bottom",
+           expand_margins=False, ax=ax)
+    assert ax.margins()[1] == 0.05
+    plt.close(fig)
+
+
+def test_margin_outside_does_not_expand():
+    fig, ax = plt.subplots()
+    margin([1, 2, 3, 4, 5], axis="x", where="outside top", ax=ax)
+    assert ax.margins()[1] == 0.05
+    plt.close(fig)
+
+
 def test_margin_x_and_y_same_physical_thickness():
     fig, ax = plt.subplots(figsize=(8, 4))  # wide: width != height
     x_art = margin([1, 2, 3, 4, 5], axis="x", ax=ax)
