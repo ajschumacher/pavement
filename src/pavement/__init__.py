@@ -505,7 +505,7 @@ def pavement_stats2d(
 
     chunks: list[list[int]] = [[] for _ in range(primary_bins)]
     current = 0
-    cumulative: float = 0
+    cumulative: float = 0.0
     for i, w in enumerate(weights_for_partition):
         chunks[current].append(i)
         cumulative += w
@@ -539,9 +539,11 @@ def draw_pavement2d(
     """
     Draw a 2D pavement from precomputed stats.
 
-    Renders every box edge. Edges shared between adjacent cells are
-    drawn once per cell (twice total), which is invisible for line
-    art but worth knowing if you post-modify the returned artists.
+    Renders every box edge. Where adjacent columns (or rows, for
+    ``first_split='y'``) share a boundary along the primary axis,
+    the shared line is drawn once per side, which is invisible for
+    line art but means each side's segment spans only its own
+    column's (or row's) extent along the secondary axis.
 
     Parameters
     ----------
