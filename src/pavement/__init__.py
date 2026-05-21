@@ -9,7 +9,6 @@ from typing import Any, Literal
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from matplotlib.collections import LineCollection
 from matplotlib.patches import Rectangle
 from matplotlib.transforms import blended_transform_factory
 
