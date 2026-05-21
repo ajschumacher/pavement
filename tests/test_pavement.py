@@ -130,6 +130,42 @@ def test_plot_line_props_length_mismatch():
         plot([[1, 2, 3], [4, 5, 6]], line_props=[{'color': 'red'}])
 
 
+def test_draw_pavement_box_props_adds_fill():
+    plt.figure()
+    artists = draw_pavement([1, 2, 3, 4, 5],
+                            box_props={'facecolor': 'lightblue', 'alpha': 0.3})
+    assert artists["fill"] is not None
+    plt.close()
+
+
+def test_draw_pavement_no_box_props_no_fill():
+    plt.figure()
+    artists = draw_pavement([1, 2, 3, 4, 5])
+    assert artists["fill"] is None
+    plt.close()
+
+
+def test_plot_box_props_per_row():
+    plt.figure()
+    artists = plot([[1, 2, 3], [4, 5, 6]],
+                   box_props=[{'facecolor': 'C0'}, {'facecolor': 'C1'}])
+    assert all(d["fill"] is not None for d in artists)
+    plt.close()
+
+
+def test_plot_box_props_length_mismatch():
+    with pytest.raises(ValueError, match="box_props"):
+        plot([[1, 2, 3], [4, 5, 6]], box_props=[{'facecolor': 'C0'}])
+
+
+def test_margin_box_props_adds_fill():
+    plt.figure()
+    artists = margin([1, 2, 3, 4, 5], box_props={'facecolor': 'gray',
+                                                 'alpha': 0.2})
+    assert artists["fill"] is not None
+    plt.close()
+
+
 def test_plot_bins_array():
     plt.figure()
     plot([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[2, 4])
@@ -144,7 +180,7 @@ def test_plot_bins_length_mismatch():
 def test_draw_pavement_returns_artist_dict():
     plt.figure()
     artists = draw_pavement([1, 2, 3, 4, 5])
-    assert set(artists) == {"ticks", "whiskers", "box"}
+    assert set(artists) == {"fill", "ticks", "whiskers", "box"}
     assert artists["ticks"] is not None
     assert artists["box"] is not None
     assert artists["whiskers"] is None  # no repeated values
@@ -163,7 +199,7 @@ def test_plot_returns_list_of_artist_dicts():
     artists = plot([[1, 2, 3], [4, 5, 6]])
     assert isinstance(artists, list)
     assert len(artists) == 2
-    assert all(set(d) == {"ticks", "whiskers", "box"} for d in artists)
+    assert all(set(d) == {"fill", "ticks", "whiskers", "box"} for d in artists)
     plt.close()
 
 
@@ -190,7 +226,7 @@ def test_plot_empty_data():
 def test_margin_smoke():
     plt.figure()
     artists = margin([1, 2, 3, 4, 5])
-    assert set(artists) == {"ticks", "whiskers", "box"}
+    assert set(artists) == {"fill", "ticks", "whiskers", "box"}
     plt.close()
 
 

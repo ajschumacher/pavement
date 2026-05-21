@@ -10,6 +10,7 @@ from typing import Any, Literal
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
+from matplotlib.patches import Rectangle
 from matplotlib.transforms import blended_transform_factory
 
 __all__ = [
@@ -160,8 +161,9 @@ def draw_pavement(
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | None = None,
+    box_props: Mapping[str, Any] | None = None,
     ax: Axes | None = None,
-) -> dict[str, LineCollection | None]:
+) -> dict[str, Any]:
     """
     Draw a single pavement row from precomputed quantile values.
 
@@ -201,16 +203,23 @@ def draw_pavement(
         whisker marks, and box edges. Defaults to ``{'color': 'black'}``;
         partial overrides merge on top of that default (e.g. passing
         ``{'linewidth': 2}`` keeps lines black).
+    box_props : dict, optional
+        If given, a filled `~matplotlib.patches.Rectangle` is drawn
+        behind the box as a background; the dict supplies its
+        properties (facecolor, alpha, hatch, ...). It defaults to no
+        edge, so it doesn't double the box outline. If None (the
+        default), no background is drawn.
     ax : matplotlib Axes, optional
         Axes to draw on. Defaults to ``plt.gca()``.
 
     Returns
     -------
     dict
-        Maps component name to the `~matplotlib.collections.LineCollection`
-        artist that was added to the axes:
+        Maps component name to the artist added to the axes:
 
-        - ``"ticks"``: vertical (or horizontal) tick at each quantile.
+        - ``"fill"``: the background `~matplotlib.patches.Rectangle`,
+          or ``None`` if *box_props* was not given.
+        - ``"ticks"``: the tick at each quantile.
         - ``"whiskers"``: the whisker marks at repeated values, or
           ``None`` if no whiskers were drawn.
         - ``"box"``: the two long edges of the box.
@@ -239,10 +248,20 @@ def draw_pavement(
             f"orientation must be 'vertical' or 'horizontal', got {orientation!r}")
     props = {'color': 'black', **(line_props or {})}
     pos_lo, pos_hi = position - width/2, position + width/2
-    artists: dict[str, LineCollection | None] = {
-        'ticks': perp(values, pos_lo, pos_hi, **props),
-        'whiskers': None,
-    }
+    artists: dict[str, Any] = {'fill': None}
+    if box_props is not None:
+        # Drawn first so it sits behind the lines. The value axis runs
+        # along x for 'horizontal', along y for 'vertical'.
+        if orientation == 'horizontal':
+            xy = (values[0], pos_lo)
+            w, h = values[-1] - values[0], pos_hi - pos_lo
+        else:
+            xy = (pos_lo, values[0])
+            w, h = pos_hi - pos_lo, values[-1] - values[0]
+        artists['fill'] = ax.add_patch(
+            Rectangle(xy, w, h, **{'edgecolor': 'none', **box_props}))
+    artists['ticks'] = perp(values, pos_lo, pos_hi, **props)
+    artists['whiskers'] = None
     if show_whiskers:
         dupes = [x for x, n in Counter(values).items() if n > 1]
         if dupes:
@@ -266,8 +285,9 @@ def plot(
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
+    box_props: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
     ax: Axes | None = None,
-) -> list[dict[str, LineCollection | None]]:
+) -> list[dict[str, Any]]:
     """
     Draw one or more pavement rows.
 
@@ -324,6 +344,11 @@ def plot(
         sequence sets each row individually and must have length equal
         to the number of rows. See `draw_pavement` for the dict
         semantics.
+    box_props : dict or sequence of dict, optional
+        Per-row background fill. A single dict applies to every row; a
+        sequence sets each row individually and must have length equal
+        to the number of rows. See `draw_pavement` for the dict
+        semantics.
     ax : matplotlib Axes, optional
         Axes to draw on. Defaults to ``plt.gca()``.
 
@@ -336,11 +361,11 @@ def plot(
     Raises
     ------
     ValueError
-        If *data* is empty; if *positions*, *bins*, *widths*, or
-        *line_props* is given as a sequence with the wrong length;
-        or for any reason raised by the underlying `pavement_stats`
-        or `draw_pavement` calls (e.g. non-positive *bins* or
-        invalid *orientation*).
+        If *data* is empty; if *positions*, *bins*, *widths*,
+        *line_props*, or *box_props* is given as a sequence with the
+        wrong length; or for any reason raised by the underlying
+        `pavement_stats` or `draw_pavement` calls (e.g. non-positive
+        *bins* or invalid *orientation*).
 
     See Also
     --------
@@ -381,17 +406,22 @@ def plot(
     elif len(line_props) != n:
         raise ValueError(
             f"line_props has length {len(line_props)}, expected {n}")
+    if box_props is None or isinstance(box_props, Mapping):
+        box_props = [box_props] * n
+    elif len(box_props) != n:
+        raise ValueError(
+            f"box_props has length {len(box_props)}, expected {n}")
     if ax is None:
         ax = plt.gca()
     weight_iter = weights if weights is not None else [None] * n
     artists = []
-    for dataset, w, pos, b, width, props in zip(
-            data, weight_iter, positions, bins, widths, line_props):
+    for dataset, w, pos, b, width, props, bprops in zip(
+            data, weight_iter, positions, bins, widths, line_props, box_props):
         values = pavement_stats(dataset, bins=b, weights=w)
         artists.append(draw_pavement(
             values, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-            orientation=orientation, line_props=props, ax=ax))
+            orientation=orientation, line_props=props, box_props=bprops, ax=ax))
     if tick_labels is not None:
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
         set_ticks(list(positions), list(tick_labels))
@@ -409,9 +439,10 @@ def margin(
     expand_margins: bool = True,
     show_whiskers: bool = True,
     line_props: Mapping[str, Any] | None = None,
+    box_props: Mapping[str, Any] | None = None,
     clip_on: bool = False,
     ax: Axes | None = None,
-) -> dict[str, LineCollection | None]:
+) -> dict[str, Any]:
     """
     Draw a pavement plot in the margin of an existing plot.
 
@@ -470,6 +501,10 @@ def margin(
     line_props : dict, optional
         Line2D properties for the box edges. Defaults to
         ``{'color': 'black'}``.
+    box_props : dict, optional
+        If given, a background fill is drawn behind the strip. See
+        `draw_pavement` for the dict semantics. If None (the
+        default), no background is drawn.
     clip_on : bool, default: False
         Whether to clip the marginal to the axes box. False (the
         default) lets it render in the exterior margin.
@@ -541,6 +576,9 @@ def margin(
         position = edge - into_axes * (clearance + box_pad + box_size/2)
     values = pavement_stats(data, bins=bins, weights=weights)
     props = {**(line_props or {}), 'transform': transform, 'clip_on': clip_on}
+    bprops = None
+    if box_props is not None:
+        bprops = {**box_props, 'transform': transform, 'clip_on': clip_on}
     result = draw_pavement(
         values,
         position=position,
@@ -549,6 +587,7 @@ def margin(
         show_whiskers=show_whiskers,
         orientation=orientation,
         line_props=props,
+        box_props=bprops,
         ax=ax,
     )
     if placement == 'inside' and expand_margins:
