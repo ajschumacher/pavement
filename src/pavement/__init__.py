@@ -199,9 +199,10 @@ def draw_pavement(
         Line2D properties (color, linewidth, linestyle, alpha, ...)
         passed through to the underlying ``Axes.vlines`` /
         ``Axes.hlines`` calls. Applied uniformly to the quantile ticks,
-        whisker marks, and box edges. Defaults to ``{'color': 'black'}``;
-        partial overrides merge on top of that default (e.g. passing
-        ``{'linewidth': 2}`` keeps lines black).
+        whisker marks, and box edges. Defaults to
+        ``{'color': 'black', 'linewidth': 1.0}``; partial overrides
+        merge on top of that default (e.g. passing ``{'linewidth': 2}``
+        keeps lines black).
     box_props : dict, optional
         If given, a filled `~matplotlib.patches.Rectangle` is drawn
         behind the box as a background; the dict supplies its
@@ -245,7 +246,7 @@ def draw_pavement(
     else:
         raise ValueError(
             f"orientation must be 'vertical' or 'horizontal', got {orientation!r}")
-    props = {'color': 'black', **(line_props or {})}
+    props = {'color': 'black', 'linewidth': 1.0, **(line_props or {})}
     pos_lo, pos_hi = position - width/2, position + width/2
     artists: dict[str, Any] = {'fill': None}
     if box_props is not None:
@@ -499,7 +500,7 @@ def margin(
         Whether to draw whisker marks at repeated quantile values.
     line_props : dict, optional
         Line2D properties for the box edges. Defaults to
-        ``{'color': 'black'}``.
+        ``{'color': 'black', 'linewidth': 1.0}``.
     box_props : dict, optional
         If given, a background fill is drawn behind the strip. See
         `draw_pavement` for the dict semantics. If None (the
@@ -773,7 +774,7 @@ def draw_pavement2d(
         Output of `pavement_stats2d`.
     line_props : dict, optional
         Line2D properties passed through to ``Axes.vlines`` and
-        ``Axes.hlines``. Defaults to ``{'color': 'black'}``.
+        ``Axes.hlines``. Defaults to ``{'color': 'black', 'linewidth': 1.0}``.
     box_props : dict, optional
         If given, a filled `~matplotlib.patches.Rectangle` is drawn
         behind every cell, with these properties (facecolor, alpha,
@@ -799,7 +800,7 @@ def draw_pavement2d(
     """
     if ax is None:
         ax = plt.gca()
-    props = {'color': 'black', **(line_props or {})}
+    props = {'color': 'black', 'linewidth': 1.0, **(line_props or {})}
 
     primary_edges = stats['primary_edges']
     secondary_edges_per_chunk = stats['secondary_edges_per_chunk']
@@ -879,7 +880,7 @@ def plot2d(
         Which axis to partition first.
     line_props : dict, optional
         Line2D properties for all box edges. Defaults to
-        ``{'color': 'black'}``.
+        ``{'color': 'black', 'linewidth': 1.0}``.
     box_props : dict, optional
         If given, a background fill is drawn behind every cell, with
         these properties applied uniformly. See `draw_pavement2d`.
