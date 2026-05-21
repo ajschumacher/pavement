@@ -450,3 +450,12 @@ def test_plot2d_respects_ax():
     assert len(ax1.collections) == 0
     assert len(ax2.collections) > 0
     plt.close(fig)
+
+
+def test_draw_pavement2d_from_stats():
+    plt.figure()
+    stats = pavement_stats2d(list(range(16)), list(range(16)), bins=2)
+    artists = draw_pavement2d(stats)
+    assert set(artists) == {"fills", "verticals", "horizontals"}
+    assert artists["fills"] is None  # no box_props
+    plt.close()
