@@ -756,8 +756,9 @@ def pavement_stats2d(
 def draw_pavement2d(
     stats: Mapping[str, Any],
     line_props: Mapping[str, Any] | None = None,
+    box_props: Mapping[str, Any] | None = None,
     ax: Axes | None = None,
-) -> dict[str, LineCollection]:
+) -> dict[str, Any]:
     """
     Draw a 2D pavement from precomputed stats.
 
@@ -774,14 +775,23 @@ def draw_pavement2d(
     line_props : dict, optional
         Line2D properties passed through to ``Axes.vlines`` and
         ``Axes.hlines``. Defaults to ``{'color': 'black'}``.
+    box_props : dict, optional
+        If given, a filled `~matplotlib.patches.Rectangle` is drawn
+        behind every cell, with these properties (facecolor, alpha,
+        ...) applied uniformly. Defaults to no edge. If None (the
+        default), no fills are drawn.
     ax : matplotlib Axes, optional
         Axes to draw on. Defaults to ``plt.gca()``.
 
     Returns
     -------
     dict
-        ``{'verticals': LineCollection, 'horizontals': LineCollection}``
-        for the two artist groups that were added to the axes.
+        Maps component name to the artists added to the axes:
+
+        - ``"fills"``: list of one background `Rectangle` per cell,
+          or ``None`` if *box_props* was not given.
+        - ``"verticals"``, ``"horizontals"``: the two LineCollection
+          groups of box edges.
 
     See Also
     --------
@@ -796,6 +806,8 @@ def draw_pavement2d(
     secondary_edges_per_chunk = stats['secondary_edges_per_chunk']
     first_split = stats['first_split']
 
+    fills = None if box_props is None else []
+    rect_props = {'edgecolor': 'none', **(box_props or {})}
     primary_positions = []
     primary_perp_min = []
     primary_perp_max = []
@@ -813,6 +825,15 @@ def draw_pavement2d(
             secondary_positions.append(s_val)
             secondary_perp_min.append(p_lo)
             secondary_perp_max.append(p_hi)
+        if fills is not None:
+            # One filled rectangle per cell in this chunk, drawn before
+            # the lines so they sit behind them.
+            for lo, hi in zip(sec_edges, sec_edges[1:]):
+                if first_split == 'x':  # primary is x, secondary is y
+                    xy, w, h = (p_lo, lo), p_hi - p_lo, hi - lo
+                else:  # primary is y, secondary is x
+                    xy, w, h = (lo, p_lo), hi - lo, p_hi - p_lo
+                fills.append(ax.add_patch(Rectangle(xy, w, h, **rect_props)))
 
     if first_split == 'x':
         verticals = ax.vlines(
@@ -824,7 +845,7 @@ def draw_pavement2d(
             primary_positions, primary_perp_min, primary_perp_max, **props)
         verticals = ax.vlines(
             secondary_positions, secondary_perp_min, secondary_perp_max, **props)
-    return {'verticals': verticals, 'horizontals': horizontals}
+    return {'fills': fills, 'verticals': verticals, 'horizontals': horizontals}
 
 
 def plot2d(
@@ -836,8 +857,9 @@ def plot2d(
     y_bins: int | None = None,
     first_split: Literal['x', 'y'] = 'x',
     line_props: Mapping[str, Any] | None = None,
+    box_props: Mapping[str, Any] | None = None,
     ax: Axes | None = None,
-) -> dict[str, LineCollection]:
+) -> dict[str, Any]:
     """
     Draw a 2D pavement plot from paired data.
 
@@ -859,14 +881,16 @@ def plot2d(
     line_props : dict, optional
         Line2D properties for all box edges. Defaults to
         ``{'color': 'black'}``.
+    box_props : dict, optional
+        If given, a background fill is drawn behind every cell, with
+        these properties applied uniformly. See `draw_pavement2d`.
     ax : matplotlib Axes, optional
         Axes to draw on. Defaults to ``plt.gca()``.
 
     Returns
     -------
     dict
-        ``{'verticals': LineCollection, 'horizontals': LineCollection}``
-        as returned by `draw_pavement2d`.
+        The artist dict from `draw_pavement2d`.
 
     See Also
     --------
@@ -880,4 +904,5 @@ def plot2d(
         bins=bins, x_bins=x_bins, y_bins=y_bins,
         first_split=first_split,
     )
-    return draw_pavement2d(stats, line_props=line_props, ax=ax)
+    return draw_pavement2d(stats, line_props=line_props, box_props=box_props,
+                           ax=ax)
