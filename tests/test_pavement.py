@@ -431,7 +431,16 @@ def test_pavement_stats2d_too_few_points():
 def test_plot2d_smoke():
     plt.figure()
     artists = plot2d(list(range(16)), list(range(16)))
-    assert set(artists) == {"verticals", "horizontals"}
+    assert set(artists) == {"fills", "verticals", "horizontals"}
+    assert artists["fills"] is None  # no box_props
+    plt.close()
+
+
+def test_plot2d_box_props_fills_every_cell():
+    plt.figure()
+    artists = plot2d(list(range(16)), list(range(16)), bins=2,
+                     box_props={"facecolor": "C0", "alpha": 0.3})
+    assert len(artists["fills"]) == 4  # 2 x_bins * 2 y_bins
     plt.close()
 
 
