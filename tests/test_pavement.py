@@ -187,6 +187,20 @@ def test_draw_pavement_returns_artist_dict():
     plt.close()
 
 
+def test_draw_pavement_default_linewidth_is_one():
+    plt.figure()
+    artists = draw_pavement([1, 2, 3, 4, 5])
+    assert artists["box"].get_linewidth()[0] == 1.0
+    plt.close()
+
+
+def test_draw_pavement_line_props_overrides_linewidth():
+    plt.figure()
+    artists = draw_pavement([1, 2, 3, 4, 5], line_props={"linewidth": 3})
+    assert artists["box"].get_linewidth()[0] == 3.0
+    plt.close()
+
+
 def test_draw_pavement_returns_whiskers_when_dupes():
     plt.figure()
     artists = draw_pavement([1, 1, 2, 3])  # 1 repeats -> whisker mark
