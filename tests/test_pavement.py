@@ -61,6 +61,19 @@ def test_pavement_stats_invalid_bins():
         pavement_stats([1, 2, 3, 4, 5], bins=0)
 
 
+def test_pavement_stats_bins_none_returns_all_data():
+    assert pavement_stats([3, 1, 2, 5, 4], bins=None) == [1, 2, 3, 4, 5]
+
+
+def test_pavement_stats_bins_none_keeps_duplicates():
+    assert pavement_stats([2, 1, 2], bins=None) == [1, 2, 2]
+
+
+def test_pavement_stats_bins_none_presorted_rejects_unsorted():
+    with pytest.raises(ValueError, match="sorted"):
+        pavement_stats([3, 1, 2], bins=None, presorted=True)
+
+
 def test_plot_single():
     plt.figure()
     plot([1, 2, 3, 4, 5])
@@ -177,6 +190,22 @@ def test_plot_bins_length_mismatch():
         plot([[1, 2, 3], [4, 5, 6]], bins=[4])
 
 
+def test_plot_bins_none_shows_all_data():
+    plt.figure()
+    # 5 distinct points -> a tick at each, so 5 segments in the ticks.
+    artists = plot([1, 2, 3, 4, 5], bins=None)
+    assert len(artists[0]["ticks"].get_segments()) == 5
+    plt.close()
+
+
+def test_plot_bins_mixed_none_and_int():
+    plt.figure()
+    artists = plot([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[None, 2])
+    assert len(artists[0]["ticks"].get_segments()) == 4  # all data
+    assert len(artists[1]["ticks"].get_segments()) == 3  # 2 bins -> 3 edges
+    plt.close()
+
+
 def test_draw_pavement_returns_artist_dict():
     plt.figure()
     artists = draw_pavement([1, 2, 3, 4, 5])
@@ -247,6 +276,13 @@ def test_margin_smoke():
 def test_margin_axis_y():
     plt.figure()
     margin([1, 2, 3, 4, 5], axis="y")
+    plt.close()
+
+
+def test_margin_bins_none_shows_all_data():
+    plt.figure()
+    artists = margin([1, 2, 3, 4, 5], bins=None)
+    assert len(artists["ticks"].get_segments()) == 5
     plt.close()
 
 
