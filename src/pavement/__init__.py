@@ -106,7 +106,7 @@ def quantiles(
 
 def pavement_stats(
     data: Iterable[float],
-    bins: int = 4,
+    bins: int | None = 4,
     weights: Sequence[float] | None = None,
     presorted: bool = False,
 ) -> list[float]:
@@ -120,12 +120,16 @@ def pavement_stats(
     ----------
     data : iterable of float
         The values to summarize.
-    bins : int, default: 4
+    bins : int or None, default: 4
         Number of equal-mass bins. Yields ``bins + 1`` quantile values:
-        the two endpoints plus the ``bins - 1`` internal cut points.
+        the two endpoints plus the ``bins - 1`` internal cut points. If
+        None, no binning is done and every data point is returned
+        (sorted), so the pavement shows all the data — useful for small
+        datasets, like a rug plot.
     weights : sequence of float, optional
         Positive weights parallel to *data*. If None, each value
-        contributes equally.
+        contributes equally. Ignored when *bins* is None, since every
+        point is shown regardless of weight.
     presorted : bool, default: False
         Passed through to `quantiles`. If True, *data* (and *weights*)
         are assumed already sorted by *data* in ascending order.
@@ -133,19 +137,27 @@ def pavement_stats(
     Returns
     -------
     list of float
-        ``bins + 1`` quantile values in ascending order.
+        ``bins + 1`` quantile values in ascending order, or every data
+        point (sorted) when *bins* is None.
 
     Raises
     ------
     ValueError
-        If *bins* is less than 1, or for any reason raised by
-        `quantiles`.
+        If *bins* is less than 1; if *data* is not sorted when
+        *presorted* is True; or for any reason raised by `quantiles`.
 
     See Also
     --------
     quantiles : The underlying quantile computation.
     draw_pavement : Render these values as a pavement row.
     """
+    if bins is None:
+        data = list(data)
+        if not presorted:
+            return sorted(data)
+        if any(later < earlier for earlier, later in zip(data, data[1:])):
+            raise ValueError("data must be sorted")
+        return data
     if bins < 1:
         raise ValueError(f"bins must be a positive integer, got {bins}")
     levels = [x/bins for x in range(bins + 1)]
@@ -279,7 +291,7 @@ def plot(
     positions: Sequence[float] | None = None,
     categories: Sequence[Hashable] | None = None,
     tick_labels: Sequence[Hashable] | None = None,
-    bins: int | Sequence[int] = 4,
+    bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
@@ -321,10 +333,12 @@ def plot(
         tidy form, also selects which categories to include and their
         order. Ticks are only set when this is provided, on the x-axis
         for ``orientation='vertical'`` and the y-axis otherwise.
-    bins : int or sequence of int, default: 4
+    bins : int, None, or sequence of (int or None), default: 4
         Number of equal-mass bins per row. A scalar applies to every
         row; a sequence sets each row's bin count individually and
-        must have length equal to the number of rows.
+        must have length equal to the number of rows. None shows all
+        the data for that row instead of binning it (see
+        `pavement_stats`); a sequence may mix None and integer entries.
     widths : float or sequence of float, default: 0.6
         Thickness of each row's box outline. A scalar applies to
         every row; a sequence sets each row's width individually and
@@ -391,7 +405,7 @@ def plot(
     elif len(positions) != n:
         raise ValueError(
             f"positions has length {len(positions)}, expected {n}")
-    if isinstance(bins, Integral):
+    if bins is None or isinstance(bins, Integral):
         bins = [bins] * n
     elif len(bins) != n:
         raise ValueError(
@@ -432,7 +446,7 @@ def margin(
     data: Iterable[float],
     axis: Literal['x', 'y'] = 'x',
     where: str | None = None,
-    bins: int = 4,
+    bins: int | None = 4,
     weights: Sequence[float] | None = None,
     pad: float = 0.03,
     size: float = 0.04,
@@ -480,8 +494,10 @@ def margin(
         'outside' — the strip sits beyond the frame, and beyond the
         tick labels on the label side — while 'inside' places it
         just within the frame, overlapping the data.
-    bins : int, default: 4
-        Number of equal-mass bins.
+    bins : int or None, default: 4
+        Number of equal-mass bins. None shows all the data instead of
+        binning it (see `pavement_stats`), turning the marginal into a
+        true rug.
     weights : sequence of float, optional
         Positive weights parallel to *data*.
     pad : float, default: 0.03
