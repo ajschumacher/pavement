@@ -11,37 +11,55 @@ def _bokeh_backend():
     hv.extension("bokeh")
 
 
-def test_elements_returns_rectangles_and_no_whiskers():
-    rects, whiskers = pavement_elements([1, 2, 3, 4, 5])
-    assert isinstance(rects, hv.Rectangles)
-    assert len(rects) == 4  # 4 bins -> 4 rectangles
-    assert whiskers is None  # no repeated quantile values
+def test_elements_returns_fill_ticks_box():
+    els = pavement_elements([1, 2, 3, 4, 5])
+    assert set(els) == {"fill", "ticks", "box"}
+    assert isinstance(els["fill"], hv.Rectangles)
+    assert isinstance(els["ticks"], hv.Segments)
+    assert isinstance(els["box"], hv.Segments)
+    assert len(els["fill"]) == 4   # 4 bins -> 4 rectangles
+    assert len(els["ticks"]) == 5  # one per distinct quantile value
+    assert len(els["box"]) == 2    # two long edges
 
 
-def test_elements_whiskers_on_repeated_values():
-    # Heavy repetition forces coincident quantile edges -> whiskers.
-    rects, whiskers = pavement_elements([0, 0, 0, 0, 1, 2, 3], bins=4)
-    assert isinstance(whiskers, hv.Segments)
-    assert len(whiskers) > 0
+def test_elements_one_tick_per_distinct_value_with_whisker():
+    # Heavy repetition collapses several quantile edges onto one value.
+    els = pavement_elements([0, 0, 0, 0, 1, 2, 3], bins=4)
+    ticks = els["ticks"]
+    # 5 quantile edges but 0 repeats -> fewer than 5 distinct ticks, each
+    # drawn once (no separate whisker element stacked on a bin border).
+    assert len(ticks) < 5
+    half = 0.6 / 2
+    # The repeated value's tick reaches past the box width (a whisker).
+    reaches = [abs(x1 - x0) / 2 for x0, x1 in
+               zip(ticks.dimension_values("x0"), ticks.dimension_values("x1"))]
+    assert max(reaches) > half
 
 
 def test_elements_band_vdim_reports_quantile_span():
-    rects, _ = pavement_elements([1, 2, 3, 4, 5], bins=4)
-    assert list(rects.dimension_values("band")) == [
+    els = pavement_elements([1, 2, 3, 4, 5], bins=4)
+    assert list(els["fill"].dimension_values("band")) == [
         "0%–25%", "25%–50%", "50%–75%", "75%–100%"]
 
 
+def test_elements_tick_level_vdim_reports_cumulative_quantile():
+    els = pavement_elements([1, 2, 3, 4, 5], bins=4)
+    assert list(els["ticks"].dimension_values("level")) == [
+        "0%", "25%", "50%", "75%", "100%"]
+
+
 def test_elements_horizontal_swaps_axes():
-    vert, _ = pavement_elements([1, 2, 3, 4, 5], orientation="vertical")
-    horiz, _ = pavement_elements([1, 2, 3, 4, 5], orientation="horizontal")
+    vert = pavement_elements([1, 2, 3, 4, 5], orientation="vertical")
+    horiz = pavement_elements([1, 2, 3, 4, 5], orientation="horizontal")
     # The value range lands on y for vertical, on x for horizontal.
-    assert list(vert.dimension_values("y0")) == list(
-        horiz.dimension_values("x0"))
+    assert list(vert["fill"].dimension_values("y0")) == list(
+        horiz["fill"].dimension_values("x0"))
 
 
 def test_elements_bins_none_is_a_rug():
-    rects, _ = pavement_elements([1, 2, 3, 4, 5], bins=None)
-    assert len(rects) == 4  # one band between each pair of points
+    els = pavement_elements([1, 2, 3, 4, 5], bins=None)
+    assert len(els["fill"]) == 4   # one band between each pair of points
+    assert len(els["ticks"]) == 5  # a tick at every data point
 
 
 def test_pavement_single_returns_overlay():
@@ -84,9 +102,12 @@ def test_pavement_bokeh_has_hover_with_clean_tooltips():
     obj = pavement([1, 2, 3, 4, 5])
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
-    assert hovers, "expected a hover tool on the bokeh figure"
-    fields = [name for name, _ in hovers[0].tooltips]
-    assert fields == ["band", "low", "high"]  # not the raw x0/y0 corners
+    fieldsets = [[name for name, _ in h.tooltips] for h in hovers]
+    # The fills hover the band/range; the ticks hover the value/level.
+    # Neither dumps the raw x0/y0/x1/y1 corners.
+    assert ["band", "low", "high"] in fieldsets
+    assert ["value", "level"] in fieldsets
+    assert not any("x0" in fields for fields in fieldsets)
 
 
 def test_pavement_empty_data():

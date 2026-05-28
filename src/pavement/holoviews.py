@@ -9,13 +9,14 @@ static image. Backend-specific styling (fill colors, the hover tool) is
 resolved for whichever backend is active when the plot is *built*, so
 select it with ``hv.extension(...)`` first, as usual.
 
-A pavement row is a stack of equal-mass bins, drawn here as a
-`holoviews.Rectangles`: every bin is one rectangle, so the shared bin
-borders *are* the quantile ticks and the outermost borders *are* the box
-outline — all for free, and every bin is a hover target carrying its
-value range and quantile band. Repeated quantile values (data piled up)
-get whisker marks as a `holoviews.Segments` overlay, mirroring the
-matplotlib renderer.
+A pavement row is built from three overlaid components: a borderless
+`holoviews.Rectangles` of the equal-mass bins (a hover target carrying
+each bin's value range and quantile band), and two `holoviews.Segments`
+— the quantile ticks and the box edges. Keeping the lines separate from
+the fill means the ticks and box share one consistent style; a repeated
+quantile value (data piled up) simply extends its own tick into a
+whisker, so every line is drawn exactly once. The ticks carry their own
+hover, like a rug plot's.
 
 The headline function is `pavement`, which mirrors the top-level
 `pavement.plot`: it accepts a single dataset, a wide list of datasets,
@@ -23,7 +24,9 @@ or tidy data plus *categories*, and returns a HoloViews object. Because
 the result is a plain HoloViews element, framework features compose on
 top of it — overlay it on a scatter, adjoin it as a marginal with the
 ``<<`` operator, or split it by category into a colored, legended
-``NdOverlay``.
+``NdOverlay``. When adjoining as a side marginal, build it with
+``orientation='horizontal'``: HoloViews orients the adjoined slot to
+share the main plot's axis (see ``examples/holoviews_demo.py``).
 
 Examples
 --------
@@ -36,7 +39,6 @@ Examples
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Hashable, Iterable, Sequence
 from numbers import Integral, Number
 from typing import Any, Literal
@@ -47,19 +49,22 @@ from . import pavement_stats
 
 __all__ = ["pavement_elements", "pavement"]
 
-# A bin's value range and quantile band, shown on hover.
-_VDIMS = ["low", "high", "band"]
+# Hover dimensions: a fill bin reports its value range and quantile
+# band; a tick reports its value and the cumulative quantile there.
+_FILL_VDIMS = ["low", "high", "band"]
+_TICK_VDIMS = ["value", "level"]
 
 # Each backend names the same style differently; map them so one call
-# styles correctly whichever backend is active when it runs. Rectangles
-# and Segments don't even share a line-color keyword on matplotlib, so
-# they get separate maps.
+# styles correctly whichever backend is active when it runs. The fills
+# are borderless Rectangles (line width 0); the ticks and box edges are
+# Segments, which don't even share a line-color keyword with Rectangles
+# on matplotlib, so they get separate maps.
 _RECT_FILL_COLOR = {"bokeh": "fill_color", "matplotlib": "facecolor",
                     "plotly": "fillcolor"}
-_RECT_LINE_COLOR = {"bokeh": "line_color", "matplotlib": "edgecolor",
-                    "plotly": "line_color"}
 _RECT_FILL_ALPHA = {"bokeh": "fill_alpha", "matplotlib": "alpha",
                     "plotly": "opacity"}
+_RECT_LINE_WIDTH = {"bokeh": "line_width", "matplotlib": "linewidth",
+                    "plotly": "line_width"}
 _SEG_LINE_COLOR = {"bokeh": "line_color", "matplotlib": "color",
                    "plotly": "line_color"}
 
@@ -72,6 +77,14 @@ _PALETTE = [
 ]
 
 
+def _perp(position: float, reach: float, value: float,
+          orientation: str) -> tuple[float, float, float, float]:
+    """A segment crossing the value axis at *value*, ``reach`` to each side."""
+    if orientation == "vertical":
+        return (position - reach, value, position + reach, value)
+    return (value, position - reach, value, position + reach)
+
+
 def _row_geometry(
     values: Sequence[float],
     position: float,
@@ -80,37 +93,62 @@ def _row_geometry(
     whisker_extent: float,
     show_whiskers: bool,
     group: Hashable | None,
-) -> tuple[list[tuple], list[tuple]]:
-    """Build the (rectangle, whisker-segment) tuples for one row.
+) -> tuple[list[tuple], list[tuple], list[tuple]]:
+    """Build the (fill, tick, box-edge) tuples for one row.
 
-    Returns ``(rects, segments)``. Each rectangle is
-    ``(x0, y0, x1, y1, low, high, band[, group])``; each segment is
+    Returns ``(fills, ticks, edges)``. A fill is
+    ``(x0, y0, x1, y1, low, high, band[, group])``; a tick is
+    ``(x0, y0, x1, y1, value, level[, group])``; an edge is
     ``(x0, y0, x1, y1)``.
+
+    Each distinct quantile value gets exactly one tick — reaching past
+    the box (a whisker) where the value repeats — so every line is drawn
+    once and shares one style, rather than stacking a whisker on top of a
+    bin border.
     """
     n_bins = len(values) - 1
     half = width / 2
-    rects: list[tuple] = []
+    extra = () if group is None else (group,)
+
+    # Fills: one borderless rectangle per equal-mass bin.
+    fills: list[tuple] = []
     for i, (low, high) in enumerate(zip(values, values[1:])):
         band = f"{i/n_bins:.0%}–{(i+1)/n_bins:.0%}" if n_bins else ""
         if orientation == "vertical":
             box = (position - half, low, position + half, high)
         else:
             box = (low, position - half, high, position + half)
-        extra = (low, high, band) if group is None else (low, high, band, group)
-        rects.append((*box, *extra))
+        fills.append((*box, low, high, band, *extra))
 
-    segments: list[tuple] = []
-    if show_whiskers:
-        reach = half + whisker_extent
-        for value, count in Counter(values).items():
-            if count > 1:
-                if orientation == "vertical":
-                    segments.append(
-                        (position - reach, value, position + reach, value))
-                else:
-                    segments.append(
-                        (value, position - reach, value, position + reach))
-    return rects, segments
+    # Ticks: one per distinct value (values are sorted, so equal ones are
+    # adjacent). A repeated value spans levels i..j and gets a whisker.
+    ticks: list[tuple] = []
+    i = 0
+    while i < len(values):
+        j = i
+        while j + 1 < len(values) and values[j + 1] == values[i]:
+            j += 1
+        repeated = j > i
+        reach = half + (whisker_extent if show_whiskers and repeated else 0)
+        if not n_bins:
+            level = ""
+        elif repeated:
+            level = f"{i/n_bins:.0%}–{j/n_bins:.0%}"
+        else:
+            level = f"{i/n_bins:.0%}"
+        seg = _perp(position, reach, values[i], orientation)
+        ticks.append((*seg, values[i], level, *extra))
+        i = j + 1
+
+    # Box edges: the two long sides, spanning the full value range.
+    low, high = values[0], values[-1]
+    if orientation == "vertical":
+        edges = [(position - half, low, position - half, high),
+                 (position + half, low, position + half, high)]
+    else:
+        edges = [(low, position - half, high, position - half),
+                 (low, position + half, high, position + half)]
+    return fills, ticks, edges
 
 
 def pavement_elements(
@@ -123,14 +161,14 @@ def pavement_elements(
     show_whiskers: bool = True,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     group: Hashable | None = None,
-) -> tuple[Any, Any]:
+) -> dict[str, Any]:
     """
     Build the raw HoloViews elements for a single pavement row.
 
     The lower-level companion to `pavement`: it computes one row's
-    quantile values and returns the unstyled
-    ``(Rectangles, Segments | None)`` pair, leaving styling, overlaying,
-    and axis labelling to the caller. `pavement` wraps this.
+    quantile values and returns the unstyled component elements, leaving
+    styling, overlaying, and axis labelling to the caller. `pavement`
+    wraps this.
 
     Parameters
     ----------
@@ -153,17 +191,23 @@ def pavement_elements(
         Direction of the value axis. 'vertical' puts values on the
         y-axis; 'horizontal' puts them on the x-axis.
     group : hashable, optional
-        If given, added as a ``group`` value dimension on every
-        rectangle so it shows on hover and can drive coloring.
+        If given, added as a ``group`` value dimension on the fills and
+        ticks so it shows on hover and can drive coloring.
 
     Returns
     -------
-    tuple
-        ``(rectangles, segments)``. *rectangles* is a
-        `holoviews.Rectangles` of the equal-mass bins, with value
-        dimensions ``low``, ``high``, ``band`` (and ``group`` if given).
-        *segments* is a `holoviews.Segments` of whisker marks, or None
-        if none were drawn.
+    dict
+        Maps component name to the unstyled HoloViews element:
+
+        - ``"fill"``: a `holoviews.Rectangles` of the equal-mass bins,
+          with value dimensions ``low``, ``high``, ``band`` (and
+          ``group`` if given). Meant to be drawn borderless, as a hover
+          target behind the lines.
+        - ``"ticks"``: a `holoviews.Segments`, one tick per distinct
+          quantile value (extended into a whisker where the value
+          repeats), with value dimensions ``value``, ``level`` (and
+          ``group`` if given).
+        - ``"box"``: a `holoviews.Segments` of the two long box edges.
 
     See Also
     --------
@@ -171,35 +215,44 @@ def pavement_elements(
     pavement.pavement_stats : The underlying quantile computation.
     """
     values = pavement_stats(data, bins=bins, weights=weights)
-    rects, segments = _row_geometry(
+    fills, ticks, edges = _row_geometry(
         values, position, width, orientation,
         whisker_extent, show_whiskers, group)
-    vdims = _VDIMS if group is None else [*_VDIMS, "group"]
-    rectangles = hv.Rectangles(rects, vdims=vdims)
-    whiskers = hv.Segments(segments) if segments else None
-    return rectangles, whiskers
+    fill_vdims = _FILL_VDIMS if group is None else [*_FILL_VDIMS, "group"]
+    tick_vdims = _TICK_VDIMS if group is None else [*_TICK_VDIMS, "group"]
+    return {
+        "fill": hv.Rectangles(fills, vdims=fill_vdims),
+        "ticks": hv.Segments(ticks, vdims=tick_vdims),
+        "box": hv.Segments(edges),
+    }
 
 
-def _style(element: Any, color: str, fill_alpha: float, hover: bool) -> Any:
-    """Apply per-backend fill/line styling (and a hover tool) to an element."""
+def _hover_tooltips(element: Any, candidates: tuple[str, ...]) -> list[str]:
+    """The element's own vdims among *candidates*, so hover skips x0/y0/x1/y1."""
+    names = [d.name for d in element.vdims]
+    return [name for name in candidates if name in names]
+
+
+def _style(element: Any, role: str, color: str, fill_alpha: float,
+           hover: bool) -> Any:
+    """Apply per-backend styling for one component (fill / ticks / box)."""
     backend = hv.Store.current_backend
     opts: dict[str, Any] = {}
-    if isinstance(element, hv.Rectangles):
-        if backend in _RECT_LINE_COLOR:
-            opts[_RECT_LINE_COLOR[backend]] = color
+    if role == "fill":
+        if backend in _RECT_FILL_COLOR:
             opts[_RECT_FILL_COLOR[backend]] = color
             opts[_RECT_FILL_ALPHA[backend]] = fill_alpha
+            opts[_RECT_LINE_WIDTH[backend]] = 0  # borderless; lines are Segments
         # Hover is interactive-backend only; matplotlib silently has none.
-        # Name the meaningful dimensions so the tooltip shows the band
-        # and value range, not the raw x0/y0/x1/y1 corners.
         if hover and backend == "bokeh":
-            names = [d.name for d in element.vdims]
-            opts["hover_tooltips"] = [
-                name for name in ("band", "low", "high", "group")
-                if name in names]
-    else:  # Segments (whiskers)
+            opts["hover_tooltips"] = _hover_tooltips(
+                element, ("band", "low", "high", "group"))
+    else:  # "ticks" or "box": Segments lines, styled identically
         if backend in _SEG_LINE_COLOR:
             opts[_SEG_LINE_COLOR[backend]] = color
+        if role == "ticks" and hover and backend == "bokeh":
+            opts["hover_tooltips"] = _hover_tooltips(
+                element, ("value", "level", "group"))
     return element.opts(**opts)
 
 
@@ -357,14 +410,14 @@ def pavement(
     rows = {}
     for label, dataset, w, pos, b, width, col in zip(
             labels, data, weight_iter, positions, bins, widths, colors):
-        rects, whiskers = pavement_elements(
+        els = pavement_elements(
             dataset, bins=b, weights=w, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
             orientation=orientation, group=label if n > 1 else None)
-        parts = [_style(rects, col, fill_alpha, hover)]
-        if whiskers is not None:
-            parts.append(_style(whiskers, col, fill_alpha, hover))
-        rows[label] = hv.Overlay(parts)
+        # Fill behind (hover target), then the box edges, then the ticks.
+        rows[label] = hv.Overlay([
+            _style(els[role], role, col, fill_alpha, hover)
+            for role in ("fill", "box", "ticks")])
 
     if n == 1:
         result = rows[labels[0]]

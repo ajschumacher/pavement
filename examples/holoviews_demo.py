@@ -59,6 +59,10 @@ def interactive_html():
     The marginals are adjoined with HoloViews' ``<<`` operator and split
     by category for free — the use case that motivated implementing the
     plot once as a framework-native element.
+
+    Both marginals are built with ``orientation='horizontal'``: HoloViews
+    orients each adjoined slot to share the main plot's axis (the top
+    shares x, the right shares y), the same convention as ``.hist()``.
     """
     hv.extension("bokeh")
     groups, xs, ys = make_clusters()
@@ -69,7 +73,8 @@ def interactive_html():
         kdims="group")
     top = phv.pavement(xs, categories=groups, orientation="horizontal",
                        value_label="x")
-    right = phv.pavement(ys, categories=groups, value_label="y")
+    right = phv.pavement(ys, categories=groups, orientation="horizontal",
+                         value_label="y")
 
     layout = (scatter << right << top).opts(
         hv.opts.Scatter(width=500, height=400, size=6, tools=["hover"]))
