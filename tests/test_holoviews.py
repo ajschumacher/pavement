@@ -110,6 +110,19 @@ def test_pavement_bokeh_has_hover_with_clean_tooltips():
     assert not any("x0" in fields for fields in fieldsets)
 
 
+def test_pavement_default_colors_match_holoviews_cycle():
+    # Default group colors are HoloViews' own cycle, so a category-split
+    # pavement matches a default-colored main plot (e.g. a Scatter
+    # NdOverlay) group-for-group, in the same key order.
+    cycle = hv.Cycle().values
+    obj = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = hv.render(obj, backend="bokeh")
+    fills = [r.glyph.fill_color for r in fig.renderers
+             if getattr(r, "glyph", None) is not None
+             and getattr(r.glyph, "fill_color", None)]
+    assert fills[:2] == cycle[:2]
+
+
 def test_pavement_empty_data():
     with pytest.raises(ValueError, match="empty"):
         pavement([])

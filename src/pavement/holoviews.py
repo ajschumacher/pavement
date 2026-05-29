@@ -68,13 +68,17 @@ _RECT_LINE_WIDTH = {"bokeh": "line_width", "matplotlib": "linewidth",
 _SEG_LINE_COLOR = {"bokeh": "line_color", "matplotlib": "color",
                    "plotly": "line_color"}
 
-# Default per-row color cycle (matplotlib's "tab10"), so categories are
-# distinguishable across backends without depending on a backend's own
-# cycling of overlay elements.
-_PALETTE = [
-    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-    "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
-]
+
+def _default_palette() -> list[str]:
+    """HoloViews' own default color cycle.
+
+    HoloViews auto-cycles this for the elements that support it (Scatter,
+    Curve, ...) but not for Rectangles, so we apply it ourselves. Sharing
+    the exact cycle means a default-colored pavement's groups match a
+    default-colored main plot's groups, in the same key order — on every
+    backend, since this cycle is backend-independent.
+    """
+    return list(hv.Cycle().values)
 
 
 def _perp(position: float, reach: float, value: float,
@@ -323,7 +327,9 @@ def pavement(
     color : str or sequence of str, optional
         Per-row color(s). A single color applies to every row; a
         sequence sets each row and must match the number of rows.
-        Defaults to a ten-color cycle.
+        Defaults to HoloViews' own color cycle, so a category-split
+        pavement's groups match a default-colored main plot's groups
+        (in the same key order) when used as a marginal.
     fill_alpha : float, default: 0.3
         Opacity of the bin fills. Bin borders (the ticks and box) are
         drawn opaque.
@@ -394,7 +400,8 @@ def pavement(
     elif len(widths) != n:
         raise ValueError(f"widths has length {len(widths)}, expected {n}")
     if color is None:
-        colors = [_PALETTE[i % len(_PALETTE)] for i in range(n)]
+        palette = _default_palette()
+        colors = [palette[i % len(palette)] for i in range(n)]
     elif isinstance(color, str):
         colors = [color] * n
     elif len(color) != n:
