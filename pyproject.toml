@@ -26,6 +26,9 @@ test = ["pytest"]
 # `test`) because HoloViews needs a newer Python than the base package's
 # floor; the holoviews tests importorskip when it isn't installed.
 holoviews = ["holoviews>=1.15"]
+# Plotly backend for pavement.plotly. Optional like holoviews; the plotly
+# tests importorskip when it isn't installed.
+plotly = ["plotly>=5.0"]
 
 [project.urls]
 Homepage = "https://github.com/ajschumacher/pavement"

@@ -10,3 +10,6 @@ examples/.ipynb_checkpoints/
 # Output of examples/holoviews_demo.py
 holoviews_*.png
 holoviews_marginals*.html
+
+# Output of examples/plotly_demo.py
+plotly_*.html
