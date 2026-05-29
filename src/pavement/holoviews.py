@@ -276,6 +276,7 @@ def pavement(
     fill_alpha: float = 0.3,
     hover: bool = True,
     show_legend: bool = True,
+    transpose_labels: bool = False,
 ) -> Any:
     """
     Build an interactive pavement plot as a HoloViews object.
@@ -342,6 +343,14 @@ def pavement(
         rows). Has no effect on matplotlib, which can't build a legend
         handle for the bin glyphs. `with_marginals` turns this off for
         marginals, whose legend duplicates the main plot's.
+    transpose_labels : bool, default: False
+        Place the value-axis label and the position ticks on the
+        *opposite* axes from *orientation*. Use this only when the plot
+        will be rendered transposed — as HoloViews' adjoint does for a
+        right/left marginal, where it swaps the axes but not the tick
+        labels. `with_marginals` sets this for the right marginal so its
+        category ticks land on the (horizontal) position axis rather
+        than the shared value axis. Leave it False for a standalone plot.
 
     Returns
     -------
@@ -439,9 +448,13 @@ def pavement(
 
     # Label the value axis; the perpendicular (position) axis carries
     # the row labels as ticks when the rows are nameable, else nothing —
-    # its bare "x0"/"y0" dimension name is never meaningful here.
+    # its bare "x0"/"y0" dimension name is never meaningful here. When
+    # the plot will be displayed transposed (transpose_labels), put the
+    # labels and ticks on the swapped axes so they still match the data.
     value_axis = "x" if orientation == "horizontal" else "y"
     pos_axis = "y" if orientation == "horizontal" else "x"
+    if transpose_labels:
+        value_axis, pos_axis = pos_axis, value_axis
     opts: dict[str, Any] = {f"{value_axis}label": value_label, f"{pos_axis}label": ""}
     if labelled:
         opts[f"{pos_axis}ticks"] = [
@@ -535,29 +548,34 @@ def with_marginals(
         raise ValueError(
             "orientation is chosen automatically by with_marginals; "
             "call pavement directly if you need to set it")
+    if "transpose_labels" in kwargs:
+        raise ValueError(
+            "transpose_labels is set per slot by with_marginals; "
+            "call pavement directly if you need to control it")
     kwargs.setdefault("show_legend", False)
 
     if size is None:
         n_groups = len(set(categories)) if categories is not None else 1
         size = 40 * n_groups + 30
 
-    def strip(data: Sequence[float], label: str, across: str) -> Any:
+    def strip(data: Sequence[float], label: str, across: str,
+              transpose: bool) -> Any:
         pav = pavement(data, categories=categories, orientation="horizontal",
-                       value_label=label, **kwargs)
+                       value_label=label, transpose_labels=transpose, **kwargs)
         return _thin(pav, across, size)
 
     layout = main
     # `<<` fills the right slot first, then the top. Add y (right) before
     # x (top); for an x-only marginal, hold the right slot open with an
-    # Empty so x still lands on top rather than the right. The strip's
-    # thickness is its short dimension: height for the top, width for the
-    # right (which the adjoint renders rotated).
+    # Empty so x still lands on top rather than the right. The right slot
+    # is rendered transposed, so its strip is thinned across width (not
+    # height) and its labels are transposed to keep the axes sensible.
     if y is not None:
-        layout = layout << strip(y, y_label, "frame_width")
+        layout = layout << strip(y, y_label, "frame_width", transpose=True)
     elif x is not None:
         layout = layout << hv.Empty()
     if x is not None:
-        layout = layout << strip(x, x_label, "frame_height")
+        layout = layout << strip(x, x_label, "frame_height", transpose=False)
     return layout
 
 

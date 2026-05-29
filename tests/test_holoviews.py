@@ -218,6 +218,49 @@ def test_with_marginals_show_legend_override():
     assert [len(le.items) for le in marg.legend] == [2]  # override re-adds it
 
 
+def _axis_label_values(axis):
+    overrides = getattr(axis, "major_label_overrides", None)
+    if isinstance(overrides, list):
+        overrides = overrides[0] if overrides else {}
+    return set(dict(overrides).values()) if overrides else set()
+
+
+def test_pavement_transpose_labels_swaps_tick_axis():
+    # Horizontal places category ticks on y; transpose_labels moves them
+    # to x (to survive a transposed display, e.g. a right marginal).
+    plain = hv.render(
+        pavement([[1, 2], [3, 4]], labels=["a", "b"], orientation="horizontal"),
+        backend="bokeh")
+    swapped = hv.render(
+        pavement([[1, 2], [3, 4]], labels=["a", "b"], orientation="horizontal",
+                 transpose_labels=True),
+        backend="bokeh")
+    assert _axis_label_values(plain.yaxis) == {"a", "b"}
+    assert _axis_label_values(plain.xaxis) == set()
+    assert _axis_label_values(swapped.xaxis) == {"a", "b"}
+    assert _axis_label_values(swapped.yaxis) == set()
+
+
+def test_with_marginals_right_marginal_axes_make_sense():
+    # The adjoint transposes the right slot; its category ticks must end
+    # up on the (horizontal) position axis, never on the shared value axis.
+    main = hv.NdOverlay({"a": hv.Scatter([(0, 0)]), "b": hv.Scatter([(1, 1)])},
+                        kdims="group")
+    grid = hv.render(
+        with_marginals(main, y=[0, 1, 2, 3], categories=["a", "a", "b", "b"],
+                       size=80),
+        backend="bokeh")
+    right = next(c[0] for c in grid.children
+                 if c[0].__class__.__name__ == "figure" and c[0].frame_width == 80)
+    assert _axis_label_values(right.xaxis) == {"a", "b"}  # on position axis
+    assert _axis_label_values(right.yaxis) == set()       # not on value axis
+
+
+def test_with_marginals_rejects_transpose_labels_kwarg():
+    with pytest.raises(ValueError, match="transpose_labels"):
+        with_marginals(hv.Scatter([(0, 0)]), x=[1, 2, 3], transpose_labels=True)
+
+
 def test_with_marginals_requires_some_data():
     with pytest.raises(ValueError, match="x and/or y"):
         with_marginals(hv.Scatter([(0, 0)]))
