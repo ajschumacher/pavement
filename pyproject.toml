@@ -22,6 +22,10 @@ dependencies = ["matplotlib>=3.5"]
 
 [project.optional-dependencies]
 test = ["pytest"]
+# Interactive backends for pavement.holoviews. Kept optional (and out of
+# `test`) because HoloViews needs a newer Python than the base package's
+# floor; the holoviews tests importorskip when it isn't installed.
+holoviews = ["holoviews>=1.15"]
 
 [project.urls]
 Homepage = "https://github.com/ajschumacher/pavement"

@@ -6,3 +6,7 @@ build/
 examples/.ipynb_checkpoints/
 .claude/
 .python-version
+
+# Output of examples/holoviews_demo.py
+holoviews_*.png
+holoviews_marginals*.html
