@@ -40,16 +40,22 @@ def test_elements_one_tick_per_distinct_value_with_whisker():
     assert max(reaches) > half
 
 
-def test_elements_band_vdim_reports_quantile_span():
+def test_elements_box_hover_strings():
     els = pavement_elements([1, 2, 3, 4, 5], bins=4)
-    assert list(els["fill"].dimension_values("band")) == [
-        "0%–25%", "25%–50%", "50%–75%", "75%–100%"]
+    # A box reads as a quantile band and a value range, "X to Y" (no dash).
+    assert list(els["fill"].dimension_values("quantiles")) == [
+        "0% to 25%", "25% to 50%", "50% to 75%", "75% to 100%"]
+    assert list(els["fill"].dimension_values("values")) == [
+        "1 to 2", "2 to 3", "3 to 4", "4 to 5"]
 
 
-def test_elements_tick_level_vdim_reports_cumulative_quantile():
+def test_elements_line_hover_strings():
     els = pavement_elements([1, 2, 3, 4, 5], bins=4)
-    assert list(els["ticks"].dimension_values("level")) == [
+    # A line (tick) reads as a single quantile and a single value.
+    assert list(els["ticks"].dimension_values("quantiles")) == [
         "0%", "25%", "50%", "75%", "100%"]
+    assert list(els["ticks"].dimension_values("values")) == [
+        "1", "2", "3", "4", "5"]
 
 
 def test_elements_horizontal_swaps_axes():
@@ -102,16 +108,24 @@ def test_pavement_renders_across_backends():
         assert hv.render(obj, backend=backend) is not None
 
 
-def test_pavement_bokeh_has_hover_with_clean_tooltips():
+def test_pavement_bokeh_hover_is_clean_quantile_value_template():
     obj = pavement([1, 2, 3, 4, 5])
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
-    fieldsets = [[name for name, _ in h.tooltips] for h in hovers]
-    # The fills hover the band/range; the ticks hover the value/level.
-    # Neither dumps the raw x0/y0/x1/y1 corners.
-    assert ["band", "low", "high"] in fieldsets
-    assert ["value", "level"] in fieldsets
-    assert not any("x0" in fields for fields in fieldsets)
+    templates = {h.tooltips for h in hovers}
+    # Both fills and ticks hover the same quantile/value layout, stacked
+    # by line break, with no raw x0/y0/x1/y1 corners. (bokeh normalizes
+    # @field to @{field}.)
+    assert templates == {"@{quantiles}<br>@{values}"}
+
+
+def test_pavement_bokeh_group_hover_leads_with_group():
+    obj = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = hv.render(obj, backend="bokeh")
+    hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
+    # With a group, it is the first hover line.
+    assert all(h.tooltips == "@{group}<br>@{quantiles}<br>@{values}"
+               for h in hovers)
 
 
 def test_pavement_default_colors_match_holoviews_cycle():
@@ -282,7 +296,13 @@ def test_pavement_plotly_adds_invisible_hover_layer():
     hover = [t for t in fig["data"] if t.get("hovertemplate")]
     assert len(hover) == 1
     assert (hover[0].get("marker") or {}).get("opacity") == 0
-    assert "quantiles" in hover[0]["hovertemplate"]
+    # Same two-line quantile/value layout as bokeh, via customdata.
+    assert hover[0]["hovertemplate"] == (
+        "%{customdata[0]}<br>%{customdata[1]}<extra></extra>")
+    # The customdata carries the same display strings bokeh shows: the
+    # first sample falls in the first bin (0% to 25%, a value range).
+    assert hover[0]["customdata"][0][0] == "0% to 25%"
+    assert " to " in hover[0]["customdata"][0][1]
     # A dense line of points (not one per bin) so hovering anywhere along
     # a bin works, each labelled by the bin it falls in.
     assert len(hover[0]["customdata"]) > 8

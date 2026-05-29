@@ -51,10 +51,17 @@ from . import pavement_stats
 
 __all__ = ["pavement_elements", "pavement", "with_marginals"]
 
-# Hover dimensions: a fill bin reports its value range and quantile
-# band; a tick reports its value and the cumulative quantile there.
-_FILL_VDIMS = ["low", "high", "band"]
-_TICK_VDIMS = ["value", "level"]
+# Hover dimensions carrying the display strings shown verbatim by every
+# backend: a quantile (band for a box, single level for a tick) and a
+# value (range for a box, single value for a tick). Fills also keep
+# numeric low/high for the plotly hover geometry (not shown).
+_FILL_VDIMS = ["low", "high", "quantiles", "values"]
+_TICK_VDIMS = ["quantiles", "values"]
+
+
+def _fmt(value: float) -> str:
+    """Format a value for hover: concise, 3 significant figures."""
+    return f"{float(value):.3g}"
 
 # Each backend names the same style differently; map them so one call
 # styles correctly whichever backend is active when it runs. The fills
@@ -103,9 +110,11 @@ def _row_geometry(
     """Build the (fill, tick, box-edge) tuples for one row.
 
     Returns ``(fills, ticks, edges)``. A fill is
-    ``(x0, y0, x1, y1, low, high, band[, group])``; a tick is
-    ``(x0, y0, x1, y1, value, level[, group])``; an edge is
-    ``(x0, y0, x1, y1)``.
+    ``(x0, y0, x1, y1, low, high, quantiles, values[, group])``; a tick
+    is ``(x0, y0, x1, y1, quantiles, values[, group])``; an edge is
+    ``(x0, y0, x1, y1)``. *quantiles* and *values* are display strings
+    shared verbatim by every backend's hover; *low*/*high* stay numeric
+    for the plotly hover geometry.
 
     Each distinct quantile value gets exactly one tick — reaching past
     the box (a whisker) where the value repeats — so every line is drawn
@@ -116,18 +125,21 @@ def _row_geometry(
     half = width / 2
     extra = () if group is None else (group,)
 
-    # Fills: one borderless rectangle per equal-mass bin.
+    # Fills: one borderless rectangle per equal-mass bin. A box hover
+    # reads as a quantile band and a value range ("X% to Y%" / "X to Y").
     fills: list[tuple] = []
     for i, (low, high) in enumerate(zip(values, values[1:])):
-        band = f"{i/n_bins:.0%}–{(i+1)/n_bins:.0%}" if n_bins else ""
+        quantiles = f"{i/n_bins:.0%} to {(i+1)/n_bins:.0%}" if n_bins else ""
+        vals = f"{_fmt(low)} to {_fmt(high)}"
         if orientation == "vertical":
             box = (position - half, low, position + half, high)
         else:
             box = (low, position - half, high, position + half)
-        fills.append((*box, low, high, band, *extra))
+        fills.append((*box, low, high, quantiles, vals, *extra))
 
     # Ticks: one per distinct value (values are sorted, so equal ones are
-    # adjacent). A repeated value spans levels i..j and gets a whisker.
+    # adjacent). A repeated value spans levels i..j and gets a whisker. A
+    # line hover reads as a single quantile and value ("X%" / "X").
     ticks: list[tuple] = []
     i = 0
     while i < len(values):
@@ -137,13 +149,13 @@ def _row_geometry(
         repeated = j > i
         reach = half + (whisker_extent if show_whiskers and repeated else 0)
         if not n_bins:
-            level = ""
+            quantiles = ""
         elif repeated:
-            level = f"{i/n_bins:.0%}–{j/n_bins:.0%}"
+            quantiles = f"{i/n_bins:.0%} to {j/n_bins:.0%}"
         else:
-            level = f"{i/n_bins:.0%}"
+            quantiles = f"{i/n_bins:.0%}"
         seg = _perp(position, reach, values[i], orientation)
-        ticks.append((*seg, values[i], level, *extra))
+        ticks.append((*seg, quantiles, _fmt(values[i]), *extra))
         i = j + 1
 
     # Box edges: the two long sides, spanning the full value range.
@@ -233,10 +245,11 @@ def pavement_elements(
     }
 
 
-def _hover_tooltips(element: Any, candidates: tuple[str, ...]) -> list[str]:
-    """The element's own vdims among *candidates*, so hover skips x0/y0/x1/y1."""
-    names = [d.name for d in element.vdims]
-    return [name for name in candidates if name in names]
+# The shared hover layout, one field per line: the group (when present),
+# then the quantile, then the value. Every backend renders these same
+# fields in this order, so the hover text reads the same everywhere.
+def _hover_fields(has_group: bool) -> list[str]:
+    return (["group"] if has_group else []) + ["quantiles", "values"]
 
 
 def _style(element: Any, role: str, color: str, fill_alpha: float,
@@ -249,16 +262,16 @@ def _style(element: Any, role: str, color: str, fill_alpha: float,
             opts[_RECT_FILL_COLOR[backend]] = color
             opts[_RECT_FILL_ALPHA[backend]] = fill_alpha
             opts[_RECT_LINE_WIDTH[backend]] = 0  # borderless; lines are Segments
-        # Hover is interactive-backend only; matplotlib silently has none.
-        if hover and backend == "bokeh":
-            opts["hover_tooltips"] = _hover_tooltips(
-                element, ("band", "low", "high", "group"))
     else:  # "ticks" or "box": Segments lines, styled identically
         if backend in _SEG_LINE_COLOR:
             opts[_SEG_LINE_COLOR[backend]] = color
-        if role == "ticks" and hover and backend == "bokeh":
-            opts["hover_tooltips"] = _hover_tooltips(
-                element, ("value", "level", "group"))
+    # Hover is interactive-backend only; matplotlib silently has none.
+    # plotly gets its hover from a separate marker layer (shapes can't
+    # hover), so only bokeh's glyphs are wired up here.
+    if hover and backend == "bokeh" and role in ("fill", "ticks"):
+        has_group = any(d.name == "group" for d in element.vdims)
+        opts["hover_tooltips"] = "<br>".join(
+            f"@{f}" for f in _hover_fields(has_group))
     return element.opts(**opts)
 
 
@@ -277,7 +290,6 @@ _HOVER_SAMPLES = 80
 
 def _plotly_hover_layer(
     fill: Any,
-    value_label: str,
     group: Hashable | None,
     orientation: str,
 ) -> Any:
@@ -288,7 +300,8 @@ def _plotly_hover_layer(
     plotly we overlay a dense line of invisible markers down the row's
     value axis (the bins stack along it at one position) and use a render
     hook to inject a hovertemplate and each marker's bin's quantile band
-    and value range as customdata.
+    and value range as customdata — the same display strings, in the same
+    order, as bokeh's glyph hover.
 
     The hook finds its own trace by matching the markers' value-axis
     coordinates (distinctive per row) against either trace axis —
@@ -298,7 +311,8 @@ def _plotly_hover_layer(
     """
     low = fill.dimension_values("low")
     high = fill.dimension_values("high")
-    band = fill.dimension_values("band")
+    quantiles = fill.dimension_values("quantiles")
+    values = fill.dimension_values("values")
     if len(low) == 0:
         return hv.Scatter([])
     # The bins stack along the value axis at a single position; sample
@@ -313,18 +327,11 @@ def _plotly_hover_layer(
     edges = np.append(low, high[-1])  # contiguous bin edges
     which = np.clip(np.searchsorted(edges, samples, side="right") - 1,
                     0, len(low) - 1)
-    if group is None:
-        customdata = [[band[i], float(low[i]), float(high[i])] for i in which]
-        group_line = ""
-    else:
-        customdata = [[band[i], float(low[i]), float(high[i]), str(group)]
-                      for i in which]
-        group_line = "%{customdata[3]}<br>"
-    template = (
-        group_line
-        + "quantiles %{customdata[0]}<br>"
-        + value_label + " %{customdata[1]:.3g} – %{customdata[2]:.3g}"
-        + "<extra></extra>")
+    fields = _hover_fields(group is not None)
+    prefix = [str(group)] if group is not None else []
+    customdata = [prefix + [quantiles[i], values[i]] for i in which]
+    template = "<br>".join(
+        f"%{{customdata[{k}]}}" for k in range(len(fields))) + "<extra></extra>"
     constant = np.full(_HOVER_SAMPLES, position)
     points = (samples, constant) if orientation == "horizontal" \
         else (constant, samples)
@@ -531,8 +538,7 @@ def pavement(
         # bokeh hovers the glyphs directly; plotly draws them as
         # non-hoverable shapes, so add an invisible marker layer there.
         if hover and hv.Store.current_backend == "plotly":
-            parts.append(_plotly_hover_layer(
-                els["fill"], value_label, group, orientation))
+            parts.append(_plotly_hover_layer(els["fill"], group, orientation))
         rows[label] = hv.Overlay(parts)
 
     if n == 1:
