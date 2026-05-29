@@ -558,36 +558,47 @@ def with_marginals(
         n_groups = len(set(categories)) if categories is not None else 1
         size = 40 * n_groups + 30
 
-    def strip(data: Sequence[float], label: str, across: str,
+    def strip(data: Sequence[float], label: str, dim: str,
               transpose: bool) -> Any:
         pav = pavement(data, categories=categories, orientation="horizontal",
                        value_label=label, transpose_labels=transpose, **kwargs)
-        return _thin(pav, across, size)
+        return _thin(pav, dim, size)
 
     layout = main
     # `<<` fills the right slot first, then the top. Add y (right) before
     # x (top); for an x-only marginal, hold the right slot open with an
     # Empty so x still lands on top rather than the right. The right slot
-    # is rendered transposed, so its strip is thinned across width (not
+    # is rendered transposed, so its strip is thinned in width (not
     # height) and its labels are transposed to keep the axes sensible.
     if y is not None:
-        layout = layout << strip(y, y_label, "frame_width", transpose=True)
+        layout = layout << strip(y, y_label, "width", transpose=True)
     elif x is not None:
         layout = layout << hv.Empty()
     if x is not None:
-        layout = layout << strip(x, x_label, "frame_height", transpose=False)
+        layout = layout << strip(x, x_label, "height", transpose=False)
     return layout
 
 
-def _thin(strip: Any, across: str, size: int) -> Any:
-    """Constrain a marginal strip's short dimension, in pixels (bokeh).
+# The option that sets a fixed pixel extent along one dimension, per
+# backend. bokeh uses inner-frame dimensions; plotly uses overall figure
+# dimensions. matplotlib has no per-element pixel size (it sizes its own
+# adjoint slots), so it is absent and left alone.
+_THIN_OPT = {
+    "bokeh": {"width": "frame_width", "height": "frame_height"},
+    "plotly": {"width": "width", "height": "height"},
+}
 
-    *across* is ``"frame_height"`` (top strip) or ``"frame_width"``
-    (right strip). Only bokeh has these per-element frame dimensions and
-    oversized adjoint marginals by default; matplotlib and plotly size
-    their own adjoint slots, so they are left alone.
+
+def _thin(strip: Any, dim: str, size: int) -> Any:
+    """Constrain a marginal strip's short dimension to *size* pixels.
+
+    *dim* is ``"height"`` (top strip) or ``"width"`` (right strip).
+    Without this, bokeh and plotly oversize their adjoint marginals;
+    matplotlib sizes its own and is left alone.
     """
-    if hv.Store.current_backend != "bokeh":
+    names = _THIN_OPT.get(hv.Store.current_backend)
+    if names is None:
         return strip
-    return strip.opts(hv.opts.Rectangles(**{across: size}),
-                      hv.opts.Segments(**{across: size}))
+    opt = names[dim]
+    return strip.opts(hv.opts.Rectangles(**{opt: size}),
+                      hv.opts.Segments(**{opt: size}))

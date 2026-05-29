@@ -60,18 +60,28 @@ def interactive_html():
     splitting each by category and matching the scatter's colors — the
     use case that motivated implementing the plot once as a
     framework-native element. It handles the marginal orientation for us.
+
+    The same layout is saved through both interactive backends to show
+    it is genuinely backend-agnostic.
     """
-    hv.extension("bokeh")
     groups, xs, ys = make_clusters()
 
-    scatter = hv.NdOverlay(
-        {g: hv.Scatter([(x, y) for x, y, gg in zip(xs, ys, groups) if gg == g])
-         for g in ["A", "B"]},
-        kdims="group")
-    layout = phv.with_marginals(scatter, x=xs, y=ys, categories=groups).opts(
-        hv.opts.Scatter(width=500, height=400, size=6, tools=["hover"]))
-    hv.save(layout, "holoviews_marginals.html", backend="bokeh")
-    print("wrote holoviews_marginals.html — open it for hover/pan/zoom")
+    def joint_plot():
+        scatter = hv.NdOverlay(
+            {g: hv.Scatter(
+                [(x, y) for x, y, gg in zip(xs, ys, groups) if gg == g])
+             for g in ["A", "B"]},
+            kdims="group")
+        return phv.with_marginals(scatter, x=xs, y=ys, categories=groups)
+
+    for backend, scatter_opts in [
+            ("bokeh", dict(width=500, height=400, size=6, tools=["hover"])),
+            ("plotly", dict(width=500, height=400, size=8))]:
+        hv.extension(backend)
+        layout = joint_plot().opts(hv.opts.Scatter(**scatter_opts))
+        name = f"holoviews_marginals_{backend}.html"
+        hv.save(layout, name, backend=backend)
+        print(f"wrote {name} — open it for hover/pan/zoom")
 
 
 if __name__ == "__main__":
