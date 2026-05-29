@@ -39,11 +39,13 @@ Examples
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Hashable, Iterable, Sequence
 from numbers import Integral, Number
 from typing import Any, Literal
 
 import holoviews as hv
+import numpy as np
 
 from . import pavement_stats
 
@@ -260,6 +262,65 @@ def _style(element: Any, role: str, color: str, fill_alpha: float,
     return element.opts(**opts)
 
 
+def _decode_plotly_array(arr: Any) -> np.ndarray:
+    """Decode a plotly trace coordinate array, binary-encoded or plain."""
+    if isinstance(arr, dict) and "bdata" in arr:
+        return np.frombuffer(base64.b64decode(arr["bdata"]), dtype=arr["dtype"])
+    return np.asarray(arr, dtype=float) if arr is not None else np.empty(0)
+
+
+def _plotly_hover_layer(fill: Any, value_label: str, group: Hashable | None) -> Any:
+    """An invisible Scatter at each bin's center that carries hover text.
+
+    HoloViews renders the fills and lines as plotly *shapes*, which can't
+    hold hover, and its plotly Scatter exposes no tooltip control. So for
+    plotly we overlay a marker per bin and use a render hook to inject a
+    hovertemplate and the bin's quantile band / value range as customdata.
+
+    The hook finds its own trace by matching the markers' value-axis
+    midpoints (distinctive per row) against either trace axis — "either"
+    because a side marginal is transposed by the adjoint, moving the
+    value coordinates from x to y. That is collision-free even with
+    several marginals and a categorical scatter in one figure.
+    """
+    cx = (fill.dimension_values("x0") + fill.dimension_values("x1")) / 2
+    cy = (fill.dimension_values("y0") + fill.dimension_values("y1")) / 2
+    low = fill.dimension_values("low")
+    high = fill.dimension_values("high")
+    band = fill.dimension_values("band")
+    if group is None:
+        customdata = [[b, lo, hi] for b, lo, hi in zip(band, low, high)]
+        group_line = ""
+    else:
+        customdata = [[b, lo, hi, str(group)]
+                      for b, lo, hi in zip(band, low, high)]
+        group_line = "%{customdata[3]}<br>"
+    template = (
+        group_line
+        + "quantiles %{customdata[0]}<br>"
+        + value_label + " %{customdata[1]:.3g} – %{customdata[2]:.3g}"
+        + "<extra></extra>")
+    value_mid = (low + high) / 2
+
+    def matches(coords: np.ndarray) -> bool:
+        return len(coords) == len(value_mid) and bool(np.allclose(coords, value_mid))
+
+    def hook(plot: Any, element: Any) -> None:
+        for trace in plot.state.get("data", []):
+            if trace.get("type") != "scatter":
+                continue
+            if matches(_decode_plotly_array(trace.get("x"))) or \
+                    matches(_decode_plotly_array(trace.get("y"))):
+                trace["customdata"] = customdata
+                trace["hovertemplate"] = template
+                trace["hoverinfo"] = "text"
+                trace["showlegend"] = False
+                trace.setdefault("marker", {})["opacity"] = 0  # invisible
+                return
+
+    return hv.Scatter((cx, cy)).opts(hooks=[hook])
+
+
 def pavement(
     data: Sequence[float] | Sequence[Iterable[float]],
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
@@ -432,14 +493,19 @@ def pavement(
     rows = {}
     for label, dataset, w, pos, b, width, col in zip(
             labels, data, weight_iter, positions, bins, widths, colors):
+        group = label if n > 1 else None
         els = pavement_elements(
             dataset, bins=b, weights=w, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-            orientation=orientation, group=label if n > 1 else None)
+            orientation=orientation, group=group)
         # Fill behind (hover target), then the box edges, then the ticks.
-        rows[label] = hv.Overlay([
-            _style(els[role], role, col, fill_alpha, hover)
-            for role in ("fill", "box", "ticks")])
+        parts = [_style(els[role], role, col, fill_alpha, hover)
+                 for role in ("fill", "box", "ticks")]
+        # bokeh hovers the glyphs directly; plotly draws them as
+        # non-hoverable shapes, so add an invisible marker layer there.
+        if hover and hv.Store.current_backend == "plotly":
+            parts.append(_plotly_hover_layer(els["fill"], value_label, group))
+        rows[label] = hv.Overlay(parts)
 
     if n == 1:
         result = rows[labels[0]]

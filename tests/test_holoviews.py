@@ -271,6 +271,41 @@ def test_with_marginals_rejects_orientation_kwarg():
         with_marginals(hv.Scatter([(0, 0)]), x=[1, 2, 3], orientation="vertical")
 
 
+def test_pavement_plotly_adds_invisible_hover_layer():
+    # plotly draws the bins/lines as non-hoverable shapes, so a hidden
+    # marker layer carries the hover. It is invisible and tooltip-rich.
+    hv.extension("plotly")
+    try:
+        fig = hv.render(pavement([1, 2, 3, 4, 5, 6, 7, 8]), backend="plotly")
+    finally:
+        hv.extension("bokeh")
+    hover = [t for t in fig["data"] if t.get("hovertemplate")]
+    assert len(hover) == 1
+    assert (hover[0].get("marker") or {}).get("opacity") == 0
+    assert "quantiles" in hover[0]["hovertemplate"]
+
+
+def test_with_marginals_plotly_hovers_marginals_not_scatter():
+    # Each marginal (top + right) of each category gets its own hover
+    # layer; the main scatter traces are left untouched.
+    hv.extension("plotly")
+    try:
+        main = hv.NdOverlay(
+            {"a": hv.Scatter([(0, 0), (1, 1)]),
+             "b": hv.Scatter([(2, 2), (3, 3)])}, kdims="group")
+        fig = hv.render(
+            with_marginals(main, x=[0, 1, 2, 3], y=[0, 1, 2, 3],
+                           categories=["a", "a", "b", "b"]),
+            backend="plotly")
+    finally:
+        hv.extension("bokeh")
+    hovered = [t for t in fig["data"] if t.get("hovertemplate")]
+    plain = [t for t in fig["data"] if not t.get("hovertemplate")]
+    assert len(hovered) == 4  # 2 categories x (top + right)
+    assert len(plain) == 2    # the two scatter traces
+    assert all((t.get("marker") or {}).get("opacity") == 0 for t in hovered)
+
+
 def test_pavement_empty_data():
     with pytest.raises(ValueError, match="empty"):
         pavement([])
