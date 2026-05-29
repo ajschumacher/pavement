@@ -275,6 +275,7 @@ def pavement(
     color: str | Sequence[str] | None = None,
     fill_alpha: float = 0.3,
     hover: bool = True,
+    show_legend: bool = True,
 ) -> Any:
     """
     Build an interactive pavement plot as a HoloViews object.
@@ -336,6 +337,11 @@ def pavement(
     hover : bool, default: True
         Whether to enable a hover tool (bokeh only; plotly hovers by
         default, matplotlib has none).
+    show_legend : bool, default: True
+        Whether to show the category legend (only relevant with multiple
+        rows). Has no effect on matplotlib, which can't build a legend
+        handle for the bin glyphs. `with_marginals` turns this off for
+        marginals, whose legend duplicates the main plot's.
 
     Returns
     -------
@@ -442,8 +448,8 @@ def pavement(
             (pos, str(label)) for pos, label in zip(positions, labels)]
     if n > 1:
         # matplotlib can't build a legend handle for Rectangles glyphs;
-        # the legend is an interactive-backend (bokeh/plotly) feature.
-        opts["show_legend"] = hv.Store.current_backend != "matplotlib"
+        # the legend is otherwise an interactive-backend feature.
+        opts["show_legend"] = show_legend and hv.Store.current_backend != "matplotlib"
     return result.opts(**opts)
 
 
@@ -454,22 +460,26 @@ def with_marginals(
     categories: Sequence[Hashable] | None = None,
     x_label: str = "x",
     y_label: str = "y",
+    size: int | None = None,
     **kwargs: Any,
 ) -> Any:
     """
     Adjoin pavement marginals to a plot — x on top, y on the right.
 
-    A one-call joint-plot helper that hides the two things you would
+    A one-call joint-plot helper that hides the things you would
     otherwise have to know to adjoin a pavement with HoloViews' ``<<``
     operator: that each marginal must be built with
     ``orientation='horizontal'`` (HoloViews orients each adjoined slot to
-    share the main plot's axis), and that ``<<`` fills the right slot
-    before the top. Pass the marginal data and it places them correctly.
+    share the main plot's axis), that ``<<`` fills the right slot before
+    the top, and how to keep the marginal strips thin. Pass the marginal
+    data and it places them correctly.
 
-    With *categories*, each marginal is split by category; leaving
-    *color* at its default (see `pavement`) makes the groups match a
-    default-colored *main* plot, so a colored scatter and its marginals
-    share one color scheme for free.
+    The marginals are drawn as thin strips with their (redundant)
+    category legends turned off, so they don't crowd the main plot. With
+    *categories*, each is split by category; leaving *color* at its
+    default (see `pavement`) makes the groups match a default-colored
+    *main* plot, so a colored scatter and its marginals share one color
+    scheme for free.
 
     Parameters
     ----------
@@ -486,10 +496,16 @@ def with_marginals(
         marginal by category, as in `pavement`.
     x_label, y_label : str, default: 'x', 'y'
         Value-axis labels for the top and right marginals.
+    size : int, optional
+        Thickness of each marginal strip in pixels (bokeh/plotly; the
+        matplotlib adjoint sizes its own). Defaults to roughly 40px per
+        category, so multi-group marginals stay legible. Pass a larger
+        value to give crowded categories more room.
     **kwargs
         Forwarded to `pavement` for both marginals (e.g. *bins*,
-        *color*, *fill_alpha*, *show_whiskers*). *orientation* is set
-        automatically and must not be passed.
+        *color*, *fill_alpha*, *show_whiskers*, *show_legend*).
+        *orientation* is set automatically and must not be passed;
+        *show_legend* defaults to False here but may be overridden.
 
     Returns
     -------
@@ -519,19 +535,41 @@ def with_marginals(
         raise ValueError(
             "orientation is chosen automatically by with_marginals; "
             "call pavement directly if you need to set it")
+    kwargs.setdefault("show_legend", False)
 
-    def strip(data: Sequence[float], label: str) -> Any:
-        return pavement(data, categories=categories, orientation="horizontal",
-                        value_label=label, **kwargs)
+    if size is None:
+        n_groups = len(set(categories)) if categories is not None else 1
+        size = 40 * n_groups + 30
+
+    def strip(data: Sequence[float], label: str, across: str) -> Any:
+        pav = pavement(data, categories=categories, orientation="horizontal",
+                       value_label=label, **kwargs)
+        return _thin(pav, across, size)
 
     layout = main
     # `<<` fills the right slot first, then the top. Add y (right) before
     # x (top); for an x-only marginal, hold the right slot open with an
-    # Empty so x still lands on top rather than the right.
+    # Empty so x still lands on top rather than the right. The strip's
+    # thickness is its short dimension: height for the top, width for the
+    # right (which the adjoint renders rotated).
     if y is not None:
-        layout = layout << strip(y, y_label)
+        layout = layout << strip(y, y_label, "frame_width")
     elif x is not None:
         layout = layout << hv.Empty()
     if x is not None:
-        layout = layout << strip(x, x_label)
+        layout = layout << strip(x, x_label, "frame_height")
     return layout
+
+
+def _thin(strip: Any, across: str, size: int) -> Any:
+    """Constrain a marginal strip's short dimension, in pixels (bokeh).
+
+    *across* is ``"frame_height"`` (top strip) or ``"frame_width"``
+    (right strip). Only bokeh has these per-element frame dimensions and
+    oversized adjoint marginals by default; matplotlib and plotly size
+    their own adjoint slots, so they are left alone.
+    """
+    if hv.Store.current_backend != "bokeh":
+        return strip
+    return strip.opts(hv.opts.Rectangles(**{across: size}),
+                      hv.opts.Segments(**{across: size}))

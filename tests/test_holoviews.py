@@ -172,6 +172,52 @@ def test_with_marginals_renders_across_backends():
         assert hv.render(layout, backend=backend) is not None
 
 
+def test_pavement_show_legend_false_empties_legend():
+    fig_on = hv.render(pavement([[1, 2], [3, 4]], labels=["a", "b"]),
+                       backend="bokeh")
+    fig_off = hv.render(
+        pavement([[1, 2], [3, 4]], labels=["a", "b"], show_legend=False),
+        backend="bokeh")
+    assert [len(le.items) for le in fig_on.legend] == [2]
+    assert [len(le.items) for le in fig_off.legend] == [0]
+
+
+def test_with_marginals_thins_strips_in_bokeh():
+    main = hv.Scatter([(0, 0), (1, 1), (2, 2)])
+    grid = hv.render(with_marginals(main, x=[0, 1, 2], y=[0, 1, 2], size=70),
+                     backend="bokeh")
+    figs = [c[0] for c in grid.children if c[0].__class__.__name__ == "figure"]
+    # Each marginal has a 70px short dimension; the main has neither set.
+    short = [min(f.frame_width or 9999, f.frame_height or 9999) for f in figs]
+    assert short.count(70) == 2
+
+
+def test_with_marginals_hides_marginal_legend_by_default():
+    main = hv.NdOverlay({"a": hv.Scatter([(0, 0)]), "b": hv.Scatter([(1, 1)])},
+                        kdims="group")
+    grid = hv.render(
+        with_marginals(main, y=[0, 1, 2, 3], categories=["a", "a", "b", "b"],
+                       size=80),
+        backend="bokeh")
+    figs = [c[0] for c in grid.children if c[0].__class__.__name__ == "figure"]
+    items = {(f.frame_width, f.frame_height): [len(le.items) for le in f.legend]
+             for f in figs}
+    assert items[(80, None)] == [0]      # marginal: no legend
+    assert items[(None, None)] == [2]    # main: keeps its legend
+
+
+def test_with_marginals_show_legend_override():
+    main = hv.NdOverlay({"a": hv.Scatter([(0, 0)]), "b": hv.Scatter([(1, 1)])},
+                        kdims="group")
+    grid = hv.render(
+        with_marginals(main, y=[0, 1, 2, 3], categories=["a", "a", "b", "b"],
+                       size=80, show_legend=True),
+        backend="bokeh")
+    figs = [c[0] for c in grid.children if c[0].__class__.__name__ == "figure"]
+    marg = next(f for f in figs if f.frame_width == 80)
+    assert [len(le.items) for le in marg.legend] == [2]  # override re-adds it
+
+
 def test_with_marginals_requires_some_data():
     with pytest.raises(ValueError, match="x and/or y"):
         with_marginals(hv.Scatter([(0, 0)]))
