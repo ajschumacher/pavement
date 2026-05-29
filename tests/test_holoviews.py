@@ -283,6 +283,9 @@ def test_pavement_plotly_adds_invisible_hover_layer():
     assert len(hover) == 1
     assert (hover[0].get("marker") or {}).get("opacity") == 0
     assert "quantiles" in hover[0]["hovertemplate"]
+    # A dense line of points (not one per bin) so hovering anywhere along
+    # a bin works, each labelled by the bin it falls in.
+    assert len(hover[0]["customdata"]) > 8
 
 
 def test_with_marginals_plotly_hovers_marginals_not_scatter():

@@ -269,41 +269,68 @@ def _decode_plotly_array(arr: Any) -> np.ndarray:
     return np.asarray(arr, dtype=float) if arr is not None else np.empty(0)
 
 
-def _plotly_hover_layer(fill: Any, value_label: str, group: Hashable | None) -> Any:
-    """An invisible Scatter at each bin's center that carries hover text.
+# How many invisible hover points to spread along a row's value axis. A
+# dense line (rather than one point per bin) means hovering anywhere
+# along a bin shows its tooltip, instead of only near the bin's center.
+_HOVER_SAMPLES = 80
+
+
+def _plotly_hover_layer(
+    fill: Any,
+    value_label: str,
+    group: Hashable | None,
+    orientation: str,
+) -> Any:
+    """An invisible Scatter line carrying per-bin hover text, for plotly.
 
     HoloViews renders the fills and lines as plotly *shapes*, which can't
     hold hover, and its plotly Scatter exposes no tooltip control. So for
-    plotly we overlay a marker per bin and use a render hook to inject a
-    hovertemplate and the bin's quantile band / value range as customdata.
+    plotly we overlay a dense line of invisible markers down the row's
+    value axis (the bins stack along it at one position) and use a render
+    hook to inject a hovertemplate and each marker's bin's quantile band
+    and value range as customdata.
 
     The hook finds its own trace by matching the markers' value-axis
-    midpoints (distinctive per row) against either trace axis — "either"
-    because a side marginal is transposed by the adjoint, moving the
-    value coordinates from x to y. That is collision-free even with
+    coordinates (distinctive per row) against either trace axis —
+    "either" because a side marginal is transposed by the adjoint, moving
+    those coordinates from x to y. That is collision-free even with
     several marginals and a categorical scatter in one figure.
     """
-    cx = (fill.dimension_values("x0") + fill.dimension_values("x1")) / 2
-    cy = (fill.dimension_values("y0") + fill.dimension_values("y1")) / 2
     low = fill.dimension_values("low")
     high = fill.dimension_values("high")
     band = fill.dimension_values("band")
+    if len(low) == 0:
+        return hv.Scatter([])
+    # The bins stack along the value axis at a single position; sample
+    # that axis densely and label each sample by the bin containing it.
+    if orientation == "horizontal":
+        position = (fill.dimension_values("y0")[0]
+                    + fill.dimension_values("y1")[0]) / 2
+    else:
+        position = (fill.dimension_values("x0")[0]
+                    + fill.dimension_values("x1")[0]) / 2
+    samples = np.linspace(float(low.min()), float(high.max()), _HOVER_SAMPLES)
+    edges = np.append(low, high[-1])  # contiguous bin edges
+    which = np.clip(np.searchsorted(edges, samples, side="right") - 1,
+                    0, len(low) - 1)
     if group is None:
-        customdata = [[b, lo, hi] for b, lo, hi in zip(band, low, high)]
+        customdata = [[band[i], float(low[i]), float(high[i])] for i in which]
         group_line = ""
     else:
-        customdata = [[b, lo, hi, str(group)]
-                      for b, lo, hi in zip(band, low, high)]
+        customdata = [[band[i], float(low[i]), float(high[i]), str(group)]
+                      for i in which]
         group_line = "%{customdata[3]}<br>"
     template = (
         group_line
         + "quantiles %{customdata[0]}<br>"
         + value_label + " %{customdata[1]:.3g} – %{customdata[2]:.3g}"
         + "<extra></extra>")
-    value_mid = (low + high) / 2
+    constant = np.full(_HOVER_SAMPLES, position)
+    points = (samples, constant) if orientation == "horizontal" \
+        else (constant, samples)
 
     def matches(coords: np.ndarray) -> bool:
-        return len(coords) == len(value_mid) and bool(np.allclose(coords, value_mid))
+        return len(coords) == len(samples) and bool(np.allclose(coords, samples))
 
     def hook(plot: Any, element: Any) -> None:
         for trace in plot.state.get("data", []):
@@ -318,7 +345,7 @@ def _plotly_hover_layer(fill: Any, value_label: str, group: Hashable | None) -> 
                 trace.setdefault("marker", {})["opacity"] = 0  # invisible
                 return
 
-    return hv.Scatter((cx, cy)).opts(hooks=[hook])
+    return hv.Scatter(points).opts(hooks=[hook])
 
 
 def pavement(
@@ -504,7 +531,8 @@ def pavement(
         # bokeh hovers the glyphs directly; plotly draws them as
         # non-hoverable shapes, so add an invisible marker layer there.
         if hover and hv.Store.current_backend == "plotly":
-            parts.append(_plotly_hover_layer(els["fill"], value_label, group))
+            parts.append(_plotly_hover_layer(
+                els["fill"], value_label, group, orientation))
         rows[label] = hv.Overlay(parts)
 
     if n == 1:
