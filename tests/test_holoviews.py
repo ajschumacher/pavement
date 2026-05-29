@@ -2,7 +2,11 @@ import pytest
 
 hv = pytest.importorskip("holoviews")
 
-from pavement.holoviews import pavement, pavement_elements  # noqa: E402
+from pavement.holoviews import (  # noqa: E402
+    pavement,
+    pavement_elements,
+    with_marginals,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -121,6 +125,61 @@ def test_pavement_default_colors_match_holoviews_cycle():
              if getattr(r, "glyph", None) is not None
              and getattr(r.glyph, "fill_color", None)]
     assert fills[:2] == cycle[:2]
+
+
+def test_with_marginals_places_top_and_right():
+    main = hv.Scatter([(0, 0), (1, 1), (2, 2)])
+    layout = with_marginals(main, x=[0, 1, 2], y=[0, 1, 2])
+    assert isinstance(layout, hv.AdjointLayout)
+    assert layout.main is main
+    assert isinstance(layout.right, hv.Overlay)  # y-marginal
+    assert isinstance(layout.top, hv.Overlay)    # x-marginal
+
+
+def test_with_marginals_x_only_uses_top_slot():
+    main = hv.Scatter([(0, 0), (1, 1)])
+    layout = with_marginals(main, x=[0, 1, 2])
+    assert isinstance(layout.top, hv.Overlay)     # x lands on top
+    assert isinstance(layout.right, hv.Empty)     # right held open, not used
+
+
+def test_with_marginals_y_only_uses_right_slot():
+    main = hv.Scatter([(0, 0), (1, 1)])
+    layout = with_marginals(main, y=[0, 1, 2])
+    assert isinstance(layout.right, hv.Overlay)
+    assert layout.top is None
+
+
+def test_with_marginals_builds_horizontal_marginals():
+    # Both slots are built horizontal (value on the x kdim) — the
+    # orientation that makes HoloViews' adjoint align each marginal with
+    # the main plot's shared axis instead of squishing it.
+    main = hv.Scatter([(0, 0), (1, 5), (2, 10)])
+    layout = with_marginals(main, x=[0, 1, 2], y=[0, 5, 10])
+    right_x = (list(layout.right.Rectangles.I.dimension_values("x0"))
+               + list(layout.right.Rectangles.I.dimension_values("x1")))
+    top_x = (list(layout.top.Rectangles.I.dimension_values("x0"))
+             + list(layout.top.Rectangles.I.dimension_values("x1")))
+    assert (min(right_x), max(right_x)) == (0, 10)  # y-data spans the x kdim
+    assert (min(top_x), max(top_x)) == (0, 2)       # x-data spans the x kdim
+
+
+def test_with_marginals_renders_across_backends():
+    main = hv.Scatter([(0, 0), (1, 1), (2, 2)])
+    for backend in ("bokeh", "matplotlib", "plotly"):
+        hv.extension(backend)
+        layout = with_marginals(main, x=[0, 1, 2], y=[0, 1, 2])
+        assert hv.render(layout, backend=backend) is not None
+
+
+def test_with_marginals_requires_some_data():
+    with pytest.raises(ValueError, match="x and/or y"):
+        with_marginals(hv.Scatter([(0, 0)]))
+
+
+def test_with_marginals_rejects_orientation_kwarg():
+    with pytest.raises(ValueError, match="orientation"):
+        with_marginals(hv.Scatter([(0, 0)]), x=[1, 2, 3], orientation="vertical")
 
 
 def test_pavement_empty_data():

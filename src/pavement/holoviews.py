@@ -24,9 +24,9 @@ or tidy data plus *categories*, and returns a HoloViews object. Because
 the result is a plain HoloViews element, framework features compose on
 top of it — overlay it on a scatter, adjoin it as a marginal with the
 ``<<`` operator, or split it by category into a colored, legended
-``NdOverlay``. When adjoining as a side marginal, build it with
-``orientation='horizontal'``: HoloViews orients the adjoined slot to
-share the main plot's axis (see ``examples/holoviews_demo.py``).
+``NdOverlay``. To adjoin pavements as joint-plot marginals, reach for
+`with_marginals`, which places an x-marginal on top and a y-marginal on
+the right with the correct orientation handled for you.
 
 Examples
 --------
@@ -47,7 +47,7 @@ import holoviews as hv
 
 from . import pavement_stats
 
-__all__ = ["pavement_elements", "pavement"]
+__all__ = ["pavement_elements", "pavement", "with_marginals"]
 
 # Hover dimensions: a fill bin reports its value range and quantile
 # band; a tick reports its value and the cumulative quantile there.
@@ -445,3 +445,93 @@ def pavement(
         # the legend is an interactive-backend (bokeh/plotly) feature.
         opts["show_legend"] = hv.Store.current_backend != "matplotlib"
     return result.opts(**opts)
+
+
+def with_marginals(
+    main: Any,
+    x: Sequence[float] | None = None,
+    y: Sequence[float] | None = None,
+    categories: Sequence[Hashable] | None = None,
+    x_label: str = "x",
+    y_label: str = "y",
+    **kwargs: Any,
+) -> Any:
+    """
+    Adjoin pavement marginals to a plot — x on top, y on the right.
+
+    A one-call joint-plot helper that hides the two things you would
+    otherwise have to know to adjoin a pavement with HoloViews' ``<<``
+    operator: that each marginal must be built with
+    ``orientation='horizontal'`` (HoloViews orients each adjoined slot to
+    share the main plot's axis), and that ``<<`` fills the right slot
+    before the top. Pass the marginal data and it places them correctly.
+
+    With *categories*, each marginal is split by category; leaving
+    *color* at its default (see `pavement`) makes the groups match a
+    default-colored *main* plot, so a colored scatter and its marginals
+    share one color scheme for free.
+
+    Parameters
+    ----------
+    main : holoviews object
+        The central plot, e.g. a `holoviews.Scatter` or an
+        ``NdOverlay`` of them.
+    x, y : sequence of float, optional
+        Data for the top (x) and right (y) marginals. Provide either or
+        both; at least one is required. For a category split, these are
+        the per-point x and y values in tidy form, parallel to
+        *categories*.
+    categories : sequence, optional
+        Category label per point, parallel to *x* and *y*. Splits each
+        marginal by category, as in `pavement`.
+    x_label, y_label : str, default: 'x', 'y'
+        Value-axis labels for the top and right marginals.
+    **kwargs
+        Forwarded to `pavement` for both marginals (e.g. *bins*,
+        *color*, *fill_alpha*, *show_whiskers*). *orientation* is set
+        automatically and must not be passed.
+
+    Returns
+    -------
+    holoviews.AdjointLayout
+        *main* with the requested marginals adjoined.
+
+    Raises
+    ------
+    ValueError
+        If neither *x* nor *y* is given, or if *orientation* is passed
+        in *kwargs* (it is chosen automatically).
+
+    See Also
+    --------
+    pavement : Builds each marginal; call it directly for finer control.
+
+    Examples
+    --------
+    >>> import pavement.holoviews as phv
+    >>> scatter = hv.NdOverlay(...)                          # doctest: +SKIP
+    >>> phv.with_marginals(scatter, x=xs, y=ys,
+    ...                    categories=groups)                # doctest: +SKIP
+    """
+    if x is None and y is None:
+        raise ValueError("provide x and/or y data for the marginals")
+    if "orientation" in kwargs:
+        raise ValueError(
+            "orientation is chosen automatically by with_marginals; "
+            "call pavement directly if you need to set it")
+
+    def strip(data: Sequence[float], label: str) -> Any:
+        return pavement(data, categories=categories, orientation="horizontal",
+                        value_label=label, **kwargs)
+
+    layout = main
+    # `<<` fills the right slot first, then the top. Add y (right) before
+    # x (top); for an x-only marginal, hold the right slot open with an
+    # Empty so x still lands on top rather than the right.
+    if y is not None:
+        layout = layout << strip(y, y_label)
+    elif x is not None:
+        layout = layout << hv.Empty()
+    if x is not None:
+        layout = layout << strip(x, x_label)
+    return layout
