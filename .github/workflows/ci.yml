@@ -32,3 +32,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e '.[test]'
       - run: pytest
+
+  # The base `test` job installs only matplotlib, so the bokeh/plotly/
+  # holoviews suites importorskip there. This job installs every backend
+  # so they actually run. On a recent Python, since HoloViews needs more
+  # than the >=3.9 floor.
+  test-all-backends:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e '.[test,all]'
+      - run: pytest

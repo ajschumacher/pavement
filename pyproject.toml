@@ -5,12 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "pavement"
 version = "0.2.2"
-description = "Quantile-based pavement plots with matplotlib."
+description = "Quantile-based pavement plots for matplotlib, Bokeh, Plotly, and HoloViews."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Aaron Schumacher" }]
-keywords = ["quantile", "boxplot", "visualization", "matplotlib", "statistics"]
+keywords = ["quantile", "boxplot", "visualization", "matplotlib", "bokeh",
+            "plotly", "holoviews", "interactive", "statistics"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -22,16 +23,17 @@ dependencies = ["matplotlib>=3.5"]
 
 [project.optional-dependencies]
 test = ["pytest"]
-# Interactive backends for pavement.holoviews. Kept optional (and out of
-# `test`) because HoloViews needs a newer Python than the base package's
-# floor; the holoviews tests importorskip when it isn't installed.
-holoviews = ["holoviews>=1.15"]
-# Plotly backend for pavement.plotly. Optional like holoviews; the plotly
-# tests importorskip when it isn't installed.
-plotly = ["plotly>=5.0"]
-# Bokeh backend for pavement.bokeh. Optional like the others; the bokeh
-# tests importorskip when it isn't installed.
+# Each rendering backend is optional; matplotlib is the only hard
+# dependency. The matching tests importorskip when the backend isn't
+# installed, so the base `test` install exercises core + matplotlib only.
 bokeh = ["bokeh>=3.0"]
+plotly = ["plotly>=5.0"]
+# HoloViews needs a newer Python than the base package's >=3.9 floor, so
+# the all-backends CI job (and `pip install pavement[all]`) runs on a
+# recent Python.
+holoviews = ["holoviews>=1.15"]
+# Every interactive backend at once, e.g. `pip install pavement[all]`.
+all = ["pavement[bokeh,plotly,holoviews]"]
 
 [project.urls]
 Homepage = "https://github.com/ajschumacher/pavement"
