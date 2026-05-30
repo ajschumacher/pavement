@@ -18,9 +18,10 @@ quantile value (data piled up) simply extends its own tick into a
 whisker, so every line is drawn exactly once. The ticks carry their own
 hover, like a rug plot's.
 
-The headline function is `pavement`, which mirrors the top-level
-`pavement.plot`: it accepts a single dataset, a wide list of datasets,
-or tidy data plus *categories*, and returns a HoloViews object. Because
+The headline function is `plot`, which mirrors the matplotlib backend's
+`pavement.matplotlib.plot`: it accepts a single dataset, a wide list of
+datasets, or tidy data plus *categories*, and returns a HoloViews
+object. Because
 the result is a plain HoloViews element, framework features compose on
 top of it — overlay it on a scatter, adjoin it as a marginal with the
 ``<<`` operator, or split it by category into a colored, legended
@@ -33,8 +34,8 @@ Examples
 >>> import holoviews as hv
 >>> import pavement.holoviews as phv
 >>> hv.extension('bokeh')                       # doctest: +SKIP
->>> phv.pavement([1, 2, 3, 4, 5])               # doctest: +SKIP
->>> phv.pavement(values, categories=labels)     # doctest: +SKIP
+>>> phv.plot([1, 2, 3, 4, 5])                   # doctest: +SKIP
+>>> phv.plot(values, categories=labels)         # doctest: +SKIP
 """
 
 from __future__ import annotations
@@ -59,7 +60,7 @@ from ._geometry import (
     tick_segment,
 )
 
-__all__ = ["pavement_elements", "pavement", "with_marginals"]
+__all__ = ["pavement_elements", "plot", "with_marginals"]
 
 # Hover dimensions carrying the display strings shown verbatim by every
 # backend: a quantile (band for a box, single level for a tick) and a
@@ -156,10 +157,9 @@ def pavement_elements(
     """
     Build the raw HoloViews elements for a single pavement row.
 
-    The lower-level companion to `pavement`: it computes one row's
-    quantile values and returns the unstyled component elements, leaving
-    styling, overlaying, and axis labelling to the caller. `pavement`
-    wraps this.
+    The lower-level companion to `plot`: it computes one row's quantile
+    values and returns the unstyled component elements, leaving styling,
+    overlaying, and axis labelling to the caller. `plot` wraps this.
 
     Parameters
     ----------
@@ -202,7 +202,7 @@ def pavement_elements(
 
     See Also
     --------
-    pavement : The headline, multi-row function built on this.
+    plot : The headline, multi-row function built on this.
     pavement.pavement_stats : The underlying quantile computation.
     """
     values = pavement_stats(data, bins=bins, weights=weights)
@@ -321,7 +321,7 @@ def _plotly_hover_layer(
     return hv.Scatter(points).opts(hooks=[hook])
 
 
-def pavement(
+def plot(
     data: Sequence[float] | Sequence[Iterable[float]],
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
     positions: Sequence[float] | None = None,
@@ -342,10 +342,10 @@ def pavement(
     """
     Build an interactive pavement plot as a HoloViews object.
 
-    The HoloViews counterpart of `pavement.plot`. Accepts the same three
-    input shapes — a single 1D dataset, a wide sequence of datasets, or
-    tidy data plus *categories* — and returns a HoloViews object that
-    renders through any backend.
+    The HoloViews counterpart of `pavement.matplotlib.plot`. Accepts the
+    same three input shapes — a single 1D dataset, a wide sequence of
+    datasets, or tidy data plus *categories* — and returns a HoloViews
+    object that renders through any backend.
 
     A single dataset returns a `holoviews.Overlay` (the bins, plus any
     whiskers). Multiple rows return a `holoviews.NdOverlay` keyed by
@@ -359,7 +359,7 @@ def pavement(
     ----------
     data : sequence of float, or sequence of iterables of float
         The values to plot. Shape determines the mode, as in
-        `pavement.plot`.
+        `pavement.matplotlib.plot`.
     weights : sequence, optional
         Positive weights, matching the shape of *data*.
     positions : sequence of float, optional
@@ -428,7 +428,7 @@ def pavement(
 
     See Also
     --------
-    pavement.plot : The matplotlib equivalent.
+    pavement.matplotlib.plot : The matplotlib equivalent.
     pavement_elements : The single-row element builder this wraps.
 
     Examples
@@ -436,12 +436,12 @@ def pavement(
     >>> import holoviews as hv
     >>> import pavement.holoviews as phv
     >>> hv.extension('bokeh')                              # doctest: +SKIP
-    >>> phv.pavement([1, 2, 3, 4, 5])                      # doctest: +SKIP
+    >>> phv.plot([1, 2, 3, 4, 5])                          # doctest: +SKIP
 
     Split tidy data by category, then adjoin it as a top marginal::
 
         main = hv.Scatter((x, y))
-        top = phv.pavement(x, categories=group, orientation='horizontal')
+        top = phv.plot(x, categories=group, orientation='horizontal')
         layout = main << top                               # doctest: +SKIP
     """
     # labelled: whether to tick the position axis with per-row labels —
@@ -525,7 +525,7 @@ def with_marginals(
     The marginals are drawn as thin strips with their (redundant)
     category legends turned off, so they don't crowd the main plot. With
     *categories*, each is split by category; leaving *color* at its
-    default (see `pavement`) makes the groups match a default-colored
+    default (see `plot`) makes the groups match a default-colored
     *main* plot, so a colored scatter and its marginals share one color
     scheme for free.
 
@@ -541,7 +541,7 @@ def with_marginals(
         *categories*.
     categories : sequence, optional
         Category label per point, parallel to *x* and *y*. Splits each
-        marginal by category, as in `pavement`.
+        marginal by category, as in `plot`.
     x_label, y_label : str, default: 'x', 'y'
         Value-axis labels for the top and right marginals.
     size : int, optional
@@ -550,7 +550,7 @@ def with_marginals(
         category, so multi-group marginals stay legible. Pass a larger
         value to give crowded categories more room.
     **kwargs
-        Forwarded to `pavement` for both marginals (e.g. *bins*,
+        Forwarded to `plot` for both marginals (e.g. *bins*,
         *color*, *fill_alpha*, *show_whiskers*, *show_legend*).
         *orientation* is set automatically and must not be passed;
         *show_legend* defaults to False here but may be overridden.
@@ -568,7 +568,7 @@ def with_marginals(
 
     See Also
     --------
-    pavement : Builds each marginal; call it directly for finer control.
+    plot : Builds each marginal; call it directly for finer control.
 
     Examples
     --------
@@ -582,11 +582,11 @@ def with_marginals(
     if "orientation" in kwargs:
         raise ValueError(
             "orientation is chosen automatically by with_marginals; "
-            "call pavement directly if you need to set it")
+            "call plot directly if you need to set it")
     if "transpose_labels" in kwargs:
         raise ValueError(
             "transpose_labels is set per slot by with_marginals; "
-            "call pavement directly if you need to control it")
+            "call plot directly if you need to control it")
     kwargs.setdefault("show_legend", False)
 
     if size is None:
@@ -595,7 +595,7 @@ def with_marginals(
 
     def strip(data: Sequence[float], label: str, dim: str,
               transpose: bool) -> Any:
-        pav = pavement(data, categories=categories, orientation="horizontal",
+        pav = plot(data, categories=categories, orientation="horizontal",
                        value_label=label, transpose_labels=transpose, **kwargs)
         return _thin(pav, dim, size)
 

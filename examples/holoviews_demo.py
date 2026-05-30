@@ -35,15 +35,15 @@ def static_pngs():
     """Render a few pavements to PNG through the matplotlib backend."""
     hv.extension("matplotlib")
 
-    single = phv.pavement([1, 2, 2, 3, 4, 5, 8, 13, 21])
+    single = phv.plot([1, 2, 2, 3, 4, 5, 8, 13, 21])
     hv.save(single.opts(hv.opts.Rectangles(fig_size=160)),
             "holoviews_single.png")
 
-    rug = phv.pavement([1, 2, 2, 3, 4, 5, 8, 13, 21], bins=None)
+    rug = phv.plot([1, 2, 2, 3, 4, 5, 8, 13, 21], bins=None)
     hv.save(rug.opts(hv.opts.Rectangles(fig_size=160)),
             "holoviews_rug.png")
 
-    categories = phv.pavement(
+    categories = phv.plot(
         [[1, 2, 3, 4, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8, 9, 12],
          [2, 2, 3, 5, 8, 8, 9, 10]],
         labels=["cats", "dogs", "birds"])

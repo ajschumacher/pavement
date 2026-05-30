@@ -38,16 +38,16 @@ The functions mirror the rest of the package:
 - `add_pavement` adds one or more rows — accepting a single dataset, a wide
   list of datasets, or tidy data plus *categories* — and wires up the shared
   hover and legend.
-- `pavement` builds a whole `~bokeh.plotting.figure`, the counterpart of
-  `pavement.plot`, `pavement.holoviews.pavement`, and `pavement.plotly.pavement`.
+- `plot` builds a whole `~bokeh.plotting.figure`, the counterpart of
+  `pavement.matplotlib.plot`, `pavement.holoviews.plot`, and `pavement.plotly.plot`.
 - `with_marginals` builds a scatter-with-marginals joint plot.
 
 Examples
 --------
 >>> import pavement.bokeh as pbk
 >>> from bokeh.plotting import show
->>> show(pbk.pavement([1, 2, 3, 4, 5]))                 # doctest: +SKIP
->>> show(pbk.pavement(values, categories=labels))       # doctest: +SKIP
+>>> show(pbk.plot([1, 2, 3, 4, 5]))                 # doctest: +SKIP
+>>> show(pbk.plot(values, categories=labels))       # doctest: +SKIP
 """
 
 from __future__ import annotations
@@ -80,7 +80,7 @@ from ._geometry import (
     tick_segment,
 )
 
-__all__ = ["pavement_glyphs", "add_pavement", "pavement", "with_marginals"]
+__all__ = ["pavement_glyphs", "add_pavement", "plot", "with_marginals"]
 
 
 def _default_colors(n: int) -> list[str]:
@@ -167,7 +167,7 @@ def pavement_glyphs(
     row's quantile values and draws them onto *fig* as Bokeh glyphs,
     returning the renderers. It draws only the glyphs — the shared hover
     tool and legend are figure-level concerns wired up by `add_pavement`, so
-    reach for `pavement` or `add_pavement` for the usual single/wide/tidy
+    reach for `plot` or `add_pavement` for the usual single/wide/tidy
     entry points and interactivity.
 
     Parameters
@@ -287,8 +287,8 @@ def add_pavement(
     """
     Add one or more pavement rows to an existing figure.
 
-    The building block `pavement` and `with_marginals` share: it accepts the
-    same single/wide/tidy input shapes as `pavement.plot`, draws each row's
+    The building block `plot` and `with_marginals` share: it accepts the
+    same single/wide/tidy input shapes as `pavement.matplotlib.plot`, draws each row's
     glyphs, and wires up the shared interactivity — one `~bokeh.models.HoverTool`
     over all the rows' bins and ticks, and, for multiple rows, a clickable
     `~bokeh.models.Legend` (each entry toggles its whole row). The figure is
@@ -299,7 +299,7 @@ def add_pavement(
     fig : bokeh.plotting.figure
         The figure to add to. Mutated in place.
     data : sequence of float, or sequence of iterables of float
-        The values to plot; shape selects the mode, as in `pavement.plot`.
+        The values to plot; shape selects the mode, as in `pavement.matplotlib.plot`.
     weights : sequence, optional
         Positive weights, matching the shape of *data*.
     positions : sequence of float, optional
@@ -441,7 +441,7 @@ def _setup_position_axis(
         axis.ticker = []
 
 
-def pavement(
+def plot(
     data: Sequence[float] | Sequence[Iterable[float]],
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
     positions: Sequence[float] | None = None,
@@ -464,8 +464,8 @@ def pavement(
     """
     Build an interactive pavement plot as a Bokeh figure.
 
-    The Bokeh counterpart of `pavement.plot`, `pavement.holoviews.pavement`,
-    and `pavement.plotly.pavement`. Accepts the same three input shapes — a
+    The Bokeh counterpart of `pavement.matplotlib.plot`, `pavement.holoviews.plot`,
+    and `pavement.plotly.plot`. Accepts the same three input shapes — a
     single 1D dataset, a wide sequence of datasets, or tidy data plus
     *categories* — and returns a `~bokeh.plotting.figure` with the value axis
     labelled and the position axis ticked by the row labels.
@@ -473,7 +473,7 @@ def pavement(
     Parameters
     ----------
     data : sequence of float, or sequence of iterables of float
-        The values to plot; shape selects the mode, as in `pavement.plot`.
+        The values to plot; shape selects the mode, as in `pavement.matplotlib.plot`.
     weights : sequence, optional
         Positive weights, matching the shape of *data*.
     positions : sequence of float, optional
@@ -531,8 +531,8 @@ def pavement(
 
     See Also
     --------
-    pavement.plot : The matplotlib equivalent.
-    pavement.plotly.pavement : The Plotly equivalent.
+    pavement.matplotlib.plot : The matplotlib equivalent.
+    pavement.plotly.plot : The Plotly equivalent.
     with_marginals : Arrange a scatter with pavement marginals.
     add_pavement : The lower-level adder this wraps.
 
@@ -540,8 +540,8 @@ def pavement(
     --------
     >>> import pavement.bokeh as pbk
     >>> from bokeh.plotting import show
-    >>> show(pbk.pavement([1, 2, 3, 4, 5]))                 # doctest: +SKIP
-    >>> show(pbk.pavement(values, categories=labels))       # doctest: +SKIP
+    >>> show(pbk.plot([1, 2, 3, 4, 5]))                 # doctest: +SKIP
+    >>> show(pbk.plot(values, categories=labels))       # doctest: +SKIP
     """
     if fig is None:
         fig = figure(**figure_kwargs)
@@ -631,7 +631,7 @@ def with_marginals(
         per-point values in tidy form, parallel to *categories*.
     categories : sequence, optional
         Category label per point, parallel to *x* and *y*. Splits each
-        marginal by category, as in `pavement`.
+        marginal by category, as in `plot`.
     size : int, default: 120
         Thickness of each marginal strip in pixels.
     **kwargs

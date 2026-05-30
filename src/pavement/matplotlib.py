@@ -22,7 +22,7 @@ from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 from matplotlib.transforms import blended_transform_factory
 
-from ._geometry import row_spec
+from ._geometry import broadcast, normalize_rows, row_spec
 from .core import pavement_stats, pavement_stats2d
 
 __all__ = [
@@ -165,12 +165,15 @@ def plot(
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
     positions: Sequence[float] | None = None,
     categories: Sequence[Hashable] | None = None,
-    tick_labels: Sequence[Hashable] | None = None,
+    labels: Sequence[Hashable] | None = None,
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
+    value_label: str | None = None,
+    color: str | Sequence[str] | None = None,
+    fill_alpha: float = 0.3,
     line_props: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
     box_props: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
     ax: Axes | None = None,
@@ -178,7 +181,9 @@ def plot(
     """
     Draw one or more pavement rows.
 
-    Accepts three input shapes:
+    The matplotlib backend's headline function — the counterpart of
+    `pavement.bokeh.plot`, `pavement.plotly.plot`, and
+    `pavement.holoviews.plot`. Accepts the same three input shapes:
 
     - A 1D sequence of values: a single row.
     - A sequence of 1D sequences: one row per dataset, at *positions*
@@ -203,11 +208,11 @@ def plot(
         Category label per entry in *data*, parallel to *data*. If
         given, *data* is treated as tidy/long form and split by
         category.
-    tick_labels : sequence of str, optional
-        Tick labels, one per row, in the same order as the rows. In
-        tidy form, also selects which categories to include and their
-        order. Ticks are only set when this is provided, on the x-axis
-        for ``orientation='vertical'`` and the y-axis otherwise.
+    labels : sequence, optional
+        One label per row, in row order. In tidy form, also selects
+        which categories to include and their order. When given (or in
+        tidy form), the rows are ticked on the position axis — the
+        x-axis for ``orientation='vertical'``, the y-axis otherwise.
     bins : int, None, or sequence of (int or None), default: 4
         Number of equal-mass bins per row. A scalar applies to every
         row; a sequence sets each row's bin count individually and
@@ -228,6 +233,21 @@ def plot(
         Direction of the value axis. 'vertical' puts values on the
         y-axis (matplotlib's boxplot default); 'horizontal' puts them
         on the x-axis.
+    value_label : str, optional
+        If given, label the value axis (y for vertical, x otherwise).
+        The shared name for this across backends; matplotlib leaves the
+        axis unlabelled by default.
+    color : str or sequence of str, optional
+        Per-row color convenience. A single color applies to every row;
+        a sequence sets each row and must match the number of rows. It
+        tints the lines and, unless *box_props* is given for that row,
+        draws a translucent fill of the same color (see *fill_alpha*).
+        Defaults to None: black lines and no fill, unless *line_props* /
+        *box_props* say otherwise. For full control use those instead;
+        a per-row *line_props* color overrides *color*.
+    fill_alpha : float, default: 0.3
+        Opacity of the fill drawn for a row that has a *color* but no
+        explicit *box_props*. Ignored when no such fill is drawn.
     line_props : dict or sequence of dict, optional
         Per-row line styling. A single dict applies to every row; a
         sequence sets each row individually and must have length equal
@@ -236,8 +256,8 @@ def plot(
     box_props : dict or sequence of dict, optional
         Per-row background fill. A single dict applies to every row; a
         sequence sets each row individually and must have length equal
-        to the number of rows. See `draw_pavement` for the dict
-        semantics.
+        to the number of rows. Takes precedence over *color* for the
+        fill. See `draw_pavement` for the dict semantics.
     ax : matplotlib Axes, optional
         Axes to draw on. Defaults to ``plt.gca()``.
 
@@ -250,70 +270,63 @@ def plot(
     Raises
     ------
     ValueError
-        If *data* is empty; if *positions*, *bins*, *widths*,
-        *line_props*, or *box_props* is given as a sequence with the
-        wrong length; or for any reason raised by the underlying
-        `pavement_stats` or `draw_pavement` calls (e.g. non-positive
-        *bins* or invalid *orientation*).
+        If *data* is empty; if *positions*, *bins*, *widths*, *color*,
+        *labels*, *line_props*, or *box_props* is given as a sequence
+        with the wrong length; or for any reason raised by the
+        underlying `pavement_stats` or `draw_pavement` calls (e.g.
+        non-positive *bins* or invalid *orientation*).
 
     See Also
     --------
     pavement_stats : Compute quantile values for one dataset.
     draw_pavement : Render one row from precomputed values.
+    pavement.bokeh.plot : The Bokeh equivalent.
     """
-    if categories is not None:
-        if tick_labels is None:
-            tick_labels = sorted(set(categories))
-        data = [[d for d, c in zip(data, categories) if c == label]
-                for label in tick_labels]
-        if weights is not None:
-            weights = [[w for w, c in zip(weights, categories) if c == label]
-                       for label in tick_labels]
-    if len(data) == 0:
-        raise ValueError("data must be non-empty")
-    if not hasattr(data[0], '__iter__'):
-        data = [data]
-        weights = [weights] if weights is not None else None
+    data, weight_rows, labels, labelled = normalize_rows(
+        data, weights, categories, labels)
     n = len(data)
     if positions is None:
         positions = list(range(1, n + 1))
     elif len(positions) != n:
         raise ValueError(
             f"positions has length {len(positions)}, expected {n}")
-    if bins is None or isinstance(bins, Integral):
-        bins = [bins] * n
-    elif len(bins) != n:
-        raise ValueError(
-            f"bins has length {len(bins)}, expected {n}")
-    if isinstance(widths, Number):
-        widths = [widths] * n
-    elif len(widths) != n:
-        raise ValueError(
-            f"widths has length {len(widths)}, expected {n}")
-    if line_props is None or isinstance(line_props, Mapping):
-        line_props = [line_props] * n
-    elif len(line_props) != n:
-        raise ValueError(
-            f"line_props has length {len(line_props)}, expected {n}")
-    if box_props is None or isinstance(box_props, Mapping):
-        box_props = [box_props] * n
-    elif len(box_props) != n:
-        raise ValueError(
-            f"box_props has length {len(box_props)}, expected {n}")
+    bins = broadcast(bins, n, "bins",
+                     lambda v: v is None or isinstance(v, Integral))
+    widths = broadcast(widths, n, "widths", lambda v: isinstance(v, Number))
+    if color is None:
+        colors: list[Any] = [None] * n
+    else:
+        colors = broadcast(color, n, "color", lambda v: isinstance(v, str))
+    line_props = broadcast(line_props, n, "line_props",
+                           lambda v: v is None or isinstance(v, Mapping))
+    box_props = broadcast(box_props, n, "box_props",
+                          lambda v: v is None or isinstance(v, Mapping))
     if ax is None:
         ax = plt.gca()
-    weight_iter = weights if weights is not None else [None] * n
     artists = []
-    for dataset, w, pos, b, width, props, bprops in zip(
-            data, weight_iter, positions, bins, widths, line_props, box_props):
+    for dataset, w, pos, b, width, col, lp, bp in zip(
+            data, weight_rows, positions, bins, widths, colors,
+            line_props, box_props):
+        # color is a convenience: tint the lines, and (unless box_props is
+        # given for this row) draw a translucent fill of the same color. A
+        # per-row line_props color wins over color.
+        row_line = {**({'color': col} if col is not None else {}), **(lp or {})}
+        if bp is None and col is not None:
+            bp = {'facecolor': col, 'alpha': fill_alpha}
         values = pavement_stats(dataset, bins=b, weights=w)
         artists.append(draw_pavement(
             values, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-            orientation=orientation, line_props=props, box_props=bprops, ax=ax))
-    if tick_labels is not None:
+            orientation=orientation, line_props=row_line or None,
+            box_props=bp, ax=ax))
+    if labelled:
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
-        set_ticks(list(positions), list(tick_labels))
+        set_ticks(list(positions), [str(label) for label in labels])
+    if value_label is not None:
+        if orientation == 'vertical':
+            ax.set_ylabel(value_label)
+        else:
+            ax.set_xlabel(value_label)
     return artists
 
 

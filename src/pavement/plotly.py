@@ -36,10 +36,10 @@ quantile band and value range, the tick hover a single quantile and value
 The functions mirror the rest of the package:
 
 - `pavement_traces` builds one row's traces (the low-level piece).
-- `pavement` builds a whole `~plotly.graph_objects.Figure`, accepting a
+- `plot` builds a whole `~plotly.graph_objects.Figure`, accepting a
   single dataset, a wide list of datasets, or tidy data plus
-  *categories* — the counterpart of `pavement.plot` and
-  `pavement.holoviews.pavement`.
+  *categories* — the counterpart of `pavement.matplotlib.plot` and
+  `pavement.holoviews.plot`.
 - `add_pavement` adds those rows to an existing figure (optionally into a
   subplot cell), the building block the other two share.
 - `with_marginals` builds a scatter-with-marginals joint plot.
@@ -47,8 +47,8 @@ The functions mirror the rest of the package:
 Examples
 --------
 >>> import pavement.plotly as ppl
->>> ppl.pavement([1, 2, 3, 4, 5]).show()                # doctest: +SKIP
->>> ppl.pavement(values, categories=labels).show()      # doctest: +SKIP
+>>> ppl.plot([1, 2, 3, 4, 5]).show()                # doctest: +SKIP
+>>> ppl.plot(values, categories=labels).show()      # doctest: +SKIP
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ from ._geometry import (
     tick_segment,
 )
 
-__all__ = ["pavement_traces", "add_pavement", "pavement", "with_marginals"]
+__all__ = ["pavement_traces", "add_pavement", "plot", "with_marginals"]
 
 # Hover text is shown verbatim via ``hovertemplate="%{text}..."``, which
 # inserts the ``text`` string literally — so the "%" in a quantile like
@@ -183,7 +183,7 @@ def pavement_traces(
     The low-level piece the rest of the module is built on: it computes
     one row's quantile values and returns the `~plotly.graph_objects`
     traces that draw it, ready to ``add_trace`` (optionally into a
-    subplot cell). Use `pavement` or `add_pavement` for the usual
+    subplot cell). Use `plot` or `add_pavement` for the usual
     single/wide/tidy entry points.
 
     Parameters
@@ -312,8 +312,8 @@ def add_pavement(
     """
     Add one or more pavement rows to an existing figure.
 
-    The building block `pavement` and `with_marginals` share: it accepts
-    the same single/wide/tidy input shapes as `pavement.plot`, builds the
+    The building block `plot` and `with_marginals` share: it accepts
+    the same single/wide/tidy input shapes as `pavement.matplotlib.plot`, builds the
     traces for each row, and adds them to *fig* — into a specific subplot
     cell when *row*/*col* are given. The figure is mutated and returned.
 
@@ -323,7 +323,7 @@ def add_pavement(
         The figure to add to. Mutated in place.
     data : sequence of float, or sequence of iterables of float
         The values to plot; shape selects the mode, as in
-        `pavement.plot`.
+        `pavement.matplotlib.plot`.
     weights : sequence, optional
         Positive weights, matching the shape of *data*.
     positions : sequence of float, optional
@@ -431,7 +431,7 @@ def _position_axis_kwargs(
     return kw
 
 
-def pavement(
+def plot(
     data: Sequence[float] | Sequence[Iterable[float]],
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
     positions: Sequence[float] | None = None,
@@ -453,8 +453,8 @@ def pavement(
     """
     Build an interactive pavement plot as a Plotly figure.
 
-    The Plotly counterpart of `pavement.plot` and
-    `pavement.holoviews.pavement`. Accepts the same three input shapes — a
+    The Plotly counterpart of `pavement.matplotlib.plot` and
+    `pavement.holoviews.plot`. Accepts the same three input shapes — a
     single 1D dataset, a wide sequence of datasets, or tidy data plus
     *categories* — and returns a `~plotly.graph_objects.Figure` with the
     value axis labelled and the position axis ticked by the row labels.
@@ -463,7 +463,7 @@ def pavement(
     ----------
     data : sequence of float, or sequence of iterables of float
         The values to plot; shape selects the mode, as in
-        `pavement.plot`.
+        `pavement.matplotlib.plot`.
     weights : sequence, optional
         Positive weights, matching the shape of *data*.
     positions : sequence of float, optional
@@ -520,16 +520,16 @@ def pavement(
 
     See Also
     --------
-    pavement.plot : The matplotlib equivalent.
-    pavement.holoviews.pavement : The HoloViews equivalent.
+    pavement.matplotlib.plot : The matplotlib equivalent.
+    pavement.holoviews.plot : The HoloViews equivalent.
     with_marginals : Adjoin pavement marginals to a scatter.
     add_pavement : The lower-level adder this wraps.
 
     Examples
     --------
     >>> import pavement.plotly as ppl
-    >>> ppl.pavement([1, 2, 3, 4, 5]).show()                # doctest: +SKIP
-    >>> ppl.pavement(values, categories=labels).show()      # doctest: +SKIP
+    >>> ppl.plot([1, 2, 3, 4, 5]).show()                # doctest: +SKIP
+    >>> ppl.plot(values, categories=labels).show()      # doctest: +SKIP
     """
     if fig is None:
         fig = go.Figure()
@@ -622,7 +622,7 @@ def with_marginals(
         per-point values in tidy form, parallel to *categories*.
     categories : sequence, optional
         Category label per point, parallel to *x* and *y*. Splits each
-        marginal by category, as in `pavement`.
+        marginal by category, as in `plot`.
     size : float, default: 0.15
         Thickness of each marginal strip, as a fraction of the figure.
     spacing : float, default: 0.02

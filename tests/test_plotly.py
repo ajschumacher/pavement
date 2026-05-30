@@ -5,7 +5,7 @@ go = pytest.importorskip("plotly.graph_objects")
 from pavement.plotly import (  # noqa: E402
     pavement_traces,
     add_pavement,
-    pavement,
+    plot,
     with_marginals,
 )
 
@@ -124,28 +124,28 @@ def test_bins_none_is_a_rug():
 
 
 def test_pavement_single_returns_figure():
-    fig = pavement([1, 2, 3, 4, 5])
+    fig = plot([1, 2, 3, 4, 5])
     assert isinstance(fig, go.Figure)
     assert len(fig.data) == 6  # 4 bin fills + line + tick hover
     assert fig.layout.showlegend is False  # anonymous single row
 
 
 def test_pavement_multiple_gets_legend_per_row():
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     assert fig.layout.showlegend is True
     legend_names = [t.name for t in fig.data if t.showlegend]
     assert legend_names == ["a", "b"]
 
 
 def test_pavement_tidy_splits_by_category():
-    fig = pavement([1, 2, 3, 4, 5, 6],
+    fig = plot([1, 2, 3, 4, 5, 6],
                    categories=["x", "x", "x", "y", "y", "y"])
     names = sorted({t.name for t in fig.data if t.name})
     assert names == ["x", "y"]
 
 
 def test_pavement_per_row_bins_mix_none_and_int():
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[None, 2],
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[None, 2],
                    labels=["a", "b"])
     fills = _fill_traces(fig)
     assert sum(1 for t in fills if t.name == "a") == 3  # all data: 3 bands
@@ -153,25 +153,25 @@ def test_pavement_per_row_bins_mix_none_and_int():
 
 
 def test_pavement_labels_tick_the_position_axis():
-    fig = pavement([[1, 2], [3, 4]], labels=["a", "b"])
+    fig = plot([[1, 2], [3, 4]], labels=["a", "b"])
     assert list(fig.layout.xaxis.ticktext) == ["a", "b"]
     assert list(fig.layout.xaxis.tickvals) == [1, 2]
 
 
 def test_pavement_anonymous_row_has_no_position_ticks():
-    fig = pavement([1, 2, 3, 4, 5])
+    fig = plot([1, 2, 3, 4, 5])
     assert fig.layout.xaxis.showticklabels is False
 
 
 def test_pavement_horizontal_labels_value_axis_on_x():
-    fig = pavement([1, 2, 3, 4, 5], orientation="horizontal",
+    fig = plot([1, 2, 3, 4, 5], orientation="horizontal",
                    value_label="height")
     assert fig.layout.xaxis.title.text == "height"
 
 
 def test_pavement_default_colors_match_plotly_cycle():
     from plotly.colors import qualitative
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     line_colors = [t.line.color for t in _line_traces(fig)]
     assert line_colors[:2] == list(qualitative.Plotly[:2])
 
@@ -272,7 +272,7 @@ def test_with_marginals_rejects_managed_kwargs():
 
 
 def test_pavement_renders_to_html():
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     assert len(fig.to_html()) > 0
 
 
@@ -284,24 +284,24 @@ def test_with_marginals_renders_to_html():
 
 def test_pavement_empty_data():
     with pytest.raises(ValueError, match="empty"):
-        pavement([])
+        plot([])
 
 
 def test_pavement_positions_length_mismatch():
     with pytest.raises(ValueError, match="positions"):
-        pavement([[1, 2], [3, 4]], positions=[1])
+        plot([[1, 2], [3, 4]], positions=[1])
 
 
 def test_pavement_bins_length_mismatch():
     with pytest.raises(ValueError, match="bins"):
-        pavement([[1, 2], [3, 4]], bins=[4])
+        plot([[1, 2], [3, 4]], bins=[4])
 
 
 def test_pavement_color_length_mismatch():
     with pytest.raises(ValueError, match="color"):
-        pavement([[1, 2], [3, 4]], color=["red"])
+        plot([[1, 2], [3, 4]], color=["red"])
 
 
 def test_pavement_labels_length_mismatch():
     with pytest.raises(ValueError, match="labels"):
-        pavement([[1, 2], [3, 4]], labels=["only-one"])
+        plot([[1, 2], [3, 4]], labels=["only-one"])
