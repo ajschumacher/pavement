@@ -34,13 +34,13 @@ def standalone():
     """A single pavement, a rug, and a category-split pavement."""
     data = [1, 2, 2, 3, 4, 5, 8, 13, 21]
 
-    single = ppl.pavement(data)
+    single = ppl.plot(data)
     single.write_html("plotly_single.html")
 
-    rug = ppl.pavement(data, bins=None)
+    rug = ppl.plot(data, bins=None)
     rug.write_html("plotly_rug.html")
 
-    categories = ppl.pavement(
+    categories = ppl.plot(
         [[1, 2, 3, 4, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8, 9, 12],
          [2, 2, 3, 5, 8, 8, 9, 10]],
         labels=["cats", "dogs", "birds"])

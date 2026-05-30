@@ -13,3 +13,6 @@ holoviews_marginals*.html
 
 # Output of examples/plotly_demo.py
 plotly_*.html
+
+# Output of examples/bokeh_demo.py
+bokeh_*.html

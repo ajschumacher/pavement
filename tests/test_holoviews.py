@@ -3,8 +3,8 @@ import pytest
 hv = pytest.importorskip("holoviews")
 
 from pavement.holoviews import (  # noqa: E402
-    pavement,
     pavement_elements,
+    plot,
     with_marginals,
 )
 
@@ -73,25 +73,25 @@ def test_elements_bins_none_is_a_rug():
 
 
 def test_pavement_single_returns_overlay():
-    result = pavement([1, 2, 3, 4, 5])
+    result = plot([1, 2, 3, 4, 5])
     assert isinstance(result, hv.Overlay)
 
 
 def test_pavement_multiple_returns_ndoverlay_keyed_by_label():
-    result = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    result = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     assert isinstance(result, hv.NdOverlay)
     assert list(result.keys()) == ["a", "b"]
 
 
 def test_pavement_tidy_splits_by_category():
-    result = pavement([1, 2, 3, 4, 5, 6],
+    result = plot([1, 2, 3, 4, 5, 6],
                       categories=["x", "x", "x", "y", "y", "y"])
     assert isinstance(result, hv.NdOverlay)
     assert list(result.keys()) == ["x", "y"]
 
 
 def test_pavement_per_row_bins_mix_none_and_int():
-    result = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[None, 2],
+    result = plot([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[None, 2],
                       labels=["a", "b"])
     assert len(result["a"].Rectangles.I) == 3  # all data: 3 bands
     assert len(result["b"].Rectangles.I) == 2  # 2 bins
@@ -103,13 +103,13 @@ def test_pavement_renders_across_backends():
     # usual HoloViews pattern of choosing the backend up front).
     for backend in ("bokeh", "matplotlib", "plotly"):
         hv.extension(backend)
-        obj = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+        obj = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
         # Should not raise; returns a backend-native figure object.
         assert hv.render(obj, backend=backend) is not None
 
 
 def test_pavement_bokeh_hover_is_clean_quantile_value_template():
-    obj = pavement([1, 2, 3, 4, 5])
+    obj = plot([1, 2, 3, 4, 5])
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
     templates = {h.tooltips for h in hovers}
@@ -120,7 +120,7 @@ def test_pavement_bokeh_hover_is_clean_quantile_value_template():
 
 
 def test_pavement_bokeh_group_hover_leads_with_group():
-    obj = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    obj = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
     # With a group, it is the first hover line.
@@ -133,7 +133,7 @@ def test_pavement_default_colors_match_holoviews_cycle():
     # pavement matches a default-colored main plot (e.g. a Scatter
     # NdOverlay) group-for-group, in the same key order.
     cycle = hv.Cycle().values
-    obj = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    obj = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     fig = hv.render(obj, backend="bokeh")
     fills = [r.glyph.fill_color for r in fig.renderers
              if getattr(r, "glyph", None) is not None
@@ -187,10 +187,10 @@ def test_with_marginals_renders_across_backends():
 
 
 def test_pavement_show_legend_false_empties_legend():
-    fig_on = hv.render(pavement([[1, 2], [3, 4]], labels=["a", "b"]),
+    fig_on = hv.render(plot([[1, 2], [3, 4]], labels=["a", "b"]),
                        backend="bokeh")
     fig_off = hv.render(
-        pavement([[1, 2], [3, 4]], labels=["a", "b"], show_legend=False),
+        plot([[1, 2], [3, 4]], labels=["a", "b"], show_legend=False),
         backend="bokeh")
     assert [len(le.items) for le in fig_on.legend] == [2]
     assert [len(le.items) for le in fig_off.legend] == [0]
@@ -243,10 +243,10 @@ def test_pavement_transpose_labels_swaps_tick_axis():
     # Horizontal places category ticks on y; transpose_labels moves them
     # to x (to survive a transposed display, e.g. a right marginal).
     plain = hv.render(
-        pavement([[1, 2], [3, 4]], labels=["a", "b"], orientation="horizontal"),
+        plot([[1, 2], [3, 4]], labels=["a", "b"], orientation="horizontal"),
         backend="bokeh")
     swapped = hv.render(
-        pavement([[1, 2], [3, 4]], labels=["a", "b"], orientation="horizontal",
+        plot([[1, 2], [3, 4]], labels=["a", "b"], orientation="horizontal",
                  transpose_labels=True),
         backend="bokeh")
     assert _axis_label_values(plain.yaxis) == {"a", "b"}
@@ -290,7 +290,7 @@ def test_pavement_plotly_adds_invisible_hover_layer():
     # marker layer carries the hover. It is invisible and tooltip-rich.
     hv.extension("plotly")
     try:
-        fig = hv.render(pavement([1, 2, 3, 4, 5, 6, 7, 8]), backend="plotly")
+        fig = hv.render(plot([1, 2, 3, 4, 5, 6, 7, 8]), backend="plotly")
     finally:
         hv.extension("bokeh")
     hover = [t for t in fig["data"] if t.get("hovertemplate")]
@@ -331,24 +331,24 @@ def test_with_marginals_plotly_hovers_marginals_not_scatter():
 
 def test_pavement_empty_data():
     with pytest.raises(ValueError, match="empty"):
-        pavement([])
+        plot([])
 
 
 def test_pavement_positions_length_mismatch():
     with pytest.raises(ValueError, match="positions"):
-        pavement([[1, 2], [3, 4]], positions=[1])
+        plot([[1, 2], [3, 4]], positions=[1])
 
 
 def test_pavement_bins_length_mismatch():
     with pytest.raises(ValueError, match="bins"):
-        pavement([[1, 2], [3, 4]], bins=[4])
+        plot([[1, 2], [3, 4]], bins=[4])
 
 
 def test_pavement_color_length_mismatch():
     with pytest.raises(ValueError, match="color"):
-        pavement([[1, 2], [3, 4]], color=["red"])
+        plot([[1, 2], [3, 4]], color=["red"])
 
 
 def test_pavement_labels_length_mismatch():
     with pytest.raises(ValueError, match="labels"):
-        pavement([[1, 2], [3, 4]], labels=["only-one"])
+        plot([[1, 2], [3, 4]], labels=["only-one"])

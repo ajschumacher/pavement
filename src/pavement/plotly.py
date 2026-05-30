@@ -1,7 +1,7 @@
 """
 Interactive pavement plots for Plotly.
 
-The matplotlib renderer in the top-level package draws static artists and
+The `pavement.matplotlib` renderer draws static matplotlib artists and
 the `pavement.holoviews` module builds backend-agnostic HoloViews
 elements. This module targets Plotly directly, so it speaks Plotly's own
 vocabulary — `plotly.graph_objects` traces, `plotly.subplots` grids — and
@@ -36,10 +36,10 @@ quantile band and value range, the tick hover a single quantile and value
 The functions mirror the rest of the package:
 
 - `pavement_traces` builds one row's traces (the low-level piece).
-- `pavement` builds a whole `~plotly.graph_objects.Figure`, accepting a
+- `plot` builds a whole `~plotly.graph_objects.Figure`, accepting a
   single dataset, a wide list of datasets, or tidy data plus
-  *categories* — the counterpart of `pavement.plot` and
-  `pavement.holoviews.pavement`.
+  *categories* — the counterpart of `pavement.matplotlib.plot` and
+  `pavement.holoviews.plot`.
 - `add_pavement` adds those rows to an existing figure (optionally into a
   subplot cell), the building block the other two share.
 - `with_marginals` builds a scatter-with-marginals joint plot.
@@ -47,8 +47,8 @@ The functions mirror the rest of the package:
 Examples
 --------
 >>> import pavement.plotly as ppl
->>> ppl.pavement([1, 2, 3, 4, 5]).show()                # doctest: +SKIP
->>> ppl.pavement(values, categories=labels).show()      # doctest: +SKIP
+>>> ppl.plot([1, 2, 3, 4, 5]).show()                # doctest: +SKIP
+>>> ppl.plot(values, categories=labels).show()      # doctest: +SKIP
 """
 
 from __future__ import annotations
@@ -58,34 +58,27 @@ from numbers import Integral, Number
 from typing import Any, Literal
 
 import plotly.graph_objects as go
-from matplotlib.colors import to_rgba
 from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 
-from . import pavement_stats
+from .core import pavement_stats
+from ._geometry import (
+    bin_polygon,
+    box_edges,
+    broadcast,
+    complete_color_map,
+    normalize_rows,
+    resolve_colors,
+    row_spec,
+    tick_segment,
+)
 
-__all__ = ["pavement_traces", "add_pavement", "pavement", "with_marginals"]
+__all__ = ["pavement_traces", "add_pavement", "plot", "with_marginals"]
 
 # Hover text is shown verbatim via ``hovertemplate="%{text}..."``, which
 # inserts the ``text`` string literally — so the "%" in a quantile like
 # "25%" needs no escaping (unlike putting it directly in the template).
 _HOVERTEMPLATE = "%{text}<extra></extra>"
-
-
-def _fmt(value: float) -> str:
-    """Format a value for hover: concise, 3 significant figures."""
-    return f"{float(value):.3g}"
-
-
-def _rgba(color: str, alpha: float) -> str:
-    """A Plotly ``rgba(...)`` string for any matplotlib-recognized color.
-
-    Plotly wants an explicit alpha in the fill color; matplotlib's
-    ``to_rgba`` parses hex, named, and ``rgb(...)`` specs alike, so the
-    same *color* a caller gives for the lines yields a translucent fill.
-    """
-    r, g, b, _ = to_rgba(color)
-    return f"rgba({r*255:.0f},{g*255:.0f},{b*255:.0f},{alpha})"
 
 
 def _default_colors(n: int) -> list[str]:
@@ -97,18 +90,6 @@ def _default_colors(n: int) -> list[str]:
     """
     cycle = qualitative.Plotly
     return [cycle[i % len(cycle)] for i in range(n)]
-
-
-def _perp(position: float, reach: float, value: float,
-          orientation: str) -> tuple[tuple[float, float], tuple[float, float]]:
-    """Endpoints of a segment crossing the value axis at *value*.
-
-    The segment runs perpendicular to the value axis, ``reach`` to each
-    side of *position*.
-    """
-    if orientation == "vertical":
-        return (position - reach, value), (position + reach, value)
-    return (value, position - reach), (value, position + reach)
 
 
 def _row_geometry(
@@ -133,63 +114,37 @@ def _row_geometry(
       value — the point (at the row center, on the value axis) and hover
       strings for the rug-style tick hover. A repeated value reads as a
       span ("X% to Y%").
+
+    The shared `row_spec` does the binning and one-tick-per-distinct-value
+    (whisker) logic; this lays the result out the way Plotly's traces want.
     """
-    n_bins = len(values) - 1
-    half = width / 2
+    spec = row_spec(values, position, width, orientation,
+                    whisker_extent, show_whiskers)
 
-    # Bins: one borderless rectangle per equal-mass bin, as a closed
-    # polygon, carrying its quantile band and value range for hover.
+    # Bins: one borderless rectangle per equal-mass bin, as a closed polygon.
     bins: list[tuple[list[float], list[float], str, str]] = []
-    for i, (low, high) in enumerate(zip(values, values[1:])):
-        band = f"{i/n_bins:.0%} to {(i+1)/n_bins:.0%}" if n_bins else ""
-        value_range = f"{_fmt(low)} to {_fmt(high)}"
-        if orientation == "vertical":
-            xs = [position - half, position + half, position + half,
-                  position - half, position - half]
-            ys = [low, low, high, high, low]
-        else:
-            xs = [low, low, high, high, low]
-            ys = [position - half, position + half, position + half,
-                  position - half, position - half]
-        bins.append((xs, ys, band, value_range))
+    for b in spec.bins:
+        xs, ys = bin_polygon(b.low, b.high, position, spec.half, orientation)
+        bins.append((xs, ys, b.band, b.value_range))
 
-    # Ticks: one per distinct value (values are sorted, so equal ones are
-    # adjacent). A repeated value spans several levels and reaches past
-    # the box as a whisker; its hover then reads as a span of levels.
+    # Ticks: the quantile ticks as line segments (None lifts the pen between
+    # them), plus a hover point per distinct value at the row center.
     line_x: list[float | None] = []
     line_y: list[float | None] = []
     ticks: list[tuple[float, float, str, str]] = []
-    i = 0
-    while i < len(values):
-        j = i
-        while j + 1 < len(values) and values[j + 1] == values[i]:
-            j += 1
-        repeated = j > i
-        reach = half + (whisker_extent if show_whiskers and repeated else 0)
-        (x0, y0), (x1, y1) = _perp(position, reach, values[i], orientation)
+    for t in spec.ticks:
+        x0, y0, x1, y1 = tick_segment(position, t.reach, t.value, orientation)
         line_x += [x0, x1, None]
         line_y += [y0, y1, None]
-        if not n_bins:
-            quantile = ""
-        elif repeated:
-            quantile = f"{i/n_bins:.0%} to {j/n_bins:.0%}"
-        else:
-            quantile = f"{i/n_bins:.0%}"
-        # The tick-hover point sits at the value, centered across the row.
-        tx, ty = (position, values[i]) if orientation == "vertical" \
-            else (values[i], position)
-        ticks.append((tx, ty, quantile, _fmt(values[i])))
-        i = j + 1
+        tx, ty = (position, t.value) if orientation == "vertical" \
+            else (t.value, position)
+        ticks.append((tx, ty, t.quantile, t.value_str))
 
     # Box edges: the two long sides, spanning the full value range.
-    low, high = values[0], values[-1]
-    for side in (position - half, position + half):
-        if orientation == "vertical":
-            line_x += [side, side, None]
-            line_y += [low, high, None]
-        else:
-            line_x += [low, high, None]
-            line_y += [side, side, None]
+    for x0, y0, x1, y1 in box_edges(position, spec.half, spec.value_low,
+                                    spec.value_high, orientation):
+        line_x += [x0, x1, None]
+        line_y += [y0, y1, None]
 
     return {"bins": bins, "line_x": line_x, "line_y": line_y, "ticks": ticks}
 
@@ -216,7 +171,7 @@ def pavement_traces(
     The low-level piece the rest of the module is built on: it computes
     one row's quantile values and returns the `~plotly.graph_objects`
     traces that draw it, ready to ``add_trace`` (optionally into a
-    subplot cell). Use `pavement` or `add_pavement` for the usual
+    subplot cell). Use `plot` or `add_pavement` for the usual
     single/wide/tidy entry points.
 
     Parameters
@@ -240,8 +195,9 @@ def pavement_traces(
         Direction of the value axis. 'vertical' puts values on the
         y-axis; 'horizontal' puts them on the x-axis.
     color : str, optional
-        Color of the lines and (translucent) fill. Any
-        matplotlib-recognized color. Defaults to the first Plotly color.
+        Color of the lines and (translucent) fill. Any hex, named, or
+        ``rgb(...)`` color Plotly accepts. Defaults to the first Plotly
+        color.
     fill_alpha : float, default: 0.3
         Opacity of the bin fills. The ticks and box are drawn opaque. Set
         to 0 to omit the fill entirely.
@@ -285,13 +241,15 @@ def pavement_traces(
     legend_taken = False
 
     # Bins: one filled rectangle each, hovering anywhere inside the box.
+    # The translucent fill is the row color at fill_alpha opacity: the line
+    # is zero-width, so the trace opacity applies to the fill alone — no
+    # need to bake an alpha into the color string (and no matplotlib).
     if fill_alpha > 0:
-        fillcolor = _rgba(color, fill_alpha)
         for xs, ys, band, value_range in geom["bins"]:
             text = "<br>".join(prefix + [band, value_range])
             traces.append(go.Scatter(
                 x=xs, y=ys, mode="lines", line=dict(width=0), fill="toself",
-                fillcolor=fillcolor, hoveron="fills",
+                fillcolor=color, opacity=fill_alpha, hoveron="fills",
                 text=text if hover else None,
                 hovertemplate=_HOVERTEMPLATE if hover else None,
                 hoverinfo=None if hover else "skip",
@@ -322,54 +280,6 @@ def pavement_traces(
     return traces
 
 
-def _normalize_rows(
-    data: Any,
-    weights: Any,
-    categories: Sequence[Hashable] | None,
-    labels: Sequence[Hashable] | None,
-) -> tuple[list[list[float]], list[Any], list[Hashable], bool]:
-    """Resolve the single/wide/tidy input shapes into per-row lists.
-
-    Returns ``(data_rows, weight_rows, labels, labelled)``, mirroring the
-    expansion in `pavement.plot` and `pavement.holoviews.pavement`.
-    *labelled* records whether the rows are nameable (categories or
-    explicit labels), so the caller knows whether to tick the position
-    axis.
-    """
-    labelled = labels is not None or categories is not None
-    if categories is not None:
-        if labels is None:
-            labels = sorted(set(categories))
-        data = [[d for d, c in zip(data, categories) if c == label]
-                for label in labels]
-        if weights is not None:
-            weights = [[w for w, c in zip(weights, categories) if c == label]
-                       for label in labels]
-    data = list(data)
-    if len(data) == 0:
-        raise ValueError("data must be non-empty")
-    if not hasattr(data[0], "__iter__"):
-        data = [data]
-        weights = [weights] if weights is not None else None
-    n = len(data)
-    if labels is None:
-        labels = list(range(1, n + 1))
-    elif len(labels) != n:
-        raise ValueError(f"labels has length {len(labels)}, expected {n}")
-    weight_rows = list(weights) if weights is not None else [None] * n
-    return data, weight_rows, list(labels), labelled
-
-
-def _broadcast(value: Any, n: int, name: str,
-               scalar: Any) -> list[Any]:
-    """Expand a scalar to *n* copies, or validate a length-*n* sequence."""
-    if scalar(value):
-        return [value] * n
-    if len(value) != n:
-        raise ValueError(f"{name} has length {len(value)}, expected {n}")
-    return list(value)
-
-
 def add_pavement(
     fig: go.Figure,
     data: Sequence[float] | Sequence[Iterable[float]],
@@ -393,8 +303,8 @@ def add_pavement(
     """
     Add one or more pavement rows to an existing figure.
 
-    The building block `pavement` and `with_marginals` share: it accepts
-    the same single/wide/tidy input shapes as `pavement.plot`, builds the
+    The building block `plot` and `with_marginals` share: it accepts
+    the same single/wide/tidy input shapes as `pavement.matplotlib.plot`, builds the
     traces for each row, and adds them to *fig* — into a specific subplot
     cell when *row*/*col* are given. The figure is mutated and returned.
 
@@ -404,7 +314,7 @@ def add_pavement(
         The figure to add to. Mutated in place.
     data : sequence of float, or sequence of iterables of float
         The values to plot; shape selects the mode, as in
-        `pavement.plot`.
+        `pavement.matplotlib.plot`.
     weights : sequence, optional
         Positive weights, matching the shape of *data*.
     positions : sequence of float, optional
@@ -462,20 +372,17 @@ def add_pavement(
     pavement : Create a new figure (calls this).
     pavement_traces : Build a single row's traces.
     """
-    data, weight_rows, labels, _ = _normalize_rows(
+    data, weight_rows, labels, _ = normalize_rows(
         data, weights, categories, labels)
     n = len(data)
     if positions is None:
         positions = list(range(1, n + 1))
     elif len(positions) != n:
         raise ValueError(f"positions has length {len(positions)}, expected {n}")
-    bins = _broadcast(bins, n, "bins",
-                      lambda v: v is None or isinstance(v, Integral))
-    widths = _broadcast(widths, n, "widths", lambda v: isinstance(v, Number))
-    if color is None:
-        colors = _default_colors(n)
-    else:
-        colors = _broadcast(color, n, "color", lambda v: isinstance(v, str))
+    bins = broadcast(bins, n, "bins",
+                     lambda v: v is None or isinstance(v, Integral))
+    widths = broadcast(widths, n, "widths", lambda v: isinstance(v, Number))
+    colors = resolve_colors(color, n, _default_colors)
 
     add = dict(row=row, col=col) if row is not None or col is not None else {}
     for label, dataset, w, pos, b, width, col_ in zip(
@@ -515,7 +422,7 @@ def _position_axis_kwargs(
     return kw
 
 
-def pavement(
+def plot(
     data: Sequence[float] | Sequence[Iterable[float]],
     weights: Sequence[float] | Sequence[Sequence[float]] | None = None,
     positions: Sequence[float] | None = None,
@@ -537,8 +444,8 @@ def pavement(
     """
     Build an interactive pavement plot as a Plotly figure.
 
-    The Plotly counterpart of `pavement.plot` and
-    `pavement.holoviews.pavement`. Accepts the same three input shapes — a
+    The Plotly counterpart of `pavement.matplotlib.plot` and
+    `pavement.holoviews.plot`. Accepts the same three input shapes — a
     single 1D dataset, a wide sequence of datasets, or tidy data plus
     *categories* — and returns a `~plotly.graph_objects.Figure` with the
     value axis labelled and the position axis ticked by the row labels.
@@ -547,7 +454,7 @@ def pavement(
     ----------
     data : sequence of float, or sequence of iterables of float
         The values to plot; shape selects the mode, as in
-        `pavement.plot`.
+        `pavement.matplotlib.plot`.
     weights : sequence, optional
         Positive weights, matching the shape of *data*.
     positions : sequence of float, optional
@@ -604,26 +511,26 @@ def pavement(
 
     See Also
     --------
-    pavement.plot : The matplotlib equivalent.
-    pavement.holoviews.pavement : The HoloViews equivalent.
+    pavement.matplotlib.plot : The matplotlib equivalent.
+    pavement.holoviews.plot : The HoloViews equivalent.
     with_marginals : Adjoin pavement marginals to a scatter.
     add_pavement : The lower-level adder this wraps.
 
     Examples
     --------
     >>> import pavement.plotly as ppl
-    >>> ppl.pavement([1, 2, 3, 4, 5]).show()                # doctest: +SKIP
-    >>> ppl.pavement(values, categories=labels).show()      # doctest: +SKIP
+    >>> ppl.plot([1, 2, 3, 4, 5]).show()                # doctest: +SKIP
+    >>> ppl.plot(values, categories=labels).show()      # doctest: +SKIP
     """
     if fig is None:
         fig = go.Figure()
     # Resolve labels/positions once here so the axes match the rows added.
-    rows, _, resolved_labels, labelled = _normalize_rows(
+    rows, _, resolved_labels, labelled = normalize_rows(
         data, weights, categories, labels)
     n = len(rows)
     if positions is None:
         positions = list(range(1, n + 1))
-    max_width = max(_broadcast(
+    max_width = max(broadcast(
         widths, n, "widths", lambda v: isinstance(v, Number)))
 
     add_pavement(
@@ -666,10 +573,7 @@ def _color_map(main: go.Figure, labels: Sequence[Hashable]) -> dict[Hashable, st
             for label in labels:
                 if str(label) == name and label not in found:
                     found[label] = color
-    fallback = iter(c for c in _default_colors(len(labels))
-                    if c not in found.values())
-    return {label: found.get(label, next(fallback, _default_colors(1)[0]))
-            for label in labels}
+    return complete_color_map(found, labels, _default_colors)
 
 
 def with_marginals(
@@ -709,7 +613,7 @@ def with_marginals(
         per-point values in tidy form, parallel to *categories*.
     categories : sequence, optional
         Category label per point, parallel to *x* and *y*. Splits each
-        marginal by category, as in `pavement`.
+        marginal by category, as in `plot`.
     size : float, default: 0.15
         Thickness of each marginal strip, as a fraction of the figure.
     spacing : float, default: 0.02

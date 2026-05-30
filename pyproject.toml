@@ -4,13 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pavement"
-version = "0.2.2"
-description = "Quantile-based pavement plots with matplotlib."
+version = "1.0.0rc1"
+description = "Quantile-based pavement plots for matplotlib, Bokeh, Plotly, and HoloViews."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Aaron Schumacher" }]
-keywords = ["quantile", "boxplot", "visualization", "matplotlib", "statistics"]
+keywords = ["quantile", "boxplot", "visualization", "matplotlib", "bokeh",
+            "plotly", "holoviews", "interactive", "statistics"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -18,20 +19,25 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
-dependencies = ["matplotlib>=3.5"]
+# The core (quantiles, pavement_stats, pavement_stats2d) is pure Python
+# with no third-party dependencies. Every rendering backend — matplotlib
+# included — is an optional extra, so `pip install pavement[plotly]` does
+# not pull in matplotlib.
+dependencies = []
 
 [project.optional-dependencies]
 test = ["pytest"]
-# Interactive backends for pavement.holoviews. Kept optional (and out of
-# `test`) because HoloViews needs a newer Python than the base package's
-# floor; the holoviews tests importorskip when it isn't installed.
-holoviews = ["holoviews>=1.15"]
-# Plotly backend for pavement.plotly. Optional like holoviews; the plotly
-# tests importorskip when it isn't installed.
-plotly = ["plotly>=5.0"]
-# Bokeh backend for pavement.bokeh. Optional like the others; the bokeh
-# tests importorskip when it isn't installed.
+# Rendering backends. Each module importorskips its library in the tests,
+# so a backend you don't install simply isn't exercised.
+matplotlib = ["matplotlib>=3.5"]
 bokeh = ["bokeh>=3.0"]
+plotly = ["plotly>=5.0"]
+# HoloViews needs a newer Python than the base package's >=3.9 floor, so
+# the all-backends CI job (and `pip install pavement[all]`) runs on a
+# recent Python.
+holoviews = ["holoviews>=1.15"]
+# Every backend at once, e.g. `pip install pavement[all]`.
+all = ["pavement[matplotlib,bokeh,plotly,holoviews]"]
 
 [project.urls]
 Homepage = "https://github.com/ajschumacher/pavement"

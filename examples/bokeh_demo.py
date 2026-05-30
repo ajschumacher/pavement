@@ -39,13 +39,13 @@ def standalone():
     """A single pavement, a rug, and a category-split pavement."""
     data = [1, 2, 2, 3, 4, 5, 8, 13, 21]
 
-    single = pbk.pavement(data, value_label="value", height=200)
+    single = pbk.plot(data, value_label="value", height=200)
     _write(single, "bokeh_single.html")
 
-    rug = pbk.pavement(data, bins=None, value_label="value", height=200)
+    rug = pbk.plot(data, bins=None, value_label="value", height=200)
     _write(rug, "bokeh_rug.html")
 
-    categories = pbk.pavement(
+    categories = pbk.plot(
         [[1, 2, 3, 4, 5, 6, 7, 8], [3, 4, 5, 6, 7, 8, 9, 12],
          [2, 2, 3, 5, 8, 8, 9, 10]],
         labels=["cats", "dogs", "birds"], value_label="value")

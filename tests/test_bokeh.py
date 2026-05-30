@@ -10,7 +10,7 @@ from bokeh.resources import CDN  # noqa: E402
 from pavement.bokeh import (  # noqa: E402
     pavement_glyphs,
     add_pavement,
-    pavement,
+    plot,
     with_marginals,
 )
 
@@ -112,7 +112,7 @@ def test_bins_none_is_a_rug():
 
 
 def test_pavement_single_returns_figure():
-    fig = pavement([1, 2, 3, 4, 5])
+    fig = plot([1, 2, 3, 4, 5])
     assert isinstance(fig, figure)
     assert len(_quads(fig)) == 1            # one row's bins
     assert len(_tick_segments(fig)) == 1
@@ -120,19 +120,19 @@ def test_pavement_single_returns_figure():
 
 
 def test_pavement_has_hover_by_default():
-    fig = pavement([1, 2, 3, 4, 5])
+    fig = plot([1, 2, 3, 4, 5])
     hovers = fig.select(HoverTool)
     assert len(hovers) == 1
     assert hovers[0].tooltips == "@quantiles<br>@values"
 
 
 def test_pavement_hover_can_be_disabled():
-    fig = pavement([1, 2, 3, 4, 5], hover=False)
+    fig = plot([1, 2, 3, 4, 5], hover=False)
     assert fig.select(HoverTool) == []
 
 
 def test_pavement_multiple_gets_legend_per_row():
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     legend = fig.select(Legend)[0]
     assert [item.label.value for item in legend.items] == ["a", "b"]
     assert legend.click_policy == "hide"
@@ -140,26 +140,26 @@ def test_pavement_multiple_gets_legend_per_row():
 
 def test_pavement_legend_toggles_whole_row():
     # Each legend entry hides the row's fill, ticks, and box together.
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     legend = fig.select(Legend)[0]
     kinds = sorted(type(r.glyph).__name__ for r in legend.items[0].renderers)
     assert kinds == ["Quad", "Segment", "Segment"]
 
 
 def test_pavement_named_hover_leads_with_group():
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     assert fig.select(HoverTool)[0].tooltips == "@group<br>@quantiles<br>@values"
 
 
 def test_pavement_tidy_splits_by_category():
-    fig = pavement([1, 2, 3, 4, 5, 6],
+    fig = plot([1, 2, 3, 4, 5, 6],
                    categories=["x", "x", "x", "y", "y", "y"])
     names = sorted({q.name for q in _quads(fig)})
     assert names == ["x", "y"]
 
 
 def test_pavement_per_row_bins_mix_none_and_int():
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[None, 2],
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], bins=[None, 2],
                    labels=["a", "b"])
     by_name = {q.name: q.data_source.data["left"] for q in _quads(fig)}
     assert len(by_name["a"]) == 3   # all data: 3 bands
@@ -167,36 +167,36 @@ def test_pavement_per_row_bins_mix_none_and_int():
 
 
 def test_pavement_labels_tick_the_position_axis():
-    fig = pavement([[1, 2], [3, 4]], labels=["a", "b"])
+    fig = plot([[1, 2], [3, 4]], labels=["a", "b"])
     assert fig.xaxis[0].major_label_overrides == {1: "a", 2: "b"}
     assert list(fig.xaxis[0].ticker.ticks) == [1, 2]
 
 
 def test_pavement_anonymous_row_has_no_position_ticks():
-    fig = pavement([1, 2, 3, 4, 5])
+    fig = plot([1, 2, 3, 4, 5])
     assert list(fig.xaxis[0].ticker.ticks) == []
 
 
 def test_pavement_horizontal_labels_value_axis_on_x():
-    fig = pavement([1, 2, 3, 4, 5], orientation="horizontal",
+    fig = plot([1, 2, 3, 4, 5], orientation="horizontal",
                    value_label="height")
     assert fig.xaxis[0].axis_label == "height"
 
 
 def test_pavement_vertical_labels_value_axis_on_y():
-    fig = pavement([1, 2, 3, 4, 5], value_label="height")
+    fig = plot([1, 2, 3, 4, 5], value_label="height")
     assert fig.yaxis[0].axis_label == "height"
 
 
 def test_pavement_default_colors_match_category10():
     from bokeh.palettes import Category10
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     colors = [q.glyph.fill_color for q in _quads(fig)]
     assert colors[:2] == list(Category10[10][:2])
 
 
 def test_pavement_forwards_figure_kwargs():
-    fig = pavement([1, 2, 3, 4, 5], width=321, height=234)
+    fig = plot([1, 2, 3, 4, 5], width=321, height=234)
     assert (fig.width, fig.height) == (321, 234)
 
 
@@ -272,7 +272,7 @@ def test_with_marginals_rejects_managed_kwargs():
 
 
 def test_pavement_renders_to_html():
-    fig = pavement([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     assert len(file_html(fig, CDN)) > 0
 
 
@@ -285,24 +285,24 @@ def test_with_marginals_renders_to_html():
 
 def test_pavement_empty_data():
     with pytest.raises(ValueError, match="empty"):
-        pavement([])
+        plot([])
 
 
 def test_pavement_positions_length_mismatch():
     with pytest.raises(ValueError, match="positions"):
-        pavement([[1, 2], [3, 4]], positions=[1])
+        plot([[1, 2], [3, 4]], positions=[1])
 
 
 def test_pavement_bins_length_mismatch():
     with pytest.raises(ValueError, match="bins"):
-        pavement([[1, 2], [3, 4]], bins=[4])
+        plot([[1, 2], [3, 4]], bins=[4])
 
 
 def test_pavement_color_length_mismatch():
     with pytest.raises(ValueError, match="color"):
-        pavement([[1, 2], [3, 4]], color=["red"])
+        plot([[1, 2], [3, 4]], color=["red"])
 
 
 def test_pavement_labels_length_mismatch():
     with pytest.raises(ValueError, match="labels"):
-        pavement([[1, 2], [3, 4]], labels=["only-one"])
+        plot([[1, 2], [3, 4]], labels=["only-one"])
