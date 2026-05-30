@@ -1,15 +1,13 @@
 import matplotlib.pyplot as plt
 import pytest
 
-from pavement import (
+from pavement import pavement_stats, pavement_stats2d, quantiles
+from pavement.matplotlib import (
     draw_pavement,
     draw_pavement2d,
     margin,
-    pavement_stats,
-    pavement_stats2d,
     plot,
     plot2d,
-    quantiles,
 )
 
 
@@ -209,10 +207,9 @@ def test_plot_bins_mixed_none_and_int():
 def test_draw_pavement_returns_artist_dict():
     plt.figure()
     artists = draw_pavement([1, 2, 3, 4, 5])
-    assert set(artists) == {"fill", "ticks", "whiskers", "box"}
+    assert set(artists) == {"fill", "ticks", "box"}
     assert artists["ticks"] is not None
     assert artists["box"] is not None
-    assert artists["whiskers"] is None  # no repeated values
     plt.close()
 
 
@@ -230,10 +227,17 @@ def test_draw_pavement_line_props_overrides_linewidth():
     plt.close()
 
 
-def test_draw_pavement_returns_whiskers_when_dupes():
+def test_draw_pavement_repeated_value_makes_a_whisker():
     plt.figure()
-    artists = draw_pavement([1, 1, 2, 3])  # 1 repeats -> whisker mark
-    assert artists["whiskers"] is not None
+    # A repeated value reaches past the box as a whisker — one line per
+    # distinct value, no separate whiskers artist.
+    artists = draw_pavement([1, 1, 2, 3], width=0.6)
+    half = 0.6 / 2
+    # Vertical ticks are horizontal segments [[xmin, y], [xmax, y]]; the
+    # half-span is (xmax - xmin) / 2, which exceeds half for the whisker.
+    reaches = [(seg[1][0] - seg[0][0]) / 2
+               for seg in artists["ticks"].get_segments()]
+    assert max(reaches) > half
     plt.close()
 
 
@@ -242,7 +246,7 @@ def test_plot_returns_list_of_artist_dicts():
     artists = plot([[1, 2, 3], [4, 5, 6]])
     assert isinstance(artists, list)
     assert len(artists) == 2
-    assert all(set(d) == {"fill", "ticks", "whiskers", "box"} for d in artists)
+    assert all(set(d) == {"fill", "ticks", "box"} for d in artists)
     plt.close()
 
 
@@ -269,7 +273,7 @@ def test_plot_empty_data():
 def test_margin_smoke():
     plt.figure()
     artists = margin([1, 2, 3, 4, 5])
-    assert set(artists) == {"fill", "ticks", "whiskers", "box"}
+    assert set(artists) == {"fill", "ticks", "box"}
     plt.close()
 
 
