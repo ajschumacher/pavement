@@ -29,6 +29,9 @@ holoviews = ["holoviews>=1.15"]
 # Plotly backend for pavement.plotly. Optional like holoviews; the plotly
 # tests importorskip when it isn't installed.
 plotly = ["plotly>=5.0"]
+# Bokeh backend for pavement.bokeh. Optional like the others; the bokeh
+# tests importorskip when it isn't installed.
+bokeh = ["bokeh>=3.0"]
 
 [project.urls]
 Homepage = "https://github.com/ajschumacher/pavement"
