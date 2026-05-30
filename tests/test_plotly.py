@@ -246,9 +246,12 @@ def test_with_marginals_matches_main_colors():
     ])
     fig = with_marginals(main, y=[0, 1, 2, 3],
                          categories=["a", "a", "b", "b"])
-    fills = {t.name: t.fillcolor for t in _fill_traces(fig)}
-    assert fills["a"] == "rgba(17,34,51,0.3)"
-    assert fills["b"] == "rgba(68,85,102,0.3)"
+    # The fill is the scatter's color at fill_alpha opacity (the zero-width
+    # line lets trace opacity dim the fill alone), so the marginals match
+    # the scatter group for group without baking an alpha into the color.
+    fills = {t.name: (t.fillcolor, t.opacity) for t in _fill_traces(fig)}
+    assert fills["a"] == ("#112233", 0.3)
+    assert fills["b"] == ("#445566", 0.3)
 
 
 def test_with_marginals_carries_axis_titles():

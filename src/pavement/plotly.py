@@ -1,7 +1,7 @@
 """
 Interactive pavement plots for Plotly.
 
-The matplotlib renderer in the top-level package draws static artists and
+The `pavement.matplotlib` renderer draws static matplotlib artists and
 the `pavement.holoviews` module builds backend-agnostic HoloViews
 elements. This module targets Plotly directly, so it speaks Plotly's own
 vocabulary — `plotly.graph_objects` traces, `plotly.subplots` grids — and
@@ -58,7 +58,6 @@ from numbers import Integral, Number
 from typing import Any, Literal
 
 import plotly.graph_objects as go
-from matplotlib.colors import to_rgba
 from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 
@@ -80,17 +79,6 @@ __all__ = ["pavement_traces", "add_pavement", "plot", "with_marginals"]
 # inserts the ``text`` string literally — so the "%" in a quantile like
 # "25%" needs no escaping (unlike putting it directly in the template).
 _HOVERTEMPLATE = "%{text}<extra></extra>"
-
-
-def _rgba(color: str, alpha: float) -> str:
-    """A Plotly ``rgba(...)`` string for any matplotlib-recognized color.
-
-    Plotly wants an explicit alpha in the fill color; matplotlib's
-    ``to_rgba`` parses hex, named, and ``rgb(...)`` specs alike, so the
-    same *color* a caller gives for the lines yields a translucent fill.
-    """
-    r, g, b, _ = to_rgba(color)
-    return f"rgba({r*255:.0f},{g*255:.0f},{b*255:.0f},{alpha})"
 
 
 def _default_colors(n: int) -> list[str]:
@@ -207,8 +195,9 @@ def pavement_traces(
         Direction of the value axis. 'vertical' puts values on the
         y-axis; 'horizontal' puts them on the x-axis.
     color : str, optional
-        Color of the lines and (translucent) fill. Any
-        matplotlib-recognized color. Defaults to the first Plotly color.
+        Color of the lines and (translucent) fill. Any hex, named, or
+        ``rgb(...)`` color Plotly accepts. Defaults to the first Plotly
+        color.
     fill_alpha : float, default: 0.3
         Opacity of the bin fills. The ticks and box are drawn opaque. Set
         to 0 to omit the fill entirely.
@@ -252,13 +241,15 @@ def pavement_traces(
     legend_taken = False
 
     # Bins: one filled rectangle each, hovering anywhere inside the box.
+    # The translucent fill is the row color at fill_alpha opacity: the line
+    # is zero-width, so the trace opacity applies to the fill alone — no
+    # need to bake an alpha into the color string (and no matplotlib).
     if fill_alpha > 0:
-        fillcolor = _rgba(color, fill_alpha)
         for xs, ys, band, value_range in geom["bins"]:
             text = "<br>".join(prefix + [band, value_range])
             traces.append(go.Scatter(
                 x=xs, y=ys, mode="lines", line=dict(width=0), fill="toself",
-                fillcolor=fillcolor, hoveron="fills",
+                fillcolor=color, opacity=fill_alpha, hoveron="fills",
                 text=text if hover else None,
                 hovertemplate=_HOVERTEMPLATE if hover else None,
                 hoverinfo=None if hover else "skip",

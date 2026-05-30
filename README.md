@@ -14,15 +14,18 @@ See more in the [demo notebook](https://github.com/ajschumacher/pavement/blob/ma
 
 ## Install
 
+The core (the quantile statistics) is pure Python with no dependencies:
+
     pip install pavement
 
-matplotlib is included. The interactive backends are optional extras —
-install the one(s) you want:
+Each rendering backend — matplotlib included — is an optional extra, so
+you only install what you'll use. Install the one(s) you want:
 
+    pip install pavement[matplotlib]
     pip install pavement[bokeh]
     pip install pavement[plotly]
     pip install pavement[holoviews]
-    pip install pavement[all]        # all three
+    pip install pavement[all]          # all four
 
 
 ## Usage
@@ -154,11 +157,14 @@ pre-1.0 version:
 
 `import pavement` now exposes only the backend-agnostic statistics
 (`quantiles`, `pavement_stats`, `pavement_stats2d`) and no longer imports
-matplotlib.
+matplotlib. matplotlib is also no longer installed by default — it is an
+optional backend like the others, so add `pip install pavement[matplotlib]`
+(or `[all]`) if you use it.
 
 
 ## Development
 
-    pip install -e '.[test]'           # core + matplotlib
-    pip install -e '.[test,all]'       # also bokeh, plotly, holoviews
+    pip install -e '.[test]'              # core only
+    pip install -e '.[test,matplotlib]'   # + matplotlib
+    pip install -e '.[test,all]'          # + every backend
     pytest
