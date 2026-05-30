@@ -258,5 +258,8 @@ def complete_color_map(
     a scatter and its marginals stay matched group for group.
     """
     fallback = iter(c for c in default(len(labels)) if c not in found.values())
-    return {label: found.get(label, next(fallback, default(1)[0]))
+    # Only un-found labels draw from the fallback (the conditional keeps
+    # next() out of the found branch, so a found label can't consume a
+    # color a later un-found one needs).
+    return {label: found[label] if label in found else next(fallback, default(1)[0])
             for label in labels}
