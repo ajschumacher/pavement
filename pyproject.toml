@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pavement"
-version = "0.2.2"
+version = "1.0.0rc1"
 description = "Quantile-based pavement plots for matplotlib, Bokeh, Plotly, and HoloViews."
 readme = "README.md"
 requires-python = ">=3.9"
