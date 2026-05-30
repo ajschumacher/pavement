@@ -142,26 +142,6 @@ Install with `pip install pavement[holoviews]` (plus `bokeh` and/or
 `plotly`). See `examples/holoviews_demo.py`.
 
 
-## Migrating to 1.0
-
-The 1.0 release unified the backends behind one API. If you used a
-pre-1.0 version:
-
-| Before (0.x) | Now (1.0) |
-| --- | --- |
-| `import pavement` → `pavement.plot(...)` | `import pavement.matplotlib as pavement` → `pavement.plot(...)` |
-| `pavement.margin`, `pavement.plot2d`, `pavement.draw_pavement` | `pavement.matplotlib.margin` / `.plot2d` / `.draw_pavement` |
-| `pavement.matplotlib.plot(..., tick_labels=...)` | `plot(..., labels=...)` |
-| `pbk.pavement(...)` / `ppl.pavement(...)` / `phv.pavement(...)` | `pbk.plot(...)` / `ppl.plot(...)` / `phv.plot(...)` |
-| `import pavement` → `pavement.quantiles` / `pavement.pavement_stats` | unchanged (still top-level) |
-
-`import pavement` now exposes only the backend-agnostic statistics
-(`quantiles`, `pavement_stats`, `pavement_stats2d`) and no longer imports
-matplotlib. matplotlib is also no longer installed by default — it is an
-optional backend like the others, so add `pip install pavement[matplotlib]`
-(or `[all]`) if you use it.
-
-
 ## Development
 
     pip install -e '.[test]'              # core only
