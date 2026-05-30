@@ -48,6 +48,16 @@ import holoviews as hv
 import numpy as np
 
 from .core import pavement_stats
+from ._geometry import (
+    bin_corners,
+    box_edges,
+    broadcast,
+    hover_fields,
+    normalize_rows,
+    resolve_colors,
+    row_spec,
+    tick_segment,
+)
 
 __all__ = ["pavement_elements", "pavement", "with_marginals"]
 
@@ -58,10 +68,6 @@ __all__ = ["pavement_elements", "pavement", "with_marginals"]
 _FILL_VDIMS = ["low", "high", "quantiles", "values"]
 _TICK_VDIMS = ["quantiles", "values"]
 
-
-def _fmt(value: float) -> str:
-    """Format a value for hover: concise, 3 significant figures."""
-    return f"{float(value):.3g}"
 
 # Each backend names the same style differently; map them so one call
 # styles correctly whichever backend is active when it runs. The fills
@@ -78,8 +84,8 @@ _SEG_LINE_COLOR = {"bokeh": "line_color", "matplotlib": "color",
                    "plotly": "line_color"}
 
 
-def _default_palette() -> list[str]:
-    """HoloViews' own default color cycle.
+def _default_colors(n: int) -> list[str]:
+    """HoloViews' own default color cycle, *n* entries.
 
     HoloViews auto-cycles this for the elements that support it (Scatter,
     Curve, ...) but not for Rectangles, so we apply it ourselves. Sharing
@@ -87,15 +93,8 @@ def _default_palette() -> list[str]:
     default-colored main plot's groups, in the same key order — on every
     backend, since this cycle is backend-independent.
     """
-    return list(hv.Cycle().values)
-
-
-def _perp(position: float, reach: float, value: float,
-          orientation: str) -> tuple[float, float, float, float]:
-    """A segment crossing the value axis at *value*, ``reach`` to each side."""
-    if orientation == "vertical":
-        return (position - reach, value, position + reach, value)
-    return (value, position - reach, value, position + reach)
+    palette = list(hv.Cycle().values)
+    return [palette[i % len(palette)] for i in range(n)]
 
 
 def _row_geometry(
@@ -114,58 +113,32 @@ def _row_geometry(
     is ``(x0, y0, x1, y1, quantiles, values[, group])``; an edge is
     ``(x0, y0, x1, y1)``. *quantiles* and *values* are display strings
     shared verbatim by every backend's hover; *low*/*high* stay numeric
-    for the plotly hover geometry.
-
-    Each distinct quantile value gets exactly one tick — reaching past
-    the box (a whisker) where the value repeats — so every line is drawn
-    once and shares one style, rather than stacking a whisker on top of a
-    bin border.
+    for the plotly hover geometry. The shared `row_spec` does the binning
+    and the one-tick-per-distinct-value (whisker) logic.
     """
-    n_bins = len(values) - 1
-    half = width / 2
+    spec = row_spec(values, position, width, orientation,
+                    whisker_extent, show_whiskers)
     extra = () if group is None else (group,)
 
-    # Fills: one borderless rectangle per equal-mass bin. A box hover
-    # reads as a quantile band and a value range ("X% to Y%" / "X to Y").
+    # Fills: one borderless rectangle per equal-mass bin, a hover target
+    # reading as a quantile band and a value range.
     fills: list[tuple] = []
-    for i, (low, high) in enumerate(zip(values, values[1:])):
-        quantiles = f"{i/n_bins:.0%} to {(i+1)/n_bins:.0%}" if n_bins else ""
-        vals = f"{_fmt(low)} to {_fmt(high)}"
-        if orientation == "vertical":
-            box = (position - half, low, position + half, high)
-        else:
-            box = (low, position - half, high, position + half)
-        fills.append((*box, low, high, quantiles, vals, *extra))
+    for b in spec.bins:
+        (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
+                                         orientation)
+        fills.append((x0, y0, x1, y1, b.low, b.high, b.band, b.value_range,
+                      *extra))
 
-    # Ticks: one per distinct value (values are sorted, so equal ones are
-    # adjacent). A repeated value spans levels i..j and gets a whisker. A
-    # line hover reads as a single quantile and value ("X%" / "X").
+    # Ticks: one per distinct value, reaching past the box as a whisker
+    # where it repeats. A line hover reads as a single quantile and value.
     ticks: list[tuple] = []
-    i = 0
-    while i < len(values):
-        j = i
-        while j + 1 < len(values) and values[j + 1] == values[i]:
-            j += 1
-        repeated = j > i
-        reach = half + (whisker_extent if show_whiskers and repeated else 0)
-        if not n_bins:
-            quantiles = ""
-        elif repeated:
-            quantiles = f"{i/n_bins:.0%} to {j/n_bins:.0%}"
-        else:
-            quantiles = f"{i/n_bins:.0%}"
-        seg = _perp(position, reach, values[i], orientation)
-        ticks.append((*seg, quantiles, _fmt(values[i]), *extra))
-        i = j + 1
+    for t in spec.ticks:
+        seg = tick_segment(position, t.reach, t.value, orientation)
+        ticks.append((*seg, t.quantile, t.value_str, *extra))
 
     # Box edges: the two long sides, spanning the full value range.
-    low, high = values[0], values[-1]
-    if orientation == "vertical":
-        edges = [(position - half, low, position - half, high),
-                 (position + half, low, position + half, high)]
-    else:
-        edges = [(low, position - half, high, position - half),
-                 (low, position + half, high, position + half)]
+    edges = box_edges(position, spec.half, spec.value_low, spec.value_high,
+                      orientation)
     return fills, ticks, edges
 
 
@@ -245,13 +218,6 @@ def pavement_elements(
     }
 
 
-# The shared hover layout, one field per line: the group (when present),
-# then the quantile, then the value. Every backend renders these same
-# fields in this order, so the hover text reads the same everywhere.
-def _hover_fields(has_group: bool) -> list[str]:
-    return (["group"] if has_group else []) + ["quantiles", "values"]
-
-
 def _style(element: Any, role: str, color: str, fill_alpha: float,
            hover: bool) -> Any:
     """Apply per-backend styling for one component (fill / ticks / box)."""
@@ -271,7 +237,7 @@ def _style(element: Any, role: str, color: str, fill_alpha: float,
     if hover and backend == "bokeh" and role in ("fill", "ticks"):
         has_group = any(d.name == "group" for d in element.vdims)
         opts["hover_tooltips"] = "<br>".join(
-            f"@{f}" for f in _hover_fields(has_group))
+            f"@{f}" for f in hover_fields(has_group))
     return element.opts(**opts)
 
 
@@ -327,7 +293,7 @@ def _plotly_hover_layer(
     edges = np.append(low, high[-1])  # contiguous bin edges
     which = np.clip(np.searchsorted(edges, samples, side="right") - 1,
                     0, len(low) - 1)
-    fields = _hover_fields(group is not None)
+    fields = hover_fields(group is not None)
     prefix = [str(group)] if group is not None else []
     customdata = [prefix + [quantiles[i], values[i]] for i in which]
     template = "<br>".join(
@@ -478,55 +444,24 @@ def pavement(
         top = phv.pavement(x, categories=group, orientation='horizontal')
         layout = main << top                               # doctest: +SKIP
     """
-    # Whether to label the position axis with per-row ticks: only when
-    # the rows mean something nameable (categories or explicit labels),
-    # not for an anonymous single row at position 1.
-    labelled = labels is not None or categories is not None
-    if categories is not None:
-        if labels is None:
-            labels = sorted(set(categories))
-        data = [[d for d, c in zip(data, categories) if c == label]
-                for label in labels]
-        if weights is not None:
-            weights = [[w for w, c in zip(weights, categories) if c == label]
-                       for label in labels]
-    if len(data) == 0:
-        raise ValueError("data must be non-empty")
-    if not hasattr(data[0], "__iter__"):
-        data = [data]
-        weights = [weights] if weights is not None else None
+    # labelled: whether to tick the position axis with per-row labels —
+    # only when the rows mean something nameable (categories or explicit
+    # labels), not for an anonymous single row at position 1.
+    data, weight_rows, labels, labelled = normalize_rows(
+        data, weights, categories, labels)
     n = len(data)
-
     if positions is None:
         positions = list(range(1, n + 1))
     elif len(positions) != n:
         raise ValueError(f"positions has length {len(positions)}, expected {n}")
-    if bins is None or isinstance(bins, Integral):
-        bins = [bins] * n
-    elif len(bins) != n:
-        raise ValueError(f"bins has length {len(bins)}, expected {n}")
-    if isinstance(widths, Number):
-        widths = [widths] * n
-    elif len(widths) != n:
-        raise ValueError(f"widths has length {len(widths)}, expected {n}")
-    if color is None:
-        palette = _default_palette()
-        colors = [palette[i % len(palette)] for i in range(n)]
-    elif isinstance(color, str):
-        colors = [color] * n
-    elif len(color) != n:
-        raise ValueError(f"color has length {len(color)}, expected {n}")
-    else:
-        colors = list(color)
-    if labels is None:
-        labels = list(range(1, n + 1))
-    elif len(labels) != n:
-        raise ValueError(f"labels has length {len(labels)}, expected {n}")
+    bins = broadcast(bins, n, "bins",
+                     lambda v: v is None or isinstance(v, Integral))
+    widths = broadcast(widths, n, "widths", lambda v: isinstance(v, Number))
+    colors = resolve_colors(color, n, _default_colors)
 
-    weight_iter = weights if weights is not None else [None] * n
     rows = {}
     for label, dataset, w, pos, b, width, col in zip(
-            labels, data, weight_iter, positions, bins, widths, colors):
+            labels, data, weight_rows, positions, bins, widths, colors):
         group = label if n > 1 else None
         els = pavement_elements(
             dataset, bins=b, weights=w, position=pos, width=width,

@@ -69,13 +69,18 @@ from bokeh.palettes import Category10
 from bokeh.plotting import figure
 
 from .core import pavement_stats
+from ._geometry import (
+    bin_corners,
+    box_edges,
+    broadcast,
+    complete_color_map,
+    normalize_rows,
+    resolve_colors,
+    row_spec,
+    tick_segment,
+)
 
 __all__ = ["pavement_glyphs", "add_pavement", "pavement", "with_marginals"]
-
-
-def _fmt(value: float) -> str:
-    """Format a value for hover: concise, 3 significant figures."""
-    return f"{float(value):.3g}"
 
 
 def _default_colors(n: int) -> list[str]:
@@ -111,56 +116,31 @@ def _row_geometry(
       reads as a span ("X% to Y%"), so every line is drawn exactly once.
     - ``box``: the two long box edges as ``(x0, y0, x1, y1)`` segments,
       spanning the full value range.
+
+    The shared `row_spec` does the binning and one-tick-per-distinct-value
+    (whisker) logic; this lays the result out the way Bokeh's glyphs want.
     """
-    n_bins = len(values) - 1
-    half = width / 2
+    spec = row_spec(values, position, width, orientation,
+                    whisker_extent, show_whiskers)
 
-    # Bins: one borderless quad per equal-mass bin, carrying its quantile
-    # band and value range for hover. The value axis is y for 'vertical',
-    # x for 'horizontal'; the position axis is the other one.
+    # Bins: one borderless quad per equal-mass bin (left, right, bottom,
+    # top), carrying its quantile band and value range for hover.
     bins: list[tuple[float, float, float, float, str, str]] = []
-    for i, (low, high) in enumerate(zip(values, values[1:])):
-        band = f"{i/n_bins:.0%} to {(i+1)/n_bins:.0%}" if n_bins else ""
-        value_range = f"{_fmt(low)} to {_fmt(high)}"
-        if orientation == "vertical":
-            box = (position - half, position + half, low, high)
-        else:
-            box = (low, high, position - half, position + half)
-        bins.append((*box, band, value_range))
+    for b in spec.bins:
+        (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
+                                         orientation)
+        bins.append((x0, x1, y0, y1, b.band, b.value_range))
 
-    # Ticks: one per distinct value (values are sorted, so equal ones are
-    # adjacent). A repeated value spans several levels and reaches past the
-    # box as a whisker; its hover then reads as a span of levels.
+    # Ticks: a segment per distinct value, reaching past the box as a
+    # whisker where it repeats. Hover reads as a single quantile and value.
     ticks: list[tuple[float, float, float, float, str, str]] = []
-    i = 0
-    while i < len(values):
-        j = i
-        while j + 1 < len(values) and values[j + 1] == values[i]:
-            j += 1
-        repeated = j > i
-        reach = half + (whisker_extent if show_whiskers and repeated else 0)
-        value = values[i]
-        if orientation == "vertical":
-            seg = (position - reach, value, position + reach, value)
-        else:
-            seg = (value, position - reach, value, position + reach)
-        if not n_bins:
-            quantile = ""
-        elif repeated:
-            quantile = f"{i/n_bins:.0%} to {j/n_bins:.0%}"
-        else:
-            quantile = f"{i/n_bins:.0%}"
-        ticks.append((*seg, quantile, _fmt(value)))
-        i = j + 1
+    for t in spec.ticks:
+        x0, y0, x1, y1 = tick_segment(position, t.reach, t.value, orientation)
+        ticks.append((x0, y0, x1, y1, t.quantile, t.value_str))
 
     # Box edges: the two long sides, spanning the full value range.
-    low, high = values[0], values[-1]
-    box: list[tuple[float, float, float, float]] = []
-    for side in (position - half, position + half):
-        if orientation == "vertical":
-            box.append((side, low, side, high))
-        else:
-            box.append((low, side, high, side))
+    box = list(box_edges(position, spec.half, spec.value_low,
+                         spec.value_high, orientation))
 
     return {"bins": bins, "ticks": ticks, "box": box}
 
@@ -286,52 +266,6 @@ def pavement_glyphs(
     return renderers
 
 
-def _normalize_rows(
-    data: Any,
-    weights: Any,
-    categories: Sequence[Hashable] | None,
-    labels: Sequence[Hashable] | None,
-) -> tuple[list[list[float]], list[Any], list[Hashable], bool]:
-    """Resolve the single/wide/tidy input shapes into per-row lists.
-
-    Returns ``(data_rows, weight_rows, labels, labelled)``, mirroring the
-    expansion in `pavement.plot` and `pavement.plotly`. *labelled* records
-    whether the rows are nameable (categories or explicit labels), so the
-    caller knows whether to tick the position axis.
-    """
-    labelled = labels is not None or categories is not None
-    if categories is not None:
-        if labels is None:
-            labels = sorted(set(categories))
-        data = [[d for d, c in zip(data, categories) if c == label]
-                for label in labels]
-        if weights is not None:
-            weights = [[w for w, c in zip(weights, categories) if c == label]
-                       for label in labels]
-    data = list(data)
-    if len(data) == 0:
-        raise ValueError("data must be non-empty")
-    if not hasattr(data[0], "__iter__"):
-        data = [data]
-        weights = [weights] if weights is not None else None
-    n = len(data)
-    if labels is None:
-        labels = list(range(1, n + 1))
-    elif len(labels) != n:
-        raise ValueError(f"labels has length {len(labels)}, expected {n}")
-    weight_rows = list(weights) if weights is not None else [None] * n
-    return data, weight_rows, list(labels), labelled
-
-
-def _broadcast(value: Any, n: int, name: str, scalar: Any) -> list[Any]:
-    """Expand a scalar to *n* copies, or validate a length-*n* sequence."""
-    if scalar(value):
-        return [value] * n
-    if len(value) != n:
-        raise ValueError(f"{name} has length {len(value)}, expected {n}")
-    return list(value)
-
-
 def add_pavement(
     fig: figure,
     data: Sequence[float] | Sequence[Iterable[float]],
@@ -420,20 +354,17 @@ def add_pavement(
     pavement : Create a new figure (calls this).
     pavement_glyphs : Draw a single row's glyphs.
     """
-    data, weight_rows, labels, _ = _normalize_rows(
+    data, weight_rows, labels, _ = normalize_rows(
         data, weights, categories, labels)
     n = len(data)
     if positions is None:
         positions = list(range(1, n + 1))
     elif len(positions) != n:
         raise ValueError(f"positions has length {len(positions)}, expected {n}")
-    bins = _broadcast(bins, n, "bins",
-                      lambda v: v is None or isinstance(v, Integral))
-    widths = _broadcast(widths, n, "widths", lambda v: isinstance(v, Number))
-    if color is None:
-        colors = _default_colors(n)
-    else:
-        colors = _broadcast(color, n, "color", lambda v: isinstance(v, str))
+    bins = broadcast(bins, n, "bins",
+                     lambda v: v is None or isinstance(v, Integral))
+    widths = broadcast(widths, n, "widths", lambda v: isinstance(v, Number))
+    colors = resolve_colors(color, n, _default_colors)
 
     fill_renderers: list[GlyphRenderer] = []
     tick_renderers: list[GlyphRenderer] = []
@@ -615,12 +546,12 @@ def pavement(
     if fig is None:
         fig = figure(**figure_kwargs)
     # Resolve labels/positions once here so the axes match the rows added.
-    rows, _, resolved_labels, labelled = _normalize_rows(
+    rows, _, resolved_labels, labelled = normalize_rows(
         data, weights, categories, labels)
     n = len(rows)
     if positions is None:
         positions = list(range(1, n + 1))
-    max_width = max(_broadcast(
+    max_width = max(broadcast(
         widths, n, "widths", lambda v: isinstance(v, Number)))
 
     add_pavement(
@@ -662,10 +593,7 @@ def _color_map(main: figure, labels: Sequence[Hashable]) -> dict[Hashable, str]:
             for label in labels:
                 if str(label) == r.name and label not in found:
                     found[label] = color
-    fallback = iter(c for c in _default_colors(len(labels))
-                    if c not in found.values())
-    return {label: found.get(label, next(fallback, _default_colors(1)[0]))
-            for label in labels}
+    return complete_color_map(found, labels, _default_colors)
 
 
 def with_marginals(
