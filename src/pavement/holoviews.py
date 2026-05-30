@@ -47,7 +47,7 @@ from typing import Any, Literal
 import holoviews as hv
 import numpy as np
 
-from . import pavement_stats
+from .core import pavement_stats
 
 __all__ = ["pavement_elements", "pavement", "with_marginals"]
 

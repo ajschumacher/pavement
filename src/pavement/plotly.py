@@ -62,7 +62,7 @@ from matplotlib.colors import to_rgba
 from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 
-from . import pavement_stats
+from .core import pavement_stats
 
 __all__ = ["pavement_traces", "add_pavement", "pavement", "with_marginals"]
 

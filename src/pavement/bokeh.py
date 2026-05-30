@@ -68,7 +68,7 @@ from bokeh.models import (
 from bokeh.palettes import Category10
 from bokeh.plotting import figure
 
-from . import pavement_stats
+from .core import pavement_stats
 
 __all__ = ["pavement_glyphs", "add_pavement", "pavement", "with_marginals"]
 
