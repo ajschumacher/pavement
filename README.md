@@ -5,7 +5,8 @@
 
 Quantile-based pavement plots: every box contains an equal share of the
 data. One plot, four drawing backends — matplotlib, Bokeh, Plotly, and
-HoloViews — behind a single shared API.
+HoloViews — behind a single shared API, plus a dependency-free
+`pavement.svg` for interactive inline sparklines.
 
 ![plot of four data sets](https://raw.githubusercontent.com/ajschumacher/pavement/main/examples/four_sets.png)
 
@@ -26,6 +27,9 @@ you only install what you'll use. Install the one(s) you want:
     pip install pavement[plotly]
     pip install pavement[holoviews]
     pip install pavement[all]          # all four
+
+The `pavement.svg` sparkline backend needs no extra — it has no
+dependencies and is always available with the base install.
 
 
 ## Usage
@@ -66,6 +70,30 @@ placed just inside or outside any edge of an existing plot, and `spark`
 for a borderless, word-sized image that drops inline into text:
 
     pavement.spark(values, path="spark.png")  # ![](spark.png) in your prose
+
+
+## Inline sparklines (`pavement.svg`)
+
+For sparklines on the web, `pavement.svg` emits a self-contained
+`<svg>` string you can drop straight into HTML — no plotting library, no
+JavaScript, no image files. It has no dependencies, so it ships with the
+base install.
+
+    import pavement.svg as pavement
+    html = pavement.spark([1, 2, 3, 4, 5])      # an <svg>...</svg> string
+
+The result is built for running text. Lines default to `currentColor`,
+so a spark inherits the surrounding font color (dark mode included), and
+it scales with the text (`height: 1em` by default) while staying crisp at
+any size. Every equal-mass bin is a hover target carrying its quantile
+band and value range as a native `<title>` tooltip — the same hover the
+Bokeh and Plotly backends show — with a CSS `:hover` highlight, all
+without a line of JavaScript (a `bins=None` rug gets a single whole-spark
+summary tooltip instead). Pass `color`, `orientation`, or
+`path="spark.svg"` / `path="spark.html"` to save.
+
+This is the web counterpart of `pavement.matplotlib.spark`, which renders
+the same idea to a raster image for print.
 
 
 ## Interactive plots (Plotly)
