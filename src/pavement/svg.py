@@ -21,8 +21,11 @@ That makes it the natural fit for an inline sparkline:
   ``<title>`` tooltip — the same hover text the Bokeh and Plotly
   backends show — and each quantile tick carries its single value. A
   small rug (``bins=None``) makes every value hoverable; a dense one
-  falls back to a single whole-spark summary (see ``tick_hover_limit``).
-  An inline ``<style>`` adds a CSS ``:hover`` highlight. Both optional.
+  falls back to a single whole-spark summary instead (see
+  ``tick_hover_limit``) — a spark is read value-by-value or summarised,
+  never both. An inline ``<style>`` adds CSS hover feedback: the bin or
+  value line under the cursor highlights, signalling the interactivity.
+  Both optional.
 
 Only `spark` is exposed; richer multi-row or marginal pavements belong to
 the matplotlib and interactive backends. The shared geometry comes from
@@ -133,9 +136,11 @@ def spark(
         If False, omit sizing and leave it to your own CSS.
     hover : bool, default: True
         If True, add native ``<title>`` tooltips (no JavaScript): a
-        quantile band and value range per bin, a single value per tick
-        (subject to *tick_hover_limit*), and a whole-spark summary as a
-        fallback. False turns all tooltips off.
+        quantile band and value range per bin, and a single value per
+        tick (subject to *tick_hover_limit*). When nothing finer is
+        hoverable — a dense rug — a single whole-spark summary is used
+        instead, so a spark is read value-by-value or summarised, never
+        both. False turns all tooltips off.
     tick_hover_limit : int or None, default: 24
         Cap on how many ticks (distinct values) get their own per-value
         tooltip. At or below it, each tick is individually hoverable; a
@@ -145,8 +150,9 @@ def spark(
         however many); 0 disables per-tick hover entirely. Binned sparks
         have only ``bins + 1`` ticks, so the default rarely affects them.
     highlight : bool, default: True
-        If True, add a scoped ``<style>`` so the bin under the cursor
-        highlights on hover (pure CSS).
+        If True, add a scoped ``<style>`` with pure-CSS hover feedback:
+        the bin under the cursor brightens and a hovered value line
+        thickens — visible cues that the spark is interactive.
     class_ : str, default: 'pavement-spark'
         CSS class on the root ``<svg>``, a hook for your own styling.
     path : str, optional
@@ -201,8 +207,8 @@ def spark(
     rest_opacity = fill_alpha if color is not None else 0.0
 
     def stroke_line(x0: float, y0: float, x1: float, y1: float, *,
-                    child: str = '') -> str:
-        coords = (f'<line x1="{_num(x0)}" y1="{_num(y0)}" '
+                    attrs: str = '', child: str = '') -> str:
+        coords = (f'<line{attrs} x1="{_num(x0)}" y1="{_num(y0)}" '
                   f'x2="{_num(x1)}" y2="{_num(y1)}"')
         return f'{coords}>{child}</line>' if child else f'{coords}/>'
 
@@ -239,61 +245,74 @@ def spark(
             extra=f'fill="{fill_paint}" fill-opacity="{_num(fill_alpha)}" '
                   f'pointer-events="none"'))
 
-    # All the strokes share their styling, so it lives once on a parent
-    # <g> and each line is just coordinates — keeps a dense rug compact.
-    # The two long box edges span the value axis at each side; then one
-    # tick per distinct value, reaching past the box as a whisker where
-    # the value repeats (and closing the box ends at the extremes).
-    strokes = [stroke_line(*pt(side, value_low), *pt(side, value_high))
-               for side in (position - half, position + half)]
-    strokes += [stroke_line(*pt(position - t.reach, t.value),
-                            *pt(position + t.reach, t.value))
-                for t in spec.ticks]
-    parts.append(
-        f'<g stroke="{line_paint}" stroke-width="{_num(line_width)}" '
-        f'fill="none" vector-effect="non-scaling-stroke" '
-        f'pointer-events="none">{"".join(strokes)}</g>')
-
-    # Transparent wide hit-areas over each tick, on top, carrying the
-    # single-value tooltip — like the other backends' tick markers. Drawn
-    # while the ticks stay few enough to be worth hovering one by one
-    # (binned sparks always are; a small rug is, a dense one isn't —
-    # there the whole-spark summary below is the only hover). Counting the
+    # Whether each value line is individually hoverable. While the ticks
+    # stay few enough to be worth hovering one by one (binned sparks
+    # always are; a small rug is, a dense one isn't), each gets a
+    # transparent wide hit-area and a value tooltip; a denser rug skips
+    # this and leans on the whole-spark summary instead. Counting the
     # ticks (distinct values) rather than the raw data keeps repeats from
     # inflating the total.
     per_tick_hover = hover and (
         tick_hover_limit is None or len(spec.ticks) <= tick_hover_limit)
-    if per_tick_hover:
-        hits = []
-        for t in spec.ticks:
+
+    # All the value strokes share their styling, so it lives once on a
+    # parent <g> and each line is just coordinates — keeps a dense rug
+    # compact. The two long box edges span the value axis at each side;
+    # then one tick per distinct value, reaching past the box as a whisker
+    # where the value repeats (and closing the box ends at the extremes).
+    # A hoverable tick pairs its visible mark with a transparent hit-area
+    # inside a <g class="pvtick">, so CSS can thicken the mark on hover.
+    marks = [stroke_line(*pt(side, value_low), *pt(side, value_high))
+             for side in (position - half, position + half)]
+    for t in spec.ticks:
+        a = pt(position - t.reach, t.value)
+        b = pt(position + t.reach, t.value)
+        if per_tick_hover:
             label = (t.quantile + chr(10) + t.value_str) if t.quantile \
                 else t.value_str
-            hits.append(stroke_line(
-                *pt(position - t.reach, t.value),
-                *pt(position + t.reach, t.value),
-                child=f'<title>{escape(label)}</title>'))
-        parts.append(
-            f'<g stroke="transparent" stroke-width="{_num(_HIT_WIDTH)}" '
-            f'vector-effect="non-scaling-stroke" pointer-events="all">'
-            f'{"".join(hits)}</g>')
+            marks.append(
+                '<g class="pvtick">'
+                + stroke_line(*a, *b, attrs=' class="pvmark"')
+                + stroke_line(*a, *b, attrs=' class="pvhit" '
+                              'stroke="transparent" '
+                              f'stroke-width="{_num(_HIT_WIDTH)}" '
+                              'pointer-events="all"',
+                              child=f'<title>{escape(label)}</title>')
+                + '</g>')
+        else:
+            marks.append(stroke_line(*a, *b))
+    parts.append(
+        f'<g stroke="{line_paint}" stroke-width="{_num(line_width)}" '
+        f'fill="none" vector-effect="non-scaling-stroke" '
+        f'pointer-events="none">{"".join(marks)}</g>')
 
+    # CSS hover feedback (pure, scoped): the bin under the cursor brightens
+    # its fill, and a hovered value line thickens — both signalling that
+    # the spark is interactive. Harmless when an element isn't present.
     style = ''
     if highlight:
         selector = '.' + '.'.join(class_.split())
         hover_opacity = min(1.0, fill_alpha + 0.2) if color is not None else 0.13
-        style = (f'<style>{selector} .pvbin{{transition:fill-opacity .08s ease}}'
-                 f'{selector} .pvbin:hover{{fill-opacity:{_num(hover_opacity)}}}'
-                 f'</style>')
+        thick = _num(line_width * 2)
+        style = (
+            f'<style>'
+            f'{selector} .pvbin{{transition:fill-opacity .1s ease}}'
+            f'{selector} .pvbin:hover{{fill-opacity:{_num(hover_opacity)}}}'
+            f'{selector} .pvmark{{transition:stroke-width .1s ease}}'
+            f'{selector} .pvtick:hover .pvmark{{stroke-width:{thick}}}'
+            f'</style>')
 
     root_style = 'overflow:visible;'  # let flush edges show their full stroke
     if inline:
         root_style += f'height:{height};width:auto;vertical-align:-0.15em;'
     label = f"pavement sparkline of {n} value{'' if n == 1 else 's'}"
-    # A whole-spark summary tooltip. For a rug (no per-bin targets) it is
-    # the only hover; for a binned spark it backs the bins where they
-    # don't cover (e.g. the whisker zone). Gated on hover like the rest.
+    # A whole-spark summary tooltip — but only when nothing finer is
+    # hoverable, so a spark is either summarised as a whole or read value
+    # by value, never both. That means a dense rug (no bins, ticks past
+    # the limit); a binned or small-rug spark relies on its own per-bin /
+    # per-value tooltips instead.
     root_title = ''
-    if hover:
+    if hover and bins is None and not per_tick_hover:
         summary = (f"{n} value{'' if n == 1 else 's'}, "
                    f"{fmt(spec.value_low)} to {fmt(spec.value_high)}")
         root_title = f'<title>{escape(summary)}</title>'
