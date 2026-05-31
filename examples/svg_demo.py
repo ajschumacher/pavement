@@ -10,7 +10,9 @@ install, so this just needs::
     python examples/svg_demo.py
 
 The output ``svg_demo.html`` lands in the current directory; open it and
-hover the sparks to read each bin's quantile band and value range.
+hover the sparks — the bin or value line under the cursor highlights and
+shows a tooltip (a quantile band per bin, or each value's percentile on a
+small rug).
 """
 
 import random
@@ -30,6 +32,9 @@ satisfaction = [rng.choice([1, 2, 3, 3, 4, 4, 4, 5, 5])           # whisker
                 for _ in range(250)]
 errors = [0.0] * 140 + [rng.expovariate(1 / 3) for _ in range(160)]  # whisker
 normal = [rng.gauss(0, 1) for _ in range(500)]
+# A small rug (at or below the default tick_hover_limit) so every value is
+# individually hoverable — each shows its percentile and value.
+build_min = [3.1, 3.4, 3.8, 4.0, 4.2, 4.5, 5.1, 5.9, 6.2, 7.0, 9.5, 12.0]
 
 s = dict(
     latency=psvg.spark(latency, bins=8, color="#c0392b"),
@@ -40,6 +45,7 @@ s = dict(
     errors=psvg.spark(errors, bins=6, color="#d95f0e"),
     rug=psvg.spark(normal, bins=None),
     binned=psvg.spark(normal, bins=6),
+    small_rug=psvg.spark(build_min, bins=None, color="#2c7fb8"),
 )
 
 PAGE = """<!doctype html>
@@ -64,8 +70,9 @@ PAGE = """<!doctype html>
 </style></head><body>
 
 <h1>Distributions, mid-sentence</h1>
-<p class="sub">Hover any spark: each bin shows its quantile band and value
-range. Pure SVG — no JavaScript, no image files.</p>
+<p class="sub">Hover any spark — the bin or value line under the cursor
+highlights (bins brighten, lines thicken) and shows a tooltip. Pure SVG —
+no JavaScript, no image files.</p>
 
 <p>Request latency kept a heavy tail {latency} while CPU stayed mid-range and
 symmetric {cpu}; exam scores {scores} clustered above the pass mark. Commute
@@ -73,6 +80,12 @@ times split into two crowds {commute}. A pile-up raises a whisker: survey
 satisfaction bunched on one answer {satisfaction}, and the error budget sat at
 zero most days {errors}. With <code>bins=None</code> a spark becomes a rug
 {rug}, versus the binned summary of the same data {binned}.</p>
+
+<p>A rug adapts its hover to its size. A handful of build times {small_rug} is a
+<em>small</em> rug — hover any value to read it and its percentile. The
+500-point rug above {rug} is too dense for that, so it shows one whole-spark
+summary instead; force per-value hover with <code>tick_hover_limit=None</code>,
+or turn it off with <code>0</code>.</p>
 
 <div class="dark">
 <p style="margin:0">On a dark panel the sparks inherit the light text color
