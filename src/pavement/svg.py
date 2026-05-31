@@ -19,9 +19,10 @@ That makes it the natural fit for an inline sparkline:
 - **Interactive with zero JavaScript.** Every equal-mass bin is a hover
   target carrying its quantile band and value range in a native
   ``<title>`` tooltip — the same hover text the Bokeh and Plotly
-  backends show — and each quantile tick carries its single value. A rug
-  (``bins=None``) instead gets one whole-spark summary tooltip. An inline
-  ``<style>`` adds a CSS ``:hover`` highlight. Both are optional.
+  backends show — and each quantile tick carries its single value. A
+  small rug (``bins=None``) makes every value hoverable; a dense one
+  falls back to a single whole-spark summary (see ``tick_hover_limit``).
+  An inline ``<style>`` adds a CSS ``:hover`` highlight. Both optional.
 
 Only `spark` is exposed; richer multi-row or marginal pavements belong to
 the matplotlib and interactive backends. The shared geometry comes from
@@ -77,6 +78,7 @@ def spark(
     height: str = '1em',
     inline: bool = True,
     hover: bool = True,
+    tick_hover_limit: int | None = 24,
     highlight: bool = True,
     class_: str = 'pavement-spark',
     path: str | None = None,
@@ -130,10 +132,18 @@ def spark(
         so the spark drops into running text and sits on the baseline.
         If False, omit sizing and leave it to your own CSS.
     hover : bool, default: True
-        If True, add native ``<title>`` tooltips: a quantile band and
-        value range per bin, and a single value per tick. A rug
-        (``bins=None``) instead gets one whole-spark summary tooltip
-        (count and value range). No JavaScript.
+        If True, add native ``<title>`` tooltips (no JavaScript): a
+        quantile band and value range per bin, a single value per tick
+        (subject to *tick_hover_limit*), and a whole-spark summary as a
+        fallback. False turns all tooltips off.
+    tick_hover_limit : int or None, default: 24
+        Cap on how many ticks (distinct values) get their own per-value
+        tooltip. At or below it, each tick is individually hoverable; a
+        denser spark — typically a large rug — falls back to just the
+        summary tooltip, since hundreds of overlapping hit-areas are both
+        unhelpful and heavy. None lifts the cap (hover every value,
+        however many); 0 disables per-tick hover entirely. Binned sparks
+        have only ``bins + 1`` ticks, so the default rarely affects them.
     highlight : bool, default: True
         If True, add a scoped ``<style>`` so the bin under the cursor
         highlights on hover (pure CSS).
@@ -245,10 +255,15 @@ def spark(
         f'pointer-events="none">{"".join(strokes)}</g>')
 
     # Transparent wide hit-areas over each tick, on top, carrying the
-    # single-value tooltip — like the other backends' tick markers. Only
-    # for binned sparks: a rug's ticks are the data points themselves, so
-    # one hover target each would be both unhelpful and heavy.
-    if hover and bins is not None:
+    # single-value tooltip — like the other backends' tick markers. Drawn
+    # while the ticks stay few enough to be worth hovering one by one
+    # (binned sparks always are; a small rug is, a dense one isn't —
+    # there the whole-spark summary below is the only hover). Counting the
+    # ticks (distinct values) rather than the raw data keeps repeats from
+    # inflating the total.
+    per_tick_hover = hover and (
+        tick_hover_limit is None or len(spec.ticks) <= tick_hover_limit)
+    if per_tick_hover:
         hits = []
         for t in spec.ticks:
             label = (t.quantile + chr(10) + t.value_str) if t.quantile \

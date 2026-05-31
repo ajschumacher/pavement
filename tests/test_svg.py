@@ -83,13 +83,35 @@ def test_spark_hover_false_omits_titles():
     assert "<title>" not in spark([1, 2, 3, 4, 5], hover=False)
 
 
-def test_spark_rug_has_summary_tooltip():
-    # A rug has no per-bin hover targets, but still gets a single
-    # whole-spark summary <title> (count and value range) so it is
-    # hoverable.
-    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=None)
+def test_spark_small_rug_has_per_value_tooltips():
+    # At or below tick_hover_limit, each rug value is hoverable (its
+    # percentile and value), plus the whole-spark summary.
+    out = spark([10, 20, 30, 40, 50], bins=None)
+    assert out.count("<title>") == 6          # 5 values + 1 summary
+    assert "50%\n30" in out                    # the median value at 50%
+
+
+def test_spark_large_rug_has_only_summary():
+    # Above the limit, a dense rug falls back to just the summary, so it
+    # stays light instead of emitting one hit-area per point.
+    out = spark(list(range(30)), bins=None)
     assert out.count("<title>") == 1
-    assert "8 values, 1 to 8" in out
+    assert "30 values, 0 to 29" in out
+
+
+def test_spark_tick_hover_limit_boundary():
+    assert spark(list(range(24)), bins=None).count("<title>") == 25  # 24 + 1
+    assert spark(list(range(25)), bins=None).count("<title>") == 1   # summary
+
+
+def test_spark_tick_hover_limit_none_forces_all():
+    out = spark(list(range(30)), bins=None, tick_hover_limit=None)
+    assert out.count("<title>") == 31          # 30 values + summary
+
+
+def test_spark_tick_hover_limit_zero_disables_per_tick():
+    out = spark([10, 20, 30, 40, 50], bins=None, tick_hover_limit=0)
+    assert out.count("<title>") == 1           # summary only
 
 
 def test_spark_rug_hover_false_has_no_tooltip():
