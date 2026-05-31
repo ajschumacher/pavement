@@ -83,6 +83,19 @@ def test_spark_hover_false_omits_titles():
     assert "<title>" not in spark([1, 2, 3, 4, 5], hover=False)
 
 
+def test_spark_rug_has_summary_tooltip():
+    # A rug has no per-bin hover targets, but still gets a single
+    # whole-spark summary <title> (count and value range) so it is
+    # hoverable.
+    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=None)
+    assert out.count("<title>") == 1
+    assert "8 values, 1 to 8" in out
+
+
+def test_spark_rug_hover_false_has_no_tooltip():
+    assert "<title>" not in spark([1, 2, 3, 4, 5], bins=None, hover=False)
+
+
 def test_spark_highlight_adds_hover_style():
     assert ":hover" in spark([1, 2, 3, 4, 5])
 

@@ -19,8 +19,9 @@ That makes it the natural fit for an inline sparkline:
 - **Interactive with zero JavaScript.** Every equal-mass bin is a hover
   target carrying its quantile band and value range in a native
   ``<title>`` tooltip — the same hover text the Bokeh and Plotly
-  backends show — and each quantile tick carries its single value. An
-  inline ``<style>`` adds a CSS ``:hover`` highlight. Both are optional.
+  backends show — and each quantile tick carries its single value. A rug
+  (``bins=None``) instead gets one whole-spark summary tooltip. An inline
+  ``<style>`` adds a CSS ``:hover`` highlight. Both are optional.
 
 Only `spark` is exposed; richer multi-row or marginal pavements belong to
 the matplotlib and interactive backends. The shared geometry comes from
@@ -40,7 +41,7 @@ from collections.abc import Iterable, Sequence
 from typing import Literal
 from xml.sax.saxutils import escape, quoteattr
 
-from ._geometry import row_spec
+from ._geometry import fmt, row_spec
 from .core import pavement_stats
 
 __all__ = ["spark"]
@@ -130,7 +131,9 @@ def spark(
         If False, omit sizing and leave it to your own CSS.
     hover : bool, default: True
         If True, add native ``<title>`` tooltips: a quantile band and
-        value range per bin, and a single value per tick. No JavaScript.
+        value range per bin, and a single value per tick. A rug
+        (``bins=None``) instead gets one whole-spark summary tooltip
+        (count and value range). No JavaScript.
     highlight : bool, default: True
         If True, add a scoped ``<style>`` so the bin under the cursor
         highlights on hover (pure CSS).
@@ -271,13 +274,21 @@ def spark(
     if inline:
         root_style += f'height:{height};width:auto;vertical-align:-0.15em;'
     label = f"pavement sparkline of {n} value{'' if n == 1 else 's'}"
+    # A whole-spark summary tooltip. For a rug (no per-bin targets) it is
+    # the only hover; for a binned spark it backs the bins where they
+    # don't cover (e.g. the whisker zone). Gated on hover like the rest.
+    root_title = ''
+    if hover:
+        summary = (f"{n} value{'' if n == 1 else 's'}, "
+                   f"{fmt(spec.value_low)} to {fmt(spec.value_high)}")
+        root_title = f'<title>{escape(summary)}</title>'
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {_num(view_w)} {_num(view_h)}" '
         f'preserveAspectRatio="none" class={quoteattr(class_)} '
         f'role="img" aria-label={quoteattr(label)} '
         f'style={quoteattr(root_style)}>'
-        f'{style}<desc>{escape(label)}</desc>'
+        f'{root_title}<desc>{escape(label)}</desc>{style}'
         f'{"".join(parts)}</svg>')
 
     if path is not None:

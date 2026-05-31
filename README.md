@@ -88,8 +88,9 @@ it scales with the text (`height: 1em` by default) while staying crisp at
 any size. Every equal-mass bin is a hover target carrying its quantile
 band and value range as a native `<title>` tooltip — the same hover the
 Bokeh and Plotly backends show — with a CSS `:hover` highlight, all
-without a line of JavaScript. Pass `color`, `bins=None` for a rug,
-`orientation`, or `path="spark.svg"` / `path="spark.html"` to save.
+without a line of JavaScript (a `bins=None` rug gets a single whole-spark
+summary tooltip instead). Pass `color`, `orientation`, or
+`path="spark.svg"` / `path="spark.html"` to save.
 
 This is the web counterpart of `pavement.matplotlib.spark`, which renders
 the same idea to a raster image for print.
