@@ -11,14 +11,16 @@ import line is the only thing that changes::
 
 Backends:
 
-- `pavement.matplotlib` — static plots (also 2D pavements and marginal
-  strips).
+- `pavement.matplotlib` — static plots (also 2D pavements, marginal
+  strips, and a raster ``spark`` sparkline).
 - `pavement.bokeh`, `pavement.plotly` — interactive plots (hover, pan,
   zoom, legends) drawn with each library's native glyphs/traces.
 - `pavement.holoviews` — backend-agnostic HoloViews elements.
+- `pavement.svg` — self-contained inline SVG sparklines (``spark``) for
+  HTML; no dependencies, always available.
 
-Each backend is an optional dependency; install the ones you want with,
-e.g., ``pip install pavement[bokeh]``.
+Each plotting backend except `pavement.svg` is an optional dependency;
+install the ones you want with, e.g., ``pip install pavement[bokeh]``.
 """
 
 from __future__ import annotations
