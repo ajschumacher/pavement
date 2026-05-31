@@ -3,9 +3,10 @@ Static pavement plots with matplotlib.
 
 The matplotlib backend draws pavements as matplotlib artists on an Axes.
 Beyond the shared ``plot`` API (single, wide, or tidy data; a rug with
-``bins=None``; orientation), this backend adds two things the interactive
-backends don't have: 2D pavements (`plot2d`) and a single-strip marginal
-(`margin`) with rich inside/outside placement.
+``bins=None``; orientation), this backend adds three things the
+interactive backends don't have: 2D pavements (`plot2d`), a single-strip
+marginal (`margin`) with rich inside/outside placement, and a borderless,
+word-sized inline image (`spark`).
 
 The backend-agnostic statistics live in `pavement.core`; the shared row
 geometry in `pavement._geometry`.
@@ -22,12 +23,15 @@ from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 from matplotlib.transforms import blended_transform_factory
 
+from matplotlib.figure import Figure
+
 from ._geometry import broadcast, normalize_rows, row_spec
 from .core import pavement_stats, pavement_stats2d
 
 __all__ = [
     "draw_pavement",
     "plot",
+    "spark",
     "margin",
     "draw_pavement2d",
     "plot2d",
@@ -328,6 +332,159 @@ def plot(
         else:
             ax.set_xlabel(value_label)
     return artists
+
+
+def spark(
+    data: Sequence[float],
+    weights: Sequence[float] | None = None,
+    bins: int | None = 4,
+    orientation: Literal['vertical', 'horizontal'] = 'horizontal',
+    width: float = 0.6,
+    whisker_extent: float = 0.1,
+    show_whiskers: bool = True,
+    color: str | None = None,
+    fill_alpha: float = 0.3,
+    line_props: Mapping[str, Any] | None = None,
+    box_props: Mapping[str, Any] | None = None,
+    figsize: tuple[float, float] | None = None,
+    dpi: float = 200,
+    pad: float = 0.0,
+    transparent: bool = True,
+    path: str | None = None,
+) -> Figure:
+    """
+    Render a single pavement as a borderless inline "sparkline" image.
+
+    A spark is a pavement stripped to its ink: one row drawn on its own
+    figure, with no axes, ticks, labels, or surrounding whitespace, so
+    the box and whiskers run right to the edges of the image. The main
+    use is to save a small PNG and drop it inline in text, sized to sit
+    among words like one of Tufte's sparklines.
+
+    Unlike `plot`, this draws exactly one distribution (a 1D sequence of
+    values) and owns its figure — it creates one rather than drawing on
+    a shared `~matplotlib.axes.Axes`. It defaults to ``'horizontal'`` so
+    the value axis runs left-to-right like the surrounding text.
+
+    Parameters
+    ----------
+    data : sequence of float
+        The values to summarize as a single pavement row.
+    weights : sequence of float, optional
+        Positive weights parallel to *data*.
+    bins : int or None, default: 4
+        Number of equal-mass bins. None shows all the data instead of
+        binning it (see `pavement_stats`).
+    orientation : {'vertical', 'horizontal'}, default: 'horizontal'
+        Direction of the value axis. 'horizontal' (the default here,
+        unlike `plot`) runs values left-to-right, the natural fit for an
+        inline strip; 'vertical' runs them bottom-to-top.
+    width : float, default: 0.6
+        Thickness of the box outline, perpendicular to the value axis.
+        Only its ratio to *whisker_extent* matters — the figure is
+        scaled to fit whatever is drawn.
+    whisker_extent : float, default: 0.1
+        How far whisker marks extend beyond the box at repeated values.
+    show_whiskers : bool, default: True
+        Whether to draw whisker marks at repeated quantile values.
+    color : str, optional
+        Tints the lines and, unless *box_props* is given, draws a
+        translucent fill of the same color (see *fill_alpha*). Defaults
+        to black lines and no fill.
+    fill_alpha : float, default: 0.3
+        Opacity of the fill drawn when *color* is given without an
+        explicit *box_props*.
+    line_props : dict, optional
+        Line2D properties for the ticks and box edges. See
+        `draw_pavement`. A color here overrides *color*.
+    box_props : dict, optional
+        Background fill properties; takes precedence over *color* for
+        the fill. See `draw_pavement`.
+    figsize : (float, float), optional
+        Figure size in inches. Defaults to a word-sized strip —
+        ``(1.4, 0.3)`` for horizontal, transposed for vertical.
+    dpi : float, default: 200
+        Dots per inch, high enough that the small image stays crisp in
+        print. With the default *figsize* a horizontal spark is about
+        280x60 pixels.
+    pad : float, default: 0.0
+        Extra breathing room around the drawn geometry, as a fraction of
+        its extent on each axis. Defaults to none: the box runs flush to
+        the image edge (the half-stroke needed to keep the outermost
+        lines from being clipped is always added on top of this, so a
+        flush edge still shows its full thickness). Raise it to inset the
+        pavement within the image.
+    transparent : bool, default: True
+        Draw on a transparent background (and save with transparency),
+        so the strip blends into whatever it's placed on.
+    path : str, optional
+        If given, the figure is saved here (e.g. a ``.png``) at *dpi*
+        with no extra border. The `~matplotlib.figure.Figure` is
+        returned either way.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The figure holding the spark. The caller is responsible for
+        closing it (e.g. ``plt.close(fig)``) when done.
+
+    See Also
+    --------
+    plot : Draw one or more pavement rows on a shared Axes.
+    draw_pavement : The underlying single-row renderer.
+    """
+    if figsize is None:
+        figsize = (1.4, 0.3) if orientation == 'horizontal' else (0.3, 1.4)
+    values = pavement_stats(data, bins=bins, weights=weights)
+    fig = plt.figure(figsize=figsize, dpi=dpi)
+    # An axes filling the whole figure: the pavement is the entire image.
+    ax = fig.add_axes((0, 0, 1, 1))
+    # color is a convenience, mirroring plot(): tint the lines and, unless
+    # box_props is given, fill with a translucent version of the same color.
+    row_line = {**({'color': color} if color is not None else {}),
+                **(line_props or {})}
+    if box_props is None and color is not None:
+        box_props = {'facecolor': color, 'alpha': fill_alpha}
+    line_width = row_line.get('linewidth', row_line.get('lw', 1.0))
+    position = 1.0
+    draw_pavement(
+        values, position=position, width=width,
+        whisker_extent=whisker_extent, show_whiskers=show_whiskers,
+        orientation=orientation, line_props=row_line or None,
+        box_props=box_props, ax=ax)
+    # Fit the view tightly to the drawn geometry. The perpendicular extent
+    # is the largest tick reach (a whisker, where present, else the box
+    # half-width); the value extent is the box span.
+    spec = row_spec(values, position, width, orientation,
+                    whisker_extent, show_whiskers)
+    reach = max(t.reach for t in spec.ticks)
+    value_extent = (spec.value_high - spec.value_low) or 1.0
+    pos_extent = 2 * reach
+    # A box edge sitting on the image boundary would otherwise lose half
+    # its stroke to clipping. Expand each limit by the half-stroke width
+    # in data units so flush edges show full thickness: a point is 1/72
+    # inch, the axes fills the figure, so data-per-inch is extent/inches
+    # (the dpi cancels). Any *pad* is extra breathing room on top.
+    value_inches, pos_inches = (figsize if orientation == 'horizontal'
+                                else (figsize[1], figsize[0]))
+    value_margin = line_width * value_extent / (144 * value_inches) \
+        + pad * value_extent
+    pos_margin = line_width * pos_extent / (144 * pos_inches) \
+        + pad * pos_extent
+    value_lim = (spec.value_low - value_margin, spec.value_high + value_margin)
+    pos_lim = (position - reach - pos_margin, position + reach + pos_margin)
+    if orientation == 'horizontal':
+        ax.set_xlim(value_lim)
+        ax.set_ylim(pos_lim)
+    else:
+        ax.set_ylim(value_lim)
+        ax.set_xlim(pos_lim)
+    ax.set_axis_off()
+    if transparent:
+        fig.patch.set_alpha(0.0)
+    if path is not None:
+        fig.savefig(path, dpi=dpi, transparent=transparent, pad_inches=0)
+    return fig
 
 
 def margin(

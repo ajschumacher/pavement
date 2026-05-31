@@ -59,10 +59,13 @@ The static backend draws pavements as matplotlib artists on an `Axes`:
     import pavement.matplotlib as pavement
     pavement.plot([1, 2, 3, 4, 5])
 
-It also has two things specific to matplotlib: `plot2d` for 2D pavements
-(a grid where every cell holds an equal share of the data), and `margin`
-for a single marginal strip — a richer drop-in for a rug plot — placed
-just inside or outside any edge of an existing plot.
+It also has three things specific to matplotlib: `plot2d` for 2D
+pavements (a grid where every cell holds an equal share of the data),
+`margin` for a single marginal strip — a richer drop-in for a rug plot —
+placed just inside or outside any edge of an existing plot, and `spark`
+for a borderless, word-sized image that drops inline into text:
+
+    pavement.spark(values, path="spark.png")  # ![](spark.png) in your prose
 
 
 ## Interactive plots (Plotly)

@@ -10,6 +10,7 @@ from pavement.matplotlib import (  # noqa: E402
     margin,
     plot,
     plot2d,
+    spark,
 )
 
 
@@ -367,6 +368,110 @@ def test_margin_x_and_y_same_physical_thickness():
     x_frac = frac_thickness(x_art["box"], 1)
     y_frac = frac_thickness(y_art["box"], 0)
     assert x_frac * ax.bbox.height == pytest.approx(y_frac * ax.bbox.width)
+    plt.close(fig)
+
+
+def test_spark_returns_figure():
+    fig = spark([1, 2, 3, 4, 5])
+    assert isinstance(fig, plt.Figure)
+    plt.close(fig)
+
+
+def test_spark_axes_fills_figure_and_is_off():
+    fig = spark([1, 2, 3, 4, 5])
+    ax = fig.axes[0]
+    assert tuple(ax.get_position().bounds) == (0, 0, 1, 1)
+    assert not ax.axison
+    plt.close(fig)
+
+
+def test_spark_default_size_is_word_sized_horizontal():
+    fig = spark([1, 2, 3, 4, 5])
+    assert tuple(fig.get_size_inches()) == (1.4, 0.3)
+    plt.close(fig)
+
+
+def test_spark_vertical_transposes_default_size():
+    fig = spark([1, 2, 3, 4, 5], orientation="vertical")
+    assert tuple(fig.get_size_inches()) == (0.3, 1.4)
+    plt.close(fig)
+
+
+def test_spark_custom_figsize_and_dpi():
+    fig = spark([1, 2, 3, 4, 5], figsize=(2, 0.5), dpi=300)
+    assert tuple(fig.get_size_inches()) == (2, 0.5)
+    assert fig.dpi == 300
+    plt.close(fig)
+
+
+def test_spark_limits_hug_value_extent():
+    # Default pad=0: the value axis (x, for horizontal) hugs the data
+    # range, expanded only by a sub-pixel half-stroke so the flush end
+    # lines aren't clipped.
+    fig = spark([0, 1, 2, 3, 4], bins=4)
+    ax = fig.axes[0]
+    lo, hi = ax.get_xlim()
+    assert lo == pytest.approx(0, abs=0.05) and lo < 0
+    assert hi == pytest.approx(4, abs=0.05) and hi > 4
+    plt.close(fig)
+
+
+def test_spark_pad_insets_the_pavement():
+    # A positive pad adds breathing room as a fraction of the value
+    # extent, beyond the flush (pad=0) limits.
+    flush = spark([0, 1, 2, 3, 4], bins=4)
+    padded = spark([0, 1, 2, 3, 4], bins=4, pad=0.1)
+    assert padded.axes[0].get_xlim()[0] < flush.axes[0].get_xlim()[0]
+    assert padded.axes[0].get_xlim()[1] > flush.axes[0].get_xlim()[1]
+    plt.close(flush)
+    plt.close(padded)
+
+
+def test_spark_color_adds_fill():
+    fig = spark([1, 2, 3, 4, 5], color="steelblue")
+    ax = fig.axes[0]
+    assert len(ax.patches) == 1  # translucent fill rectangle
+    plt.close(fig)
+
+
+def test_spark_bins_none_shows_all_data():
+    fig = spark([1, 2, 3, 4, 5], bins=None)
+    ax = fig.axes[0]
+    ticks = next(c for c in ax.collections)
+    assert len(ticks.get_segments()) == 5
+    plt.close(fig)
+
+
+def test_spark_saves_png(tmp_path):
+    out = tmp_path / "spark.png"
+    fig = spark([1, 2, 3, 4, 5], path=str(out))
+    assert out.exists() and out.stat().st_size > 0
+    plt.close(fig)
+
+
+def test_spark_transparent_by_default(tmp_path):
+    import matplotlib.image as mpimg
+
+    out = tmp_path / "spark.png"
+    fig = spark([1, 2, 3, 4, 5], path=str(out))
+    assert fig.patch.get_alpha() == 0.0
+    img = mpimg.imread(str(out))  # H x W x 4 (RGBA)
+    assert img.shape[2] == 4
+    assert (img[..., 3] == 0).any()  # some fully transparent pixels
+    plt.close(fig)
+
+
+def test_spark_ink_runs_flush_to_every_edge(tmp_path):
+    import matplotlib.image as mpimg
+
+    out = tmp_path / "spark.png"
+    # Distinct values -> no whiskers, so the box's four edges define the
+    # bounding box; with default pad they reach all four image borders
+    # (and the half-stroke margin keeps them from being clipped).
+    fig = spark([0, 1, 2, 3, 4, 5], bins=5, path=str(out))
+    ink = mpimg.imread(str(out))[..., 3] > 0.05
+    assert ink[0, :].any() and ink[-1, :].any()    # top and bottom edges
+    assert ink[:, 0].any() and ink[:, -1].any()    # left and right edges
     plt.close(fig)
 
 
