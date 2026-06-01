@@ -20,31 +20,32 @@ jobs:
       - run: pip install ruff==0.15.13
       - run: ruff check src tests
 
-  # Core + matplotlib across all supported Pythons. The core itself has no
-  # dependencies; matplotlib is installed here so its (largest) suite runs
-  # broadly. The bokeh/plotly/holoviews suites importorskip here and are
-  # covered by the all-backends job below.
+  # Every backend across all supported Pythons. matplotlib, bokeh, and
+  # plotly install everywhere, so they run on the whole matrix; HoloViews
+  # has a higher Python floor and a heavier dependency stack, so the
+  # per-version `extras` adds it only where it installs cleanly (3.10
+  # through 3.13) — below the >=3.9 floor and on the newest Python its
+  # deps may lack wheels. Each suite importorskips its backend, so a
+  # version that omits `holoviews` simply skips that suite; installing the
+  # extras explicitly (rather than relying on the skip) means an install
+  # failure turns the job red instead of silently passing.
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        include:
+          - { python-version: '3.9',  extras: 'matplotlib,bokeh,plotly' }
+          - { python-version: '3.10', extras: 'all' }
+          - { python-version: '3.11', extras: 'all' }
+          - { python-version: '3.12', extras: 'all' }
+          - { python-version: '3.13', extras: 'all' }
+          - { python-version: '3.14', extras: 'matplotlib,bokeh,plotly' }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e '.[test,matplotlib]'
-      - run: pytest
-
-  # Every backend together, so the bokeh/plotly/holoviews suites actually
-  # run. On a recent Python, since HoloViews needs more than the >=3.9 floor.
-  test-all-backends:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - run: pip install -e '.[test,all]'
+          cache: pip
+      - run: pip install -e ".[test,${{ matrix.extras }}]"
       - run: pytest
