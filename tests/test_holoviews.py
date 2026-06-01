@@ -144,6 +144,34 @@ def test_pavement_bokeh_group_hover_leads_with_group():
                for h in hovers)
 
 
+def test_pavement_bokeh_hover_covers_every_row_fill_and_ticks():
+    # Regression: the hover tool must bind to *every* row's bin fills
+    # (Quad) and quantile ticks (Segment), not just one. HoloViews merges
+    # the per-element hover tools into one bound to a single glyph; the
+    # finalize hook rebinds it to all of them. The box edges (Segments
+    # with no 'values' column) stay non-hovering.
+    obj = plot([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]],
+               labels=["a", "b", "c"])
+    fig = hv.render(obj, backend="bokeh")
+    hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
+    assert len(hovers) == 1
+    glyphs = [type(r.glyph).__name__ for r in hovers[0].renderers]
+    # Three rows: each contributes one fill quad and one tick segment.
+    assert glyphs.count("Quad") == 3
+    assert glyphs.count("Segment") == 3
+    # Every hover target carries the value column (so box edges are out).
+    assert all("values" in r.data_source.data for r in hovers[0].renderers)
+
+
+def test_pavement_bokeh_single_row_hover_covers_fill_and_ticks():
+    obj = plot([1, 2, 3, 4, 5])
+    fig = hv.render(obj, backend="bokeh")
+    hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
+    assert len(hovers) == 1
+    glyphs = sorted(type(r.glyph).__name__ for r in hovers[0].renderers)
+    assert glyphs == ["Quad", "Segment"]  # the fill and the ticks
+
+
 def test_pavement_default_colors_match_holoviews_cycle():
     # Default group colors are HoloViews' own cycle, so a category-split
     # pavement matches a default-colored main plot (e.g. a Scatter

@@ -240,12 +240,44 @@ def _style(element: Any, role: str, color: str, fill_alpha: float,
             opts[_SEG_LINE_COLOR[backend]] = color
     # Hover is interactive-backend only; matplotlib silently has none.
     # plotly gets its hover from a separate marker layer (shapes can't
-    # hover), so only bokeh's glyphs are wired up here.
+    # hover), so only bokeh's glyphs are wired up here. ``hover_tooltips``
+    # sets the template; binding it to every row's fill and ticks (not
+    # just one) is finished by `_bokeh_hover_hook` at render time.
     if hover and backend == "bokeh" and role in ("fill", "ticks"):
         has_group = any(d.name == "group" for d in element.vdims)
         opts["hover_tooltips"] = "<br>".join(
             f"@{f}" for f in hover_fields(has_group))
     return element.opts(**opts)
+
+
+def _bokeh_hover_hook(plot: Any, element: Any) -> None:
+    """Bind the bokeh hover tool to every fill and tick glyph.
+
+    HoloViews' ``hover_tooltips`` builds a HoverTool with the right
+    template, but across an overlay the rendered tool ends up bound to a
+    single glyph — so only one row, and only its bin fills, would hover.
+    Overlaid elements merge their (identical) hover tools into one, and
+    the merge keeps just one renderer.
+
+    Run as a finalize hook on the assembled plot, this rebinds that one
+    tool to every glyph carrying the hover columns — each row's bin fills
+    (`~holoviews.Rectangles`) and quantile ticks (`~holoviews.Segments`),
+    so the whole pavement hovers, boxes and value lines alike. The box
+    edges carry no ``values`` column, so they stay non-hovering, matching
+    the other backends. Any duplicate hover tools the merge left are
+    dropped. Idempotent, so it is safe if the hook runs more than once.
+    """
+    from bokeh.models import GlyphRenderer, HoverTool
+    fig = plot.state
+    hovers = [t for t in fig.tools if isinstance(t, HoverTool)]
+    if not hovers:
+        return
+    targets = [r for r in fig.renderers
+               if isinstance(r, GlyphRenderer)
+               and "values" in getattr(r.data_source, "data", {})]
+    hovers[0].renderers = targets
+    for extra in hovers[1:]:
+        fig.tools.remove(extra)
 
 
 def _decode_plotly_array(arr: Any) -> np.ndarray:
@@ -510,6 +542,10 @@ def plot(
         # matplotlib can't build a legend handle for Rectangles glyphs;
         # the legend is otherwise an interactive-backend feature.
         opts["show_legend"] = show_legend and hv.Store.current_backend != "matplotlib"
+    # bokeh merges the per-element hover tools into one bound to a single
+    # glyph; a finalize hook rebinds it to every row's fills and ticks.
+    if hover and hv.Store.current_backend == "bokeh":
+        opts["hooks"] = [_bokeh_hover_hook]
     return result.opts(**opts)
 
 
