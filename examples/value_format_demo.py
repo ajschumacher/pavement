@@ -22,6 +22,7 @@ The page lands in the current directory.
 
 import html
 
+import plotly.graph_objects as go
 import plotly.io as pio
 from bokeh.embed import components
 from bokeh.resources import CDN
@@ -33,7 +34,9 @@ import pavement.plotly as ppl
 import pavement.holoviews as phv
 import pavement.svg as psvg
 
-hv.extension("bokeh")
+# HoloViews renders one definition through either interactive backend, so
+# load both and confirm the hover formats correctly on each.
+hv.extension("bokeh", "plotly")
 
 # Daily revenue (in dollars) for three storefronts — the kind of data
 # where a bare "1.23e+03" hover helps nobody and "$1,230" helps everyone.
@@ -96,14 +99,43 @@ def holoviews_fragment():
         '         value_label="daily revenue",\n'
         '         value_format=lambda v: f"${v:,.0f}")\n'
     )
+    hv.Store.set_current_backend("bokeh")
     el = phv.plot(
         list(REVENUE.values()), labels=list(REVENUE),
         orientation="horizontal", value_label="daily revenue",
         value_format=money)
     el = el.opts(width=560, height=320)
     fig = hv.render(el, backend="bokeh")
-    script, div = components(fig)
-    return "HoloViews", code, script + div
+    return "HoloViews (bokeh backend)", code, "".join(components(fig))
+
+
+def holoviews_plotly_fragment():
+    code = (
+        'import holoviews as hv\n'
+        'import pavement.holoviews as phv\n'
+        '\n'
+        'hv.extension("plotly")        # only this line changes\n'
+        'phv.plot(revenue, labels=stores, orientation="horizontal",\n'
+        '         value_label="daily revenue",\n'
+        '         value_format=lambda v: f"${v:,.0f}")\n'
+    )
+    # Build with plotly current so plot() adds plotly's hover layer (its
+    # shapes can't hover, so an invisible marker line carries the text).
+    hv.Store.set_current_backend("plotly")
+    el = phv.plot(
+        list(REVENUE.values()), labels=list(REVENUE),
+        orientation="horizontal", value_label="daily revenue",
+        value_format=money)
+    # hv.render returns a plotly figure spec (a dict); rebuild it to embed.
+    fig = go.Figure(hv.render(el, backend="plotly"))
+    fig.update_layout(height=340, margin=dict(l=70, r=20, t=20, b=40),
+                      hovermode="closest")
+    body = pio.to_html(fig, full_html=False, include_plotlyjs=False,
+                       config={"displayModeBar": False})
+    hint = ('<p class="hint">The same pavement, rendered through '
+            "HoloViews' <em>plotly</em> backend instead of bokeh — hover "
+            "still reads the formatted dollars.</p>")
+    return "HoloViews (plotly backend)", code, hint + body
 
 
 def svg_fragment():
@@ -127,7 +159,8 @@ def svg_fragment():
     return "Inline SVG (pavement.svg)", code, body
 
 
-SECTIONS = [plotly_fragment, bokeh_fragment, holoviews_fragment, svg_fragment]
+SECTIONS = [plotly_fragment, bokeh_fragment, holoviews_fragment,
+            holoviews_plotly_fragment, svg_fragment]
 
 
 PAGE = """<!doctype html>
