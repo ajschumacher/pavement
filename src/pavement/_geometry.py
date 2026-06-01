@@ -219,6 +219,11 @@ def normalize_rows(
             labels = sorted(set(categories))
         data = [[d for d, c in zip(data, categories) if c == label]
                 for label in labels]
+        empty = [label for label, row in zip(labels, data) if not row]
+        if empty:
+            raise ValueError(
+                f"no data for categor{'y' if len(empty) == 1 else 'ies'} "
+                f"{', '.join(map(repr, empty))}")
         if weights is not None:
             weights = [[w for w, c in zip(weights, categories) if c == label]
                        for label in labels]

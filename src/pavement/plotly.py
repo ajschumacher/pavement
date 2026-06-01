@@ -228,7 +228,7 @@ def pavement_traces(
 
     See Also
     --------
-    pavement : Build a whole figure from one or more datasets.
+    plot : Build a whole figure from one or more datasets.
     add_pavement : Add rows to an existing figure.
     pavement.pavement_stats : The underlying quantile computation.
     """
@@ -380,7 +380,7 @@ def add_pavement(
 
     See Also
     --------
-    pavement : Create a new figure (calls this).
+    plot : Create a new figure (calls this).
     pavement_traces : Build a single row's traces.
     """
     data, weight_rows, labels, _ = normalize_rows(
@@ -655,7 +655,7 @@ def with_marginals(
 
     See Also
     --------
-    pavement : Builds the marginal rows; call it for a standalone plot.
+    plot : Builds the marginal rows; call it for a standalone plot.
 
     Examples
     --------

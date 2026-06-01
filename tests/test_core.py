@@ -37,6 +37,15 @@ def test_quantiles_weights_length_mismatch():
         quantiles([1, 2, 3], [0.5], weights=[0.5])
 
 
+def test_quantiles_single_level_out_of_range():
+    # A one-element levels list must still be validated against [0, 1];
+    # the pairwise increasing check alone skips it.
+    with pytest.raises(ValueError, match="increasing in"):
+        quantiles([1, 2, 3], [-0.5])
+    with pytest.raises(ValueError, match="increasing in"):
+        quantiles([1, 2, 3], [2.0])
+
+
 def test_pavement_stats_default_bins():
     assert pavement_stats([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]
 

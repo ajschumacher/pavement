@@ -311,8 +311,11 @@ def _plotly_hover_layer(
     The hook finds its own trace by matching the markers' value-axis
     coordinates (distinctive per row) against either trace axis —
     "either" because a side marginal is transposed by the adjoint, moving
-    those coordinates from x to y. That is collision-free even with
-    several marginals and a categorical scatter in one figure.
+    those coordinates from x to y. This separates rows reliably as long as
+    their sampled value ranges differ; two groups sharing the same min and
+    max would produce identical samples and could match each other's trace
+    — unusual, but the reason the match keys on the full coordinate array
+    rather than just the endpoints.
     """
     low = fill.dimension_values("low")
     high = fill.dimension_values("high")

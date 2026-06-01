@@ -167,6 +167,11 @@ def test_normalize_rows_empty():
         normalize_rows([], None, None, None)
 
 
+def test_normalize_rows_empty_category_label():
+    with pytest.raises(ValueError, match="no data for category 'c'"):
+        normalize_rows([1, 2, 3], None, ["a", "b", "a"], ["a", "b", "c"])
+
+
 def test_normalize_rows_labels_length_mismatch():
     with pytest.raises(ValueError, match="labels"):
         normalize_rows([[1, 2], [3, 4]], None, None, ["only-one"])
