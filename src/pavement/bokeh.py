@@ -225,7 +225,7 @@ def pavement_glyphs(
     See Also
     --------
     add_pavement : Add one or more rows and wire up hover and the legend.
-    pavement : Build a whole figure from one or more datasets.
+    plot : Build a whole figure from one or more datasets.
     pavement.pavement_stats : The underlying quantile computation.
     """
     values = pavement_stats(data, bins=bins, weights=weights)
@@ -362,7 +362,7 @@ def add_pavement(
 
     See Also
     --------
-    pavement : Create a new figure (calls this).
+    plot : Create a new figure (calls this).
     pavement_glyphs : Draw a single row's glyphs.
     """
     data, weight_rows, labels, _ = normalize_rows(
@@ -670,7 +670,7 @@ def with_marginals(
 
     See Also
     --------
-    pavement : Builds the marginal rows; call it for a standalone plot.
+    plot : Builds the marginal rows; call it for a standalone plot.
 
     Examples
     --------

@@ -62,7 +62,8 @@ def quantiles(
         sorted when *presorted* is True; or if any weight is not
         positive.
     """
-    if not all(0 <= a < b <= 1 for a, b in zip(levels, levels[1:])):
+    if not (all(0 <= a < b <= 1 for a, b in zip(levels, levels[1:]))
+            and all(0 <= level <= 1 for level in levels)):
         raise ValueError("levels must be strictly increasing in [0, 1]")
     data = list(data)
     if weights is not None and len(weights) != len(data):
@@ -258,6 +259,14 @@ def pavement_stats2d(
     s_sorted = [secondary[i] for i in indices]
     w_sorted = [weights[i] for i in indices] if weights is not None else None
 
+    # The drawn column edges and the chunk membership are computed by two
+    # independent passes: primary_edges from Type-2 quantiles (which average
+    # at an exact order statistic), and the chunks below from a greedy
+    # cumulative-weight partition. For a point sitting right on a boundary
+    # the two can disagree by one point, so a column's drawn extent and the
+    # exact set of points feeding its secondary quantiles aren't guaranteed
+    # identical. The difference is at most one boundary point and invisible
+    # on typical data; equal weights and distinct values make them agree.
     p_levels = [k/primary_bins for k in range(primary_bins + 1)]
     primary_edges = quantiles(p_sorted, p_levels, w_sorted, presorted=True)
 
