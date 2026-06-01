@@ -92,8 +92,9 @@ without a line of JavaScript. The bin or value line under the cursor
 also highlights, so the interactivity is discoverable. A `bins=None` rug
 makes each value hoverable when there are few of them, or shows a single
 whole-spark summary when there are many (tunable with `tick_hover_limit`).
-Pass `color`, `orientation`, or `path="spark.svg"` / `path="spark.html"`
-to save.
+The tooltip values format through `value_format` like the other backends
+(e.g. `value_format=lambda v: f"${v:,.2f}"`). Pass `color`, `orientation`,
+or `path="spark.svg"` / `path="spark.html"` to save.
 
 This is the web counterpart of `pavement.matplotlib.spark`, which renders
 the same idea to a raster image for print.
@@ -107,6 +108,15 @@ carries its own hover and drops into any subplot cell:
 
     import pavement.plotly as pavement
     pavement.plot([1, 2, 3, 4, 5]).show()
+
+Every interactive backend formats the values it shows on hover the same
+way: pass `value_format`, a function from a value to its display string,
+and the hover renders through it. The one callable works unchanged on
+Plotly, Bokeh, HoloViews, and `pavement.svg`, so `lambda v: f"${v:,.2f}"`
+reads `1200.0` as `$1,200.00` everywhere (it defaults to three
+significant figures). See `examples/value_format_demo.py`.
+
+    pavement.plot(prices, value_format=lambda v: f"${v:,.2f}").show()
 
 A pavement is a drop-in for a rug plot, including as a marginal:
 `with_marginals` adjoins pavement strips to a scatter — x on top, y on

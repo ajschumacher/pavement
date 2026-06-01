@@ -45,7 +45,7 @@ from collections.abc import Iterable, Sequence
 from typing import Literal
 from xml.sax.saxutils import escape, quoteattr
 
-from ._geometry import fmt, row_spec
+from ._geometry import fmt, row_spec, ValueFormat
 from .core import pavement_stats
 
 __all__ = ["spark"]
@@ -81,6 +81,7 @@ def spark(
     height: str = '1em',
     inline: bool = True,
     hover: bool = True,
+    value_format: ValueFormat | None = None,
     tick_hover_limit: int | None = 24,
     highlight: bool = True,
     class_: str = 'pavement-spark',
@@ -141,6 +142,11 @@ def spark(
         hoverable — a dense rug — a single whole-spark summary is used
         instead, so a spark is read value-by-value or summarised, never
         both. False turns all tooltips off.
+    value_format : callable, optional
+        Function mapping a value to its tooltip display string, e.g.
+        ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges, the
+        per-tick values, and the whole-spark summary; defaults to 3
+        significant figures.
     tick_hover_limit : int or None, default: 24
         Cap on how many ticks (distinct values) get their own per-value
         tooltip. At or below it, each tick is individually hoverable; a
@@ -178,7 +184,8 @@ def spark(
     values = pavement_stats(data, bins=bins, weights=weights)
     position = 1.0
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers)
+                    whisker_extent, show_whiskers, value_format)
+    fmt_value = value_format or fmt
     reach = max(t.reach for t in spec.ticks)
     half = spec.half
 
@@ -314,7 +321,7 @@ def spark(
     root_title = ''
     if hover and bins is None and not per_tick_hover:
         summary = (f"{n} value{'' if n == 1 else 's'}, "
-                   f"{fmt(spec.value_low)} to {fmt(spec.value_high)}")
+                   f"{fmt_value(spec.value_low)} to {fmt_value(spec.value_high)}")
         root_title = f'<title>{escape(summary)}</title>'
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" '

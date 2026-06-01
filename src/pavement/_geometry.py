@@ -30,8 +30,21 @@ Orientation = Literal["vertical", "horizontal"]
 
 
 def fmt(value: float) -> str:
-    """Format a value for hover: concise, 3 significant figures."""
+    """Format a value for hover: concise, 3 significant figures.
+
+    The default `ValueFormat`: every backend's hover runs each value
+    through one of these before display, and a caller can pass their own
+    (e.g. ``lambda v: f"${v:,.2f}"``) to override it.
+    """
     return f"{float(value):.3g}"
+
+
+# A caller-supplied value formatter: maps one numeric value to its hover
+# display string. The package threads one of these from each backend's
+# public functions down into `row_spec`, defaulting to `fmt`. It formats
+# only the *values* (a tick's value, a bin's low/high) — never the
+# quantile/percent strings, which aren't data values.
+ValueFormat = Callable[[float], str]
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +89,7 @@ def row_spec(
     orientation: Orientation = "vertical",
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    value_format: ValueFormat | None = None,
 ) -> RowSpec:
     """
     Build one row's `RowSpec` from sorted quantile *values*.
@@ -85,14 +99,19 @@ def row_spec(
     bin per consecutive pair, and one tick per *distinct* value — a tick
     whose value repeats reaches past the box as a whisker, so every line is
     drawn exactly once rather than stacking a whisker on a bin border.
+
+    *value_format* maps a value to its hover display string (a bin's value
+    range, a tick's value); it defaults to `fmt`. The quantile/percent
+    strings are unaffected, as they aren't data values.
     """
+    show = value_format or fmt
     n_bins = len(values) - 1
     half = width / 2
 
     bins: list[Bin] = []
     for i, (low, high) in enumerate(zip(values, values[1:])):
         band = f"{i/n_bins:.0%} to {(i+1)/n_bins:.0%}" if n_bins else ""
-        bins.append(Bin(low, high, band, f"{fmt(low)} to {fmt(high)}"))
+        bins.append(Bin(low, high, band, f"{show(low)} to {show(high)}"))
 
     ticks: list[Tick] = []
     i = 0
@@ -108,7 +127,7 @@ def row_spec(
             quantile = f"{i/n_bins:.0%} to {j/n_bins:.0%}"
         else:
             quantile = f"{i/n_bins:.0%}"
-        ticks.append(Tick(values[i], reach, quantile, fmt(values[i])))
+        ticks.append(Tick(values[i], reach, quantile, show(values[i])))
         i = j + 1
 
     return RowSpec(bins=bins, ticks=ticks, position=position, half=half,

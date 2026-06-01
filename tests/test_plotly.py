@@ -89,6 +89,23 @@ def test_named_hover_leads_with_name():
     assert list(ticks.text)[0].startswith("cats<br>")
 
 
+def test_value_format_customizes_value_strings():
+    # A custom value_format reformats the value strings in both hover
+    # layers (box ranges and tick values); the quantiles are unchanged.
+    traces = pavement_traces([1, 2, 3, 4, 5], bins=4,
+                             value_format=lambda v: f"${v:.2f}")
+    fill = next(t for t in traces if t.fill == "toself")
+    ticks = _tick_trace(traces)
+    assert fill.text == "0% to 25%<br>$1.00 to $2.00"
+    assert list(ticks.text)[0] == "0%<br>$1.00"
+
+
+def test_value_format_threads_through_plot():
+    fig = plot([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
+    fills = _fill_traces(fig)
+    assert fills[0].text == "0% to 25%<br>$1.00 to $2.00"
+
+
 def test_horizontal_swaps_axes():
     vert = next(t for t in pavement_traces([1, 2, 3, 4, 5],
                 orientation="vertical") if t.fill == "toself")
