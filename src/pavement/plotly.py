@@ -71,6 +71,7 @@ from ._geometry import (
     resolve_colors,
     row_spec,
     tick_segment,
+    ValueFormat,
 )
 
 __all__ = ["pavement_traces", "add_pavement", "plot", "with_marginals"]
@@ -99,6 +100,7 @@ def _row_geometry(
     orientation: Literal["vertical", "horizontal"],
     whisker_extent: float,
     show_whiskers: bool,
+    value_format: ValueFormat | None,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, visible lines, and tick hovers.
 
@@ -119,7 +121,7 @@ def _row_geometry(
     (whisker) logic; this lays the result out the way Plotly's traces want.
     """
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers)
+                    whisker_extent, show_whiskers, value_format)
 
     # Bins: one borderless rectangle per equal-mass bin, as a closed polygon.
     bins: list[tuple[list[float], list[float], str, str]] = []
@@ -163,6 +165,7 @@ def pavement_traces(
     line_width: float = 1.0,
     name: str | None = None,
     hover: bool = True,
+    value_format: ValueFormat | None = None,
     show_legend: bool = False,
 ) -> list[go.Scatter]:
     """
@@ -208,6 +211,10 @@ def pavement_traces(
     hover : bool, default: True
         Whether to enable hover: ``hoveron='fills'`` on each bin (so the
         box hovers anywhere inside) plus an invisible marker at each tick.
+    value_format : callable, optional
+        Function mapping a value to its hover display string, e.g.
+        ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
+        tick values; defaults to 3 significant figures.
     show_legend : bool, default: False
         Whether the row contributes a legend entry (one per row, on its
         first bin or, if there is no fill, its lines).
@@ -227,7 +234,7 @@ def pavement_traces(
     """
     values = pavement_stats(data, bins=bins, weights=weights)
     geom = _row_geometry(values, position, width, orientation,
-                         whisker_extent, show_whiskers)
+                         whisker_extent, show_whiskers, value_format)
     if color is None:
         color = _default_colors(1)[0]
     legendgroup = name if name is not None else None
@@ -296,6 +303,7 @@ def add_pavement(
     fill_alpha: float = 0.3,
     line_width: float = 1.0,
     hover: bool = True,
+    value_format: ValueFormat | None = None,
     show_legend: bool = True,
     row: int | None = None,
     col: int | None = None,
@@ -348,6 +356,9 @@ def add_pavement(
         Width of the tick and box-edge lines.
     hover : bool, default: True
         Whether to add the invisible hover layer to each row.
+    value_format : callable, optional
+        Function mapping a value to its hover display string (e.g.
+        ``lambda v: f"${v:,.2f}"``); defaults to 3 significant figures.
     show_legend : bool, default: True
         Whether multi-row plots contribute a legend entry per row. A
         single anonymous row never does.
@@ -395,7 +406,7 @@ def add_pavement(
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
             orientation=orientation, color=col_, fill_alpha=fill_alpha,
             line_width=line_width, name=name, hover=hover,
-            show_legend=show_legend and n > 1)
+            value_format=value_format, show_legend=show_legend and n > 1)
         for trace in traces:
             fig.add_trace(trace, **add)
     return fig
@@ -434,6 +445,7 @@ def plot(
     show_whiskers: bool = True,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
+    value_format: ValueFormat | None = None,
     color: str | Sequence[str] | None = None,
     fill_alpha: float = 0.3,
     line_width: float = 1.0,
@@ -480,6 +492,10 @@ def plot(
         Direction of the value axis.
     value_label : str, default: 'value'
         Axis title for the value axis (x for horizontal, y otherwise).
+    value_format : callable, optional
+        Function mapping a value to its hover display string, e.g.
+        ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
+        tick values; defaults to 3 significant figures.
     color : str or sequence of str, optional
         Per-row color(s). Defaults to Plotly's qualitative color cycle, so
         a category-split pavement matches a default Plotly Express scatter
@@ -538,7 +554,8 @@ def plot(
         categories=categories, labels=labels, bins=bins, widths=widths,
         whisker_extent=whisker_extent, show_whiskers=show_whiskers,
         orientation=orientation, color=color, fill_alpha=fill_alpha,
-        line_width=line_width, hover=hover, show_legend=show_legend)
+        line_width=line_width, hover=hover, value_format=value_format,
+        show_legend=show_legend)
 
     pos_kw = _position_axis_kwargs(labelled, positions, resolved_labels,
                                    max_width)
@@ -621,8 +638,9 @@ def with_marginals(
         of the figure.
     **kwargs
         Forwarded to `add_pavement` for both marginals (e.g. *bins*,
-        *fill_alpha*, *show_whiskers*, *whisker_extent*, *line_width*).
-        *orientation*, *color*, and *show_legend* are managed here.
+        *fill_alpha*, *show_whiskers*, *whisker_extent*, *line_width*,
+        *value_format*). *orientation*, *color*, and *show_legend* are
+        managed here.
 
     Returns
     -------

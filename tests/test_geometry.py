@@ -42,6 +42,26 @@ def test_row_spec_bins_ticks_and_extent():
     assert [t.value_str for t in spec.ticks] == ["1", "2", "3", "4", "5"]
 
 
+def test_row_spec_value_format_formats_values_not_quantiles():
+    # A custom value_format reformats the value strings (bin ranges and
+    # tick values) but leaves the quantile/percent strings untouched.
+    spec = row_spec([1, 2, 3, 4, 5], value_format=lambda v: f"${v:.2f}")
+    assert [b.value_range for b in spec.bins] == [
+        "$1.00 to $2.00", "$2.00 to $3.00",
+        "$3.00 to $4.00", "$4.00 to $5.00"]
+    assert [t.value_str for t in spec.ticks] == [
+        "$1.00", "$2.00", "$3.00", "$4.00", "$5.00"]
+    # Quantile bands are percentages, not values, so they don't change.
+    assert [b.band for b in spec.bins] == [
+        "0% to 25%", "25% to 50%", "50% to 75%", "75% to 100%"]
+
+
+def test_row_spec_value_format_defaults_to_fmt():
+    # None (the default) is the 3-sig-fig fmt — same as omitting it.
+    assert (row_spec([1, 2, 3, 4, 5], value_format=None).bins[0].value_range
+            == row_spec([1, 2, 3, 4, 5]).bins[0].value_range == "1 to 2")
+
+
 def test_row_spec_default_reach_is_half():
     spec = row_spec([1, 2, 3, 4, 5], width=0.6)
     assert all(t.reach == 0.3 for t in spec.ticks)  # no repeats -> no whisker

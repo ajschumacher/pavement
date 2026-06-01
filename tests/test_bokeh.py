@@ -71,6 +71,23 @@ def test_tick_hover_is_single_quantile_and_value():
     assert list(data["values"]) == ["1", "2", "3", "4", "5"]
 
 
+def test_value_format_customizes_value_strings():
+    # A custom value_format reformats the value strings on both hover
+    # sources (bin ranges and tick values); the quantiles are unchanged.
+    fig = figure()
+    rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], bins=4,
+                            value_format=lambda v: f"${v:.2f}")
+    assert rends["fills"].data_source.data["values"][0] == "$1.00 to $2.00"
+    assert list(rends["ticks"].data_source.data["values"])[0] == "$1.00"
+    assert rends["fills"].data_source.data["quantiles"][0] == "0% to 25%"
+
+
+def test_value_format_threads_through_plot():
+    fig = plot([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
+    data = _quads(fig)[0].data_source.data
+    assert data["values"][0] == "$1.00 to $2.00"
+
+
 def test_named_glyphs_carry_group():
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], name="cats")

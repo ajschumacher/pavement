@@ -83,6 +83,23 @@ def test_spark_hover_false_omits_titles():
     assert "<title>" not in spark([1, 2, 3, 4, 5], hover=False)
 
 
+def test_spark_value_format_customizes_bin_tooltips():
+    # A custom value_format reformats the value range in each bin's
+    # tooltip; the quantile band is unchanged.
+    out = spark([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
+    assert "$1.00 to $2.00" in out
+    assert "0% to 25%" in out
+
+
+def test_spark_value_format_customizes_per_value_and_summary():
+    # It also applies to a small rug's per-value tooltips and to the
+    # whole-spark summary of a dense rug.
+    small = spark([10, 20, 30], bins=None, value_format=lambda v: f"${v:.2f}")
+    assert "$30.00" in small                   # a per-value tooltip
+    dense = spark(list(range(30)), bins=None, value_format=lambda v: f"${v:.2f}")
+    assert "$0.00 to $29.00" in dense          # the summary
+
+
 def test_spark_small_rug_has_per_value_tooltips():
     # At or below tick_hover_limit, each rug value is hoverable (its
     # percentile and value) and there is no whole-spark summary: a spark

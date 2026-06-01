@@ -16,3 +16,6 @@ plotly_*.html
 
 # Output of examples/bokeh_demo.py
 bokeh_*.html
+
+# Output of examples/value_format_demo.py
+value_format_demo.html

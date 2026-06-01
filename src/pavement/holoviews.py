@@ -58,6 +58,7 @@ from ._geometry import (
     resolve_colors,
     row_spec,
     tick_segment,
+    ValueFormat,
 )
 
 __all__ = ["pavement_elements", "plot", "with_marginals"]
@@ -106,6 +107,7 @@ def _row_geometry(
     whisker_extent: float,
     show_whiskers: bool,
     group: Hashable | None,
+    value_format: ValueFormat | None,
 ) -> tuple[list[tuple], list[tuple], list[tuple]]:
     """Build the (fill, tick, box-edge) tuples for one row.
 
@@ -118,7 +120,7 @@ def _row_geometry(
     and the one-tick-per-distinct-value (whisker) logic.
     """
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers)
+                    whisker_extent, show_whiskers, value_format)
     extra = () if group is None else (group,)
 
     # Fills: one borderless rectangle per equal-mass bin, a hover target
@@ -153,6 +155,7 @@ def pavement_elements(
     show_whiskers: bool = True,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     group: Hashable | None = None,
+    value_format: ValueFormat | None = None,
 ) -> dict[str, Any]:
     """
     Build the raw HoloViews elements for a single pavement row.
@@ -184,6 +187,10 @@ def pavement_elements(
     group : hashable, optional
         If given, added as a ``group`` value dimension on the fills and
         ticks so it shows on hover and can drive coloring.
+    value_format : callable, optional
+        Function mapping a value to its hover display string, e.g.
+        ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
+        tick values; defaults to 3 significant figures.
 
     Returns
     -------
@@ -208,7 +215,7 @@ def pavement_elements(
     values = pavement_stats(data, bins=bins, weights=weights)
     fills, ticks, edges = _row_geometry(
         values, position, width, orientation,
-        whisker_extent, show_whiskers, group)
+        whisker_extent, show_whiskers, group, value_format)
     fill_vdims = _FILL_VDIMS if group is None else [*_FILL_VDIMS, "group"]
     tick_vdims = _TICK_VDIMS if group is None else [*_TICK_VDIMS, "group"]
     return {
@@ -333,6 +340,7 @@ def plot(
     show_whiskers: bool = True,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
+    value_format: ValueFormat | None = None,
     color: str | Sequence[str] | None = None,
     fill_alpha: float = 0.3,
     hover: bool = True,
@@ -387,6 +395,10 @@ def plot(
         Direction of the value axis.
     value_label : str, default: 'value'
         Axis label for the value axis (x for horizontal, y otherwise).
+    value_format : callable, optional
+        Function mapping a value to its hover display string, e.g.
+        ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
+        tick values; defaults to 3 significant figures.
     color : str or sequence of str, optional
         Per-row color(s). A single color applies to every row; a
         sequence sets each row and must match the number of rows.
@@ -466,7 +478,7 @@ def plot(
         els = pavement_elements(
             dataset, bins=b, weights=w, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-            orientation=orientation, group=group)
+            orientation=orientation, group=group, value_format=value_format)
         # Fill behind (hover target), then the box edges, then the ticks.
         parts = [_style(els[role], role, col, fill_alpha, hover)
                  for role in ("fill", "box", "ticks")]
@@ -551,7 +563,8 @@ def with_marginals(
         value to give crowded categories more room.
     **kwargs
         Forwarded to `plot` for both marginals (e.g. *bins*,
-        *color*, *fill_alpha*, *show_whiskers*, *show_legend*).
+        *color*, *fill_alpha*, *show_whiskers*, *show_legend*,
+        *value_format*).
         *orientation* is set automatically and must not be passed;
         *show_legend* defaults to False here but may be overridden.
 

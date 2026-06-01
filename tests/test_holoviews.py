@@ -58,6 +58,22 @@ def test_elements_line_hover_strings():
         "1", "2", "3", "4", "5"]
 
 
+def test_value_format_customizes_value_strings():
+    # A custom value_format reformats the value strings on both the fill
+    # and tick elements; the quantile strings are unchanged.
+    els = pavement_elements([1, 2, 3, 4, 5], bins=4,
+                            value_format=lambda v: f"${v:.2f}")
+    assert list(els["fill"].dimension_values("values"))[0] == "$1.00 to $2.00"
+    assert list(els["ticks"].dimension_values("values"))[0] == "$1.00"
+    assert list(els["fill"].dimension_values("quantiles"))[0] == "0% to 25%"
+
+
+def test_value_format_threads_through_plot():
+    el = plot([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
+    fill = el.Rectangles.I
+    assert list(fill.dimension_values("values"))[0] == "$1.00 to $2.00"
+
+
 def test_elements_horizontal_swaps_axes():
     vert = pavement_elements([1, 2, 3, 4, 5], orientation="vertical")
     horiz = pavement_elements([1, 2, 3, 4, 5], orientation="horizontal")

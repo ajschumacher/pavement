@@ -78,6 +78,7 @@ from ._geometry import (
     resolve_colors,
     row_spec,
     tick_segment,
+    ValueFormat,
 )
 
 __all__ = ["pavement_glyphs", "add_pavement", "plot", "with_marginals"]
@@ -102,6 +103,7 @@ def _row_geometry(
     orientation: Literal["vertical", "horizontal"],
     whisker_extent: float,
     show_whiskers: bool,
+    value_format: ValueFormat | None,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, quantile ticks, and box edges.
 
@@ -121,7 +123,7 @@ def _row_geometry(
     (whisker) logic; this lays the result out the way Bokeh's glyphs want.
     """
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers)
+                    whisker_extent, show_whiskers, value_format)
 
     # Bins: one borderless quad per equal-mass bin (left, right, bottom,
     # top), carrying its quantile band and value range for hover.
@@ -159,6 +161,7 @@ def pavement_glyphs(
     fill_alpha: float = 0.3,
     line_width: float = 1.0,
     name: Hashable | None = None,
+    value_format: ValueFormat | None = None,
 ) -> dict[str, GlyphRenderer]:
     """
     Add a single pavement row's glyphs to a Bokeh figure.
@@ -204,6 +207,10 @@ def pavement_glyphs(
         Row name (e.g. its category). Carried as a ``group`` column on the
         hover sources so it can lead the hover text, and set as each
         renderer's ``name``.
+    value_format : callable, optional
+        Function mapping a value to its hover display string, e.g.
+        ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
+        tick values; defaults to 3 significant figures.
 
     Returns
     -------
@@ -223,7 +230,7 @@ def pavement_glyphs(
     """
     values = pavement_stats(data, bins=bins, weights=weights)
     geom = _row_geometry(values, position, width, orientation,
-                         whisker_extent, show_whiskers)
+                         whisker_extent, show_whiskers, value_format)
     if color is None:
         color = _default_colors(1)[0]
     group = None if name is None else [str(name)] * len(geom["bins"])
@@ -282,6 +289,7 @@ def add_pavement(
     fill_alpha: float = 0.3,
     line_width: float = 1.0,
     hover: bool = True,
+    value_format: ValueFormat | None = None,
     show_legend: bool = True,
 ) -> figure:
     """
@@ -333,6 +341,9 @@ def add_pavement(
         Width of the tick and box-edge lines.
     hover : bool, default: True
         Whether to add a hover tool over the rows' bins and ticks.
+    value_format : callable, optional
+        Function mapping a value to its hover display string (e.g.
+        ``lambda v: f"${v:,.2f}"``); defaults to 3 significant figures.
     show_legend : bool, default: True
         Whether multi-row plots get a legend (one clickable entry per row). A
         single anonymous row never does.
@@ -378,7 +389,7 @@ def add_pavement(
             fig, dataset, bins=b, weights=w, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
             orientation=orientation, color=col, fill_alpha=fill_alpha,
-            line_width=line_width, name=name)
+            line_width=line_width, name=name, value_format=value_format)
         if rends["fills"] is not None:
             fill_renderers.append(rends["fills"])
         tick_renderers.append(rends["ticks"])
@@ -453,6 +464,7 @@ def plot(
     show_whiskers: bool = True,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
+    value_format: ValueFormat | None = None,
     color: str | Sequence[str] | None = None,
     fill_alpha: float = 0.3,
     line_width: float = 1.0,
@@ -498,6 +510,10 @@ def plot(
         Direction of the value axis.
     value_label : str, default: 'value'
         Axis label for the value axis (x for horizontal, y otherwise).
+    value_format : callable, optional
+        Function mapping a value to its hover display string, e.g.
+        ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
+        tick values; defaults to 3 significant figures.
     color : str or sequence of str, optional
         Per-row color(s). Defaults to Bokeh's ``Category10`` palette, so a
         category-split pavement matches a scatter colored from the same
@@ -559,7 +575,8 @@ def plot(
         categories=categories, labels=labels, bins=bins, widths=widths,
         whisker_extent=whisker_extent, show_whiskers=show_whiskers,
         orientation=orientation, color=color, fill_alpha=fill_alpha,
-        line_width=line_width, hover=hover, show_legend=show_legend)
+        line_width=line_width, hover=hover, value_format=value_format,
+        show_legend=show_legend)
 
     # Label the value axis (x for horizontal, y otherwise); tick/pad the
     # perpendicular position axis.
@@ -636,8 +653,9 @@ def with_marginals(
         Thickness of each marginal strip in pixels.
     **kwargs
         Forwarded to `add_pavement` for both marginals (e.g. *bins*,
-        *fill_alpha*, *show_whiskers*, *whisker_extent*, *line_width*).
-        *orientation*, *color*, and *show_legend* are managed here.
+        *fill_alpha*, *show_whiskers*, *whisker_extent*, *line_width*,
+        *value_format*). *orientation*, *color*, and *show_legend* are
+        managed here.
 
     Returns
     -------
