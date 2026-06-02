@@ -12,6 +12,7 @@ re-exports these three functions.
 from __future__ import annotations
 
 import math
+from collections import Counter
 from collections.abc import Iterable, Sequence
 from typing import Any, Literal
 
@@ -361,17 +362,23 @@ def tally_stats(data: Iterable[Any]) -> dict[str, int]:
     - **repeated** — the remaining present values, each a repeat of a value
       already counted as distinct.
 
+    A fourth count, **once**, is also returned: how many of the distinct
+    values appear *exactly once* in the column (often called "unique"). It
+    is a sub-count of *distinct* (``once <= distinct``), overlapping it
+    rather than adding to the three-bucket total.
+
     Parameters
     ----------
     data : iterable
         The column's values, of any type. Need not be numeric or hashable;
-        unhashable values fall back to an equality-based distinct count.
+        unhashable values fall back to equality-based grouping.
 
     Returns
     -------
     dict of str to int
-        ``{'distinct': d, 'repeated': r, 'missing': m, 'total': n}`` with
-        ``d + r + m == n``. An empty column gives all zeros.
+        ``{'distinct': d, 'once': u, 'repeated': r, 'missing': m,
+        'total': n}`` with ``d + r + m == n`` and ``u <= d``. An empty
+        column gives all zeros.
 
     See Also
     --------
@@ -384,17 +391,26 @@ def tally_stats(data: Iterable[Any]) -> dict[str, int]:
             missing += 1
         else:
             present.append(value)
+    # The frequency of each distinct present value, so we can count both
+    # the distinct values and the subset appearing exactly once.
     try:
-        distinct = len(set(present))
-    except TypeError:  # unhashable values: dedupe by equality instead
-        seen: list[Any] = []
+        frequencies = list(Counter(present).values())
+    except TypeError:  # unhashable values: group by equality instead
+        groups: list[list[Any]] = []  # [representative, count] pairs
         for value in present:
-            if not any(value == other for other in seen):
-                seen.append(value)
-        distinct = len(seen)
+            for group in groups:
+                if group[0] == value:
+                    group[1] += 1
+                    break
+            else:
+                groups.append([value, 1])
+        frequencies = [count for _, count in groups]
+    distinct = len(frequencies)
+    once = sum(1 for count in frequencies if count == 1)
     repeated = len(present) - distinct
     return {
         'distinct': distinct,
+        'once': once,
         'repeated': repeated,
         'missing': missing,
         'total': distinct + repeated + missing,

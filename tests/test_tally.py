@@ -20,8 +20,9 @@ from pavement.svg import tally
 
 def test_basic_breakdown():
     # present: [1, 1, 2, 3, 3, 3] -> distinct {1, 2, 3} = 3, repeated = 3.
+    # Only the value 2 appears exactly once, so once = 1.
     assert tally_stats([1, 1, 2, None, 3, 3, 3]) == {
-        'distinct': 3, 'repeated': 3, 'missing': 1, 'total': 7}
+        'distinct': 3, 'once': 1, 'repeated': 3, 'missing': 1, 'total': 7}
 
 
 def test_counts_always_sum_to_total():
@@ -31,36 +32,38 @@ def test_counts_always_sum_to_total():
 
 
 def test_all_distinct():
+    # Every value appears once, so once == distinct.
     assert tally_stats([1, 2, 3, 4, 5]) == {
-        'distinct': 5, 'repeated': 0, 'missing': 0, 'total': 5}
+        'distinct': 5, 'once': 5, 'repeated': 0, 'missing': 0, 'total': 5}
 
 
 def test_all_repeats_of_one_value():
+    # One value, four copies: nothing appears exactly once.
     assert tally_stats(['a', 'a', 'a', 'a']) == {
-        'distinct': 1, 'repeated': 3, 'missing': 0, 'total': 4}
+        'distinct': 1, 'once': 0, 'repeated': 3, 'missing': 0, 'total': 4}
 
 
 def test_all_missing():
     assert tally_stats([None, None, float('nan')]) == {
-        'distinct': 0, 'repeated': 0, 'missing': 3, 'total': 3}
+        'distinct': 0, 'once': 0, 'repeated': 0, 'missing': 3, 'total': 3}
 
 
 def test_empty_is_all_zeros():
     assert tally_stats([]) == {
-        'distinct': 0, 'repeated': 0, 'missing': 0, 'total': 0}
+        'distinct': 0, 'once': 0, 'repeated': 0, 'missing': 0, 'total': 0}
 
 
 def test_accepts_any_iterable():
     # A generator, not just a list.
     assert tally_stats(x for x in [1, 1, 2]) == {
-        'distinct': 2, 'repeated': 1, 'missing': 0, 'total': 3}
+        'distinct': 2, 'once': 1, 'repeated': 1, 'missing': 0, 'total': 3}
 
 
 # --- the different ways a value can be "missing" --------------------------
 
 def test_none_is_missing():
     assert tally_stats([None]) == {
-        'distinct': 0, 'repeated': 0, 'missing': 1, 'total': 1}
+        'distinct': 0, 'once': 0, 'repeated': 0, 'missing': 1, 'total': 1}
 
 
 def test_float_nan_is_missing():
@@ -115,9 +118,17 @@ def test_empty_string_zero_and_false_are_real_values():
 
 
 def test_unhashable_values_fall_back_to_equality():
-    # Lists can't go in a set; the distinct count still works.
+    # Lists can't go in a set; the distinct and once counts still work.
     assert tally_stats([[1], [1], [2]]) == {
-        'distinct': 2, 'repeated': 1, 'missing': 0, 'total': 3}
+        'distinct': 2, 'once': 1, 'repeated': 1, 'missing': 0, 'total': 3}
+
+
+def test_once_is_a_subcount_of_distinct():
+    # present: a a b c c -> distinct {a, b, c} = 3; only b appears once.
+    counts = tally_stats(['a', 'a', 'b', 'c', 'c'])
+    assert counts['distinct'] == 3
+    assert counts['once'] == 1            # just 'b'
+    assert counts['once'] <= counts['distinct']
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +247,23 @@ def test_tally_hover_text_has_share_and_count():
     assert "1 of 5 values" in out
 
 
+def test_tally_distinct_box_shows_appearing_once_line():
+    # present: 1 1 2 3 3 -> distinct {1, 2, 3}; only 2 appears once.
+    out = tally([1, 1, 2, 3, 3, None])
+    assert "(1 appearing once)" in out
+    # The extra line belongs only to the distinct box's tooltip.
+    assert out.count("appearing once") == 1
+
+
+def test_tally_appearing_once_thousands_separator():
+    out = tally(list(range(2500)))      # all distinct, all appear once
+    assert "(2,500 appearing once)" in out
+
+
+def test_tally_appearing_once_absent_when_hover_off():
+    assert "appearing once" not in tally([1, 1, 2, 3, 3], hover=False)
+
+
 def test_tally_tiny_share_reads_as_lt_one_percent():
     data = list(range(1000)) + [None]   # 1 missing of 1001 ~ 0.1%
     out = tally(data)
@@ -244,8 +272,8 @@ def test_tally_tiny_share_reads_as_lt_one_percent():
 
 
 def test_tally_singular_value_noun():
-    out = tally([42])               # one value, all distinct
-    assert "1 of 1 value<" in out   # singular noun, no trailing "s"
+    out = tally([42])                # one value, all distinct
+    assert "1 of 1 value\n" in out   # singular noun, no trailing "s"
 
 
 def test_tally_hover_false_omits_titles():

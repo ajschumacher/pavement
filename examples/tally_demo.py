@@ -130,7 +130,8 @@ PAGE = """<!doctype html>
 <h1>Column tally</h1>
 <p class="sub">A glance at a column's make-up: how much is distinct, repeated,
 or missing. Hover any strip — each box brightens and shows its share and
-count. Pure SVG, no JavaScript, no image files.</p>
+count, and the distinct box also notes how many values appear exactly once.
+Pure SVG, no JavaScript, no image files.</p>
 
 <p class="legend">
   <span class="swatch" style="background:#2166ac"></span>distinct &nbsp;

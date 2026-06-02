@@ -470,7 +470,9 @@ def tally(
         the strip drops into running text and sits on the baseline.
     hover : bool, default: True
         If True, give each box a ``<title>`` tooltip — its share and count,
-        e.g. ``"60% distinct\\n3 of 5 values"``. False turns tooltips off.
+        e.g. ``"60% distinct\\n3 of 5 values"``. The distinct box adds a
+        line for how many of those values appear exactly once, e.g.
+        ``"(2 appearing once)"``. False turns tooltips off.
     highlight : bool, default: True
         If True, add a scoped ``<style>`` that brightens the box under the
         cursor — a cue that the strip is interactive.
@@ -528,6 +530,8 @@ def tally(
         title = ''
         if hover:
             text = f"{_pct(count, total)} {label}\n{count:,} of {total:,} {noun}"
+            if label == 'distinct':  # how many of the distinct values are singletons
+                text += f"\n({counts['once']:,} appearing once)"
             title = f'<title>{escape(text)}</title>'
         parts.append(
             f'<rect class="tvbox" x="{_num(x)}" y="{_num(y)}" '
