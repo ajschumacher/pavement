@@ -46,9 +46,9 @@ from typing import Literal
 from xml.sax.saxutils import escape, quoteattr
 
 from ._geometry import fmt, row_spec, ValueFormat
-from .core import pavement_stats, tally_stats
+from .core import pavement_stats, proportion_stats, tally_stats
 
-__all__ = ["spark", "tally"]
+__all__ = ["spark", "tally", "proportion"]
 
 # Internal coordinate box. The numbers only set coordinate resolution;
 # their ratio is the spark's default shape — a wide, word-like strip,
@@ -67,6 +67,12 @@ _HIT_WIDTH = 8.0
 _TALLY_DISTINCT = "#2166ac"
 _TALLY_REPEATED = "#92c5de"
 _TALLY_MISSING = "#b2182b"
+
+# Default proportion palette: value boxes alternate the tally's dark and
+# light blue; the optional catch-all box (the lumped long tail) is a blue
+# midway between them, so it reads as "the rest" without stealing attention.
+_PROP_COLORS = ("#2166ac", "#92c5de")
+_PROP_OTHER = "#5995c5"
 
 
 def _num(value: float) -> str:
@@ -398,6 +404,220 @@ def spark(
     return svg
 
 
+def _proportion_cutoff(counts: list[int], total: int, span: float,
+                       min_box: float, max_boxes: int,
+                       tolerance: float) -> int:
+    """How many of the top values to show individually before a catch-all.
+
+    *counts* is descending. Returns ``m``: the leading values get their own
+    box and the rest (if any) are lumped into a single catch-all on the
+    right. ``m`` is capped at *max_boxes*, but cut shorter as soon as the
+    minimum-width inflation of the small boxes would distort the catch-all's
+    width — versus its true proportion — by *tolerance* or more. That stops
+    a long tail of tiny boxes from squeezing the catch-all into a misleading
+    sliver; the remaining values go straight into the catch-all instead.
+    """
+    k = len(counts)
+    if k <= max_boxes:
+        return k  # every value fits; no catch-all needed
+    chosen = 1
+    for m in range(1, max_boxes + 1):
+        remaining = total - sum(counts[:m])
+        widths = _box_lengths(counts[:m] + [remaining], span, min_box)
+        true_catch = span * remaining / total
+        if true_catch > 0 and abs(widths[-1] - true_catch) / true_catch >= tolerance:
+            break
+        chosen = m
+    return chosen
+
+
+def proportion(
+    data: Iterable[object],
+    orientation: Literal['vertical', 'horizontal'] = 'horizontal',
+    colors: Sequence[str] = _PROP_COLORS,
+    other_color: str = _PROP_OTHER,
+    max_boxes: int = 12,
+    min_box: float = 3.0,
+    catchall_tolerance: float = 0.1,
+    value_crop: int | None = 128,
+    line_color: str | None = None,
+    line_width: float = 1.0,
+    height: str = '1em',
+    inline: bool = True,
+    hover: bool = True,
+    highlight: bool = True,
+    class_: str = 'pavement-proportion',
+    path: str | None = None,
+) -> str:
+    """
+    Render a column's value counts as a self-contained inline SVG strip.
+
+    A companion to `tally` in the same borderless form factor, visualizing a
+    column's value distribution the way pandas ``value_counts()`` reports it.
+    One box per value, left to right in descending frequency, each sized in
+    proportion to how often that value occurs. It fills the gap a pavement
+    spark leaves for categorical columns, which have no numeric distribution
+    to draw. Missing values are dropped (see `proportion_stats`).
+
+    High-cardinality columns are kept legible: at most *max_boxes* values get
+    their own box, and the rest are lumped into a single catch-all box on the
+    right. The cutoff comes sooner than *max_boxes* if a long tail of tiny
+    boxes would otherwise squeeze the catch-all into a misleading width (see
+    *catchall_tolerance*). Boxes never fall below *min_box*, so even a rare
+    value stays visible and hoverable.
+
+    Parameters
+    ----------
+    data : iterable
+        The column's values, of any type (see `proportion_stats`).
+    orientation : {'vertical', 'horizontal'}, default: 'horizontal'
+        Box layout. 'horizontal' runs the boxes left-to-right (most common
+        first); 'vertical' stacks them top-to-bottom in the same order.
+    colors : sequence of str, default: a dark/light blue pair
+        CSS colors cycled across the value boxes (so adjacent boxes differ).
+    other_color : str
+        CSS color of the catch-all box, when present.
+    max_boxes : int, default: 12
+        Most values to draw individually before lumping the rest into the
+        catch-all.
+    min_box : float, default: 3.0
+        Smallest on-screen length of any box, in viewBox units (the strip is
+        140 long). Keeps a rare value visible and hoverable; the shortfall is
+        taken proportionally from the larger boxes (see `tally`).
+    catchall_tolerance : float, default: 0.1
+        How far the catch-all's drawn width may stray from its true
+        proportion, as a fraction, before the individual-box cutoff is moved
+        earlier (lumping more into the catch-all). Smaller is stricter.
+    value_crop : int or None, default: 128
+        Cap on a value's length in its tooltip; longer values are truncated
+        with an ellipsis. None disables cropping.
+    line_color : str or None, default: None
+        Optional hairline outlining each box; None (the default) leaves the
+        boxes borderless, separated by their fills, like `tally`.
+    line_width : float, default: 1.0
+        Outline stroke width in pixels (only when *line_color* is given).
+    height : str, default: '1em'
+        CSS height baked onto the root when *inline* is True.
+    inline : bool, default: True
+        If True, size the root so the strip drops into running text.
+    hover : bool, default: True
+        If True, give each box a ``<title>`` tooltip — its share, value, and
+        count, e.g. ``'10% "dog"\\n10 of 100 values'``. The catch-all reports
+        the lumped share and how many distinct values it covers. False turns
+        tooltips off.
+    highlight : bool, default: True
+        If True, add a scoped ``<style>`` that brightens the box under the
+        cursor.
+    class_ : str, default: 'pavement-proportion'
+        CSS class on the root ``<svg>``.
+    path : str, optional
+        If given, also write the markup here (``.html``/``.htm`` wrapped in a
+        minimal document; any other suffix as-is). The string is returned
+        either way.
+
+    Returns
+    -------
+    str
+        The ``<svg>...</svg>`` markup.
+
+    Raises
+    ------
+    ValueError
+        If *data* has no non-missing values to summarize.
+
+    See Also
+    --------
+    tally : The distinct/repeated/missing companion strip.
+    pavement.core.proportion_stats : The value counts it draws.
+    """
+    stats = proportion_stats(data)
+    items = stats['counts']
+    total = stats['total']
+    if total == 0:
+        raise ValueError("data has no non-missing values to summarize")
+
+    horizontal = orientation == 'horizontal'
+    view_w, view_h = _VIEWBOX[orientation]
+    span = view_w if horizontal else view_h
+
+    counts_only = [count for _, count in items]
+    k = len(items)
+    shown = _proportion_cutoff(counts_only, total, span, min_box,
+                               max_boxes, catchall_tolerance)
+    catch_count = total - sum(counts_only[:shown])  # 0 when all shown
+    box_counts = counts_only[:shown] + ([catch_count] if catch_count else [])
+    lengths = _box_lengths(box_counts, span, min_box)
+
+    stroke = ''
+    if line_color is not None:
+        stroke = (f' stroke="{line_color}" stroke-width="{_num(line_width)}"'
+                  f' vector-effect="non-scaling-stroke"')
+    palette = list(colors) or list(_PROP_COLORS)
+    noun = 'value' if total == 1 else 'values'
+
+    parts: list[str] = []
+    offset = 0.0
+    for index, (count, length) in enumerate(zip(box_counts, lengths)):
+        is_catch = bool(catch_count) and index == len(box_counts) - 1
+        color = other_color if is_catch else palette[index % len(palette)]
+        if horizontal:
+            x, y, w, h = offset, 0.0, length, view_h
+        else:
+            x, y, w, h = 0.0, offset, view_w, length
+        title = ''
+        if hover:
+            if is_catch:
+                lumped = k - shown
+                text = (f"{_pct(count, total)} other\n"
+                        f"{count:,} of {total:,} {noun}\n"
+                        f"(across {lumped:,} distinct values)")
+            else:
+                value = str(items[index][0])
+                if value_crop is not None and len(value) > value_crop:
+                    value = value[:value_crop] + "…"
+                text = (f'{_pct(count, total)} "{value}"\n'
+                        f"{count:,} of {total:,} {noun}")
+            title = f'<title>{escape(text)}</title>'
+        parts.append(
+            f'<rect class="tvbox" x="{_num(x)}" y="{_num(y)}" '
+            f'width="{_num(w)}" height="{_num(h)}" fill="{color}"{stroke} '
+            f'pointer-events="all">{title}</rect>')
+        offset += length
+
+    style = ''
+    if highlight:
+        selector = '.' + '.'.join(class_.split())
+        style = (
+            f'<style>'
+            f'{selector} .tvbox{{transition:filter .1s ease}}'
+            f'{selector} .tvbox:hover{{filter:brightness(1.12)}}'
+            f'</style>')
+
+    root_style = 'overflow:visible;'
+    if inline:
+        root_style += f'height:{height};width:auto;vertical-align:-0.15em;'
+    label = (f"value proportions of {total} {noun} across {k} distinct "
+             f"value{'' if k == 1 else 's'}"
+             + (f", top {shown} shown" if catch_count else ""))
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {_num(view_w)} {_num(view_h)}" '
+        f'preserveAspectRatio="none" class={quoteattr(class_)} '
+        f'role="img" aria-label={quoteattr(label)} '
+        f'style={quoteattr(root_style)}>'
+        f'<desc>{escape(label)}</desc>{style}'
+        f'{"".join(parts)}</svg>')
+
+    if path is not None:
+        document = svg
+        if path.endswith(('.html', '.htm')):
+            document = ('<!doctype html><meta charset="utf-8">'
+                        f'<body>{svg}</body>')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(document)
+    return svg
+
+
 def tally(
     data: Iterable[object],
     orientation: Literal['vertical', 'horizontal'] = 'horizontal',
@@ -432,8 +652,6 @@ def tally(
     its share and count — the lines between boxes do not. Returns an
     ``<svg>...</svg>`` string with no external dependencies; paste it into
     any HTML and it renders, scaling to the surrounding text.
-
-    This is an experimental feature; its home in the package may change.
 
     Parameters
     ----------

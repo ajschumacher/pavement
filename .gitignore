@@ -20,5 +20,5 @@ bokeh_*.html
 # Output of examples/value_format_demo.py
 value_format_demo.html
 
-# Output of examples/tally_demo.py
-tally_demo.html
+# Output of examples/column_summary_demo.py
+column_summary_demo.html

@@ -21,6 +21,7 @@ __all__ = [
     "pavement_stats",
     "pavement_stats2d",
     "tally_stats",
+    "proportion_stats",
 ]
 
 
@@ -306,14 +307,15 @@ def pavement_stats2d(
 
 
 # ---------------------------------------------------------------------------
-# Column tally (experimental)
+# Column summaries: tally and value proportions
 #
-# A different summary from the pavement plot: rather than the *distribution*
-# of a column's values, the make-up of the column itself — how many values
-# are distinct, how many merely repeat a value already seen, and how many are
-# missing. Pavement plots can't show missing values at all, and say nothing
-# about distinctness, so this is a complementary, lower-resolution glance.
-# Lives alongside the pavement statistics but is independent of them.
+# Two summaries that complement the pavement plot, which only ever shows the
+# *distribution* of numeric values. `tally_stats` reports a column's make-up
+# (distinct / repeated / missing) — what a pavement plot can't, since it
+# ignores missing values and distinctness. `proportion_stats` reports the
+# value counts (à la pandas value_counts), the shape a proportion plot draws,
+# and works for categorical columns a pavement plot has nothing to say about.
+# Both live alongside the pavement statistics but are independent of them.
 # ---------------------------------------------------------------------------
 
 def _is_missing(value: Any) -> bool:
@@ -415,3 +417,66 @@ def tally_stats(data: Iterable[Any]) -> dict[str, int]:
         'missing': missing,
         'total': distinct + repeated + missing,
     }
+
+
+def proportion_stats(data: Iterable[Any]) -> dict[str, Any]:
+    """
+    Value counts of a column, descending by frequency.
+
+    A backend-agnostic summary in the spirit of pandas ``value_counts()``:
+    how a column's present values divide up by how often each occurs.
+    Missing values (see `_is_missing`) are dropped, like
+    ``value_counts(dropna=True)``; their number is reported separately.
+
+    Where `tally_stats` summarizes a column's make-up (distinct / repeated /
+    missing), this exposes the *shape* of its value distribution — the input
+    a proportion plot draws.
+
+    Parameters
+    ----------
+    data : iterable
+        The column's values, of any type. Need not be hashable; unhashable
+        values fall back to equality-based grouping.
+
+    Returns
+    -------
+    dict
+        ``{'counts': [(value, count), ...], 'total': t, 'missing': m}``.
+        *counts* is sorted by descending count, ties broken by first
+        appearance; *total* is the number of present (non-missing) values,
+        equal to the sum of the counts; *missing* is how many were dropped.
+
+    See Also
+    --------
+    pavement.svg.proportion : Render these counts as an inline SVG strip.
+    tally_stats : The companion distinct/repeated/missing summary.
+    """
+    present: list[Any] = []
+    missing = 0
+    for value in data:
+        if _is_missing(value):
+            missing += 1
+        else:
+            present.append(value)
+    try:
+        counts: dict[Any, int] = {}
+        first: dict[Any, int] = {}
+        for index, value in enumerate(present):
+            if value in counts:
+                counts[value] += 1
+            else:
+                counts[value] = 1
+                first[value] = index
+        items = sorted(counts.items(), key=lambda kv: (-kv[1], first[kv[0]]))
+    except TypeError:  # unhashable values: group by equality instead
+        groups: list[list[Any]] = []  # [value, count, first_index]
+        for index, value in enumerate(present):
+            for group in groups:
+                if group[0] == value:
+                    group[1] += 1
+                    break
+            else:
+                groups.append([value, 1, index])
+        groups.sort(key=lambda g: (-g[1], g[2]))
+        items = [(value, count) for value, count, _ in groups]
+    return {'counts': items, 'total': len(present), 'missing': missing}

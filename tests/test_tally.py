@@ -1,8 +1,7 @@
 """
-Tests for the experimental column "tally" (working title): the core
-counts in ``pavement.core.tally_stats`` and the inline SVG strip in
-``pavement.svg.tally``. Kept in one file so the experiment is easy to find
-— and to remove — while it lives separately from the pavement plots.
+Tests for the column "tally": the core counts in
+``pavement.core.tally_stats`` and the inline SVG strip in
+``pavement.svg.tally``. Kept in one file, alongside the pavement plots.
 """
 
 import math
