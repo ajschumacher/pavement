@@ -307,7 +307,7 @@ def pavement_stats2d(
 
 
 # ---------------------------------------------------------------------------
-# Column summaries (experimental): tally and value proportions
+# Column summaries: tally and value proportions
 #
 # Two summaries that complement the pavement plot, which only ever shows the
 # *distribution* of numeric values. `tally_stats` reports a column's make-up

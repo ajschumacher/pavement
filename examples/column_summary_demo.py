@@ -1,6 +1,6 @@
 """
-Demo of the experimental column-summary strips in ``pavement.svg``: the
-``tally`` and the ``proportion`` plot.
+Demo of the column-summary strips in ``pavement.svg``: the ``tally`` and
+the ``proportion`` plot.
 
 Both are companions to the ``spark`` sparkline, in the same borderless form
 factor, answering questions a pavement plot can't:

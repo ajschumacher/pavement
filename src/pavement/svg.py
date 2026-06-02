@@ -466,8 +466,6 @@ def proportion(
     *catchall_tolerance*). Boxes never fall below *min_box*, so even a rare
     value stays visible and hoverable.
 
-    This is an experimental feature; its home in the package may change.
-
     Parameters
     ----------
     data : iterable
@@ -654,8 +652,6 @@ def tally(
     its share and count — the lines between boxes do not. Returns an
     ``<svg>...</svg>`` string with no external dependencies; paste it into
     any HTML and it renders, scaling to the surrounding text.
-
-    This is an experimental feature; its home in the package may change.
 
     Parameters
     ----------

@@ -1,8 +1,7 @@
 """
-Tests for the experimental "proportion" plot: the core value counts in
+Tests for the "proportion" plot: the core value counts in
 ``pavement.core.proportion_stats`` and the inline SVG strip in
-``pavement.svg.proportion``. Kept in one file, like the tally tests, so the
-experiment is easy to find and to remove.
+``pavement.svg.proportion``. Kept in one file, like the tally tests.
 """
 
 import re
