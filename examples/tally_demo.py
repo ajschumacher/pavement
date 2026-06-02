@@ -17,8 +17,6 @@ The output ``tally_demo.html`` lands in the current directory; open it and
 hover the strips — each box brightens and shows its share and count. The
 centerpiece is a "dataframe summary": one row per column, with the column's
 tally beside its pavement spark (numeric columns only).
-
-"tally" is a working title — see the README/PR for candidate names.
 """
 
 import math
@@ -129,7 +127,7 @@ PAGE = """<!doctype html>
   .summary td:nth-child(2), .summary td:nth-child(3) {{ width: 12rem; }}
 </style></head><body>
 
-<h1>Column tally <span class="sub">(working title)</span></h1>
+<h1>Column tally</h1>
 <p class="sub">A glance at a column's make-up: how much is distinct, repeated,
 or missing. Hover any strip — each box brightens and shows its share and
 count. Pure SVG, no JavaScript, no image files.</p>

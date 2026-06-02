@@ -305,7 +305,7 @@ def pavement_stats2d(
 
 
 # ---------------------------------------------------------------------------
-# Column tally (experimental; working title "tally")
+# Column tally (experimental)
 #
 # A different summary from the pavement plot: rather than the *distribution*
 # of a column's values, the make-up of the column itself — how many values

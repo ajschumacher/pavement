@@ -87,6 +87,41 @@ def _pct(count: int, total: int) -> str:
     return f"{frac:.0%}"
 
 
+def _box_lengths(counts: list[int], span: float, min_box: float) -> list[float]:
+    """Lengths for a tally's boxes along *span*, proportional to *counts*.
+
+    No box for a nonzero category is shorter than *min_box*, so a tiny
+    slice stays visible and hoverable rather than collapsing to a hairline;
+    the shortfall is taken proportionally from the boxes still above the
+    minimum (a water-filling pass, repeated until it settles). The minimum
+    is honored only while it fits the span; with ``min_box <= 0`` (or when
+    it can't fit) the layout is purely proportional. *counts* should already
+    exclude empty categories, which draw no box at all.
+    """
+    k = len(counts)
+    total = sum(counts)
+    if total <= 0:
+        return [0.0] * k
+    if min_box <= 0 or k * min_box >= span:
+        return [span * c / total for c in counts]
+    fixed = [False] * k
+    while True:
+        free = [i for i in range(k) if not fixed[i]]
+        free_count = sum(counts[i] for i in free)
+        free_span = span - min_box * (k - len(free))
+        newly = [i for i in free
+                 if free_count and free_span * counts[i] / free_count < min_box]
+        if not newly:
+            break
+        for i in newly:
+            fixed[i] = True
+    free_count = sum(counts[i] for i in range(k) if not fixed[i])
+    free_span = span - min_box * sum(fixed)
+    return [min_box if fixed[i]
+            else (free_span * counts[i] / free_count if free_count else 0.0)
+            for i in range(k)]
+
+
 def spark(
     data: Iterable[float],
     weights: Sequence[float] | None = None,
@@ -369,8 +404,9 @@ def tally(
     distinct_color: str = _TALLY_DISTINCT,
     repeated_color: str = _TALLY_REPEATED,
     missing_color: str = _TALLY_MISSING,
-    line_color: str | None = 'white',
+    line_color: str | None = None,
     line_width: float = 1.0,
+    min_box: float = 3.0,
     height: str = '1em',
     inline: bool = True,
     hover: bool = True,
@@ -397,8 +433,7 @@ def tally(
     ``<svg>...</svg>`` string with no external dependencies; paste it into
     any HTML and it renders, scaling to the surrounding text.
 
-    This is an experiment under the working title "tally"; its name and home
-    may change.
+    This is an experimental feature; its home in the package may change.
 
     Parameters
     ----------
@@ -411,12 +446,22 @@ def tally(
     distinct_color, repeated_color, missing_color : str
         Any CSS color for each box. Default to a dark blue, a light blue,
         and a muted dark red.
-    line_color : str or None, default: 'white'
-        Color of the hairline outlining each box (and so separating
-        adjacent boxes). None draws no outline. Held at a constant width as
-        the strip scales (``non-scaling-stroke``).
+    line_color : str or None, default: None
+        Color of an optional hairline outlining each box (and so separating
+        adjacent boxes). The default, None, leaves the boxes borderless,
+        separated by their fills alone. When given, the outline is held at a
+        constant width as the strip scales (``non-scaling-stroke``).
     line_width : float, default: 1.0
-        Outline stroke width in pixels.
+        Outline stroke width in pixels (only when *line_color* is given).
+    min_box : float, default: 3.0
+        Smallest on-screen length a box may have for a category that has
+        *any* values, in viewBox units (the strip is 140 long, so the
+        default is ~2% of it). Keeps a tiny-but-nonzero slice — a stray
+        missing value among thousands — visible and hoverable instead of
+        collapsing to a hairline; the shortfall is taken proportionally
+        from the larger boxes, and the tooltip still reports the true share
+        and count. 0 makes the boxes purely proportional. A category with no
+        values still draws no box.
     height : str, default: '1em'
         CSS height baked onto the root when *inline* is True, so the strip
         tracks the font size; width follows the aspect.
@@ -465,19 +510,17 @@ def tally(
         stroke = (f' stroke="{line_color}" stroke-width="{_num(line_width)}"'
                   f' vector-effect="non-scaling-stroke"')
 
-    segments = [
+    segments = [(label, color, count) for label, color, count in (
         ('distinct', distinct_color, counts['distinct']),
         ('repeated', repeated_color, counts['repeated']),
         ('missing', missing_color, counts['missing']),
-    ]
+    ) if count > 0]  # a category with no values draws no box
+    lengths = _box_lengths([count for _, _, count in segments], span, min_box)
     noun = 'value' if total == 1 else 'values'
 
     parts: list[str] = []
     offset = 0.0
-    for label, color, count in segments:
-        if count == 0:  # an absent category draws no box
-            continue
-        length = span * count / total
+    for (label, color, count), length in zip(segments, lengths):
         if horizontal:
             x, y, w, h = offset, 0.0, length, view_h
         else:

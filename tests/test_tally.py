@@ -183,6 +183,38 @@ def test_tally_boxes_are_proportional_and_fill_the_strip():
     assert sum(widths) == pytest.approx(140.0)           # edge to edge
 
 
+def _box_widths(out):
+    import re
+    return [float(w) for w in re.findall(
+        r'<rect class="tvbox"[^>]*?width="([-\d.]+)"', out)]
+
+
+def test_tally_min_box_keeps_a_tiny_slice_visible():
+    # 1 missing of 1001 is ~0.1% — far below the default 3-unit minimum, so
+    # it's bumped up to 3 and the distinct box gives up the difference.
+    widths = _box_widths(tally(list(range(1000)) + [None]))
+    assert widths == pytest.approx([137.0, 3.0])   # distinct, missing
+    assert sum(widths) == pytest.approx(140.0)     # still edge to edge
+
+
+def test_tally_min_box_zero_is_purely_proportional():
+    # The missing slice keeps its true, tiny proportional width (~0.14),
+    # nowhere near the default 3-unit minimum — i.e. it isn't clamped.
+    widths = _box_widths(tally(list(range(1000)) + [None], min_box=0))
+    assert 0 < widths[1] < 1.0
+    assert sum(widths) == pytest.approx(140.0)
+
+
+def test_tally_min_box_custom_value():
+    widths = _box_widths(tally(list(range(1000)) + [None], min_box=10))
+    assert widths == pytest.approx([130.0, 10.0])
+
+
+def test_tally_min_box_does_not_resurrect_empty_categories():
+    # No missing values -> still no missing box, even with a minimum width.
+    assert tally([1, 2, 3, 4]).count('class="tvbox"') == 1
+
+
 def test_tally_vertical_uses_height_and_viewbox():
     import re
     out = tally([1, 1, 2, 2, None], orientation="vertical")
@@ -227,13 +259,19 @@ def test_tally_lines_have_no_hover():
     assert out.count("<title>") == out.count('class="tvbox"') == 3
 
 
+def test_tally_is_borderless_by_default():
+    assert 'stroke=' not in tally([1, 1, 2, None])        # no outline
+
+
 def test_tally_line_color_outlines_boxes():
-    assert 'stroke="white"' in tally([1, 1, 2, None])
-    assert 'stroke=' not in tally([1, 1, 2, None], line_color=None)
+    assert 'stroke="white"' in tally([1, 1, 2, None], line_color="white")
 
 
-def test_tally_uses_non_scaling_stroke():
-    assert 'vector-effect="non-scaling-stroke"' in tally([1, 2, 3])
+def test_tally_uses_non_scaling_stroke_when_outlined():
+    # The constant-width stroke only applies when an outline is requested.
+    assert 'vector-effect="non-scaling-stroke"' in tally(
+        [1, 2, 3], line_color="white")
+    assert 'vector-effect' not in tally([1, 2, 3])
 
 
 def test_tally_highlight_adds_hover_style():
