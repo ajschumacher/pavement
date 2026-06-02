@@ -11,6 +11,7 @@ re-exports these three functions.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Sequence
 from typing import Any, Literal
 
@@ -18,6 +19,7 @@ __all__ = [
     "quantiles",
     "pavement_stats",
     "pavement_stats2d",
+    "tally_stats",
 ]
 
 
@@ -299,4 +301,101 @@ def pavement_stats2d(
         'first_split': first_split,
         'primary_edges': primary_edges,
         'secondary_edges_per_chunk': secondary_edges_per_chunk,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Column tally (experimental; working title "tally")
+#
+# A different summary from the pavement plot: rather than the *distribution*
+# of a column's values, the make-up of the column itself — how many values
+# are distinct, how many merely repeat a value already seen, and how many are
+# missing. Pavement plots can't show missing values at all, and say nothing
+# about distinctness, so this is a complementary, lower-resolution glance.
+# Lives alongside the pavement statistics but is independent of them.
+# ---------------------------------------------------------------------------
+
+def _is_missing(value: Any) -> bool:
+    """Whether *value* counts as missing for `tally_stats`.
+
+    Handles the common ways a "no value" shows up without importing numpy
+    or pandas:
+
+    - ``None``;
+    - a float ``NaN`` (Python, or numpy's, which is a float);
+    - any sentinel that compares unequal to itself (numpy ``nan``, pandas
+      ``NaT``) — the self-inequality test; and
+    - pandas ``NA``, whose ``!=`` yields a non-boolean and whose truth value
+      raises, caught and identified by type name as a last resort.
+
+    An empty string, ``0``, and ``False`` are real values, not missing.
+    """
+    if value is None:
+        return True
+    if isinstance(value, float) and math.isnan(value):
+        return True
+    try:
+        if value != value:  # NaN / NaT compare unequal to themselves
+            return True
+    except (TypeError, ValueError):
+        pass
+    return type(value).__name__ in ("NAType", "NaTType")
+
+
+def tally_stats(data: Iterable[Any]) -> dict[str, int]:
+    """
+    Count how a column breaks down into distinct, repeated, and missing.
+
+    A backend-agnostic summary of a column (a list of values, typically one
+    column of a table). Unlike `pavement_stats`, which summarizes the
+    *distribution* of numeric values, this looks at the column's make-up and
+    works on values of any type.
+
+    Each value is sorted into exactly one of three buckets, so the three
+    counts always sum to the total:
+
+    - **missing** — ``None``, ``NaN``, pandas ``NA``/``NaT``, and the like
+      (see `_is_missing`);
+    - **distinct** — the count of *distinct* present values (each distinct
+      value contributes 1, on its first occurrence); and
+    - **repeated** — the remaining present values, each a repeat of a value
+      already counted as distinct.
+
+    Parameters
+    ----------
+    data : iterable
+        The column's values, of any type. Need not be numeric or hashable;
+        unhashable values fall back to an equality-based distinct count.
+
+    Returns
+    -------
+    dict of str to int
+        ``{'distinct': d, 'repeated': r, 'missing': m, 'total': n}`` with
+        ``d + r + m == n``. An empty column gives all zeros.
+
+    See Also
+    --------
+    pavement.svg.tally : Render this summary as an inline SVG strip.
+    """
+    present: list[Any] = []
+    missing = 0
+    for value in data:
+        if _is_missing(value):
+            missing += 1
+        else:
+            present.append(value)
+    try:
+        distinct = len(set(present))
+    except TypeError:  # unhashable values: dedupe by equality instead
+        seen: list[Any] = []
+        for value in present:
+            if not any(value == other for other in seen):
+                seen.append(value)
+        distinct = len(seen)
+    repeated = len(present) - distinct
+    return {
+        'distinct': distinct,
+        'repeated': repeated,
+        'missing': missing,
+        'total': distinct + repeated + missing,
     }
