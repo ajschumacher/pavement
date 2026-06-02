@@ -15,9 +15,9 @@ factor, answering questions a pavement plot can't:
 
 Run it with no dependencies beyond the base install::
 
-    python examples/tally_demo.py
+    python examples/column_summary_demo.py
 
-The output ``tally_demo.html`` lands in the current directory; open it and
+The output ``column_summary_demo.html`` lands in the current directory; open it and
 hover the strips — each box brightens and shows its share and count. The
 centerpiece is a "dataframe summary": one row per column with its tally and
 its distribution (a pavement spark for numeric columns, a proportion plot
@@ -229,9 +229,9 @@ def main():
         plan=psvg.tally(columns["plan"]),
         legacy_field=psvg.tally(columns["legacy_field"]),
     )
-    with open("tally_demo.html", "w", encoding="utf-8") as f:
+    with open("column_summary_demo.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print("wrote tally_demo.html — open it and hover the strips")
+    print("wrote column_summary_demo.html — open it and hover the strips")
 
 
 if __name__ == "__main__":
