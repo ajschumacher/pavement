@@ -1,13 +1,17 @@
 """
-Demo of the experimental column "tally" strip via ``pavement.svg.tally``.
+Demo of the experimental column-summary strips in ``pavement.svg``: the
+``tally`` and the ``proportion`` plot.
 
-A tally is a companion to the ``spark`` sparkline with the same form factor,
-but a different question. A spark summarizes the *distribution* of a numeric
-column; a tally summarizes the *column itself* — how many of its values are
-distinct (dark blue), how many merely repeat a value already seen (light
-blue), and how many are missing (dark red). It works on a column of any
-type, and surfaces exactly what a pavement plot can't: missing values and
-distinctness.
+Both are companions to the ``spark`` sparkline, in the same borderless form
+factor, answering questions a pavement plot can't:
+
+- A **tally** summarizes a column's make-up — how many values are distinct
+  (dark blue), repeated (light blue), or missing (dark red) — for a column
+  of any type.
+- A **proportion** plot summarizes a column's value counts (à la pandas
+  ``value_counts``): one box per value, widest first, with a catch-all for
+  the long tail of a high-cardinality column. It fills the gap a pavement
+  spark leaves for categorical columns.
 
 Run it with no dependencies beyond the base install::
 
@@ -15,8 +19,9 @@ Run it with no dependencies beyond the base install::
 
 The output ``tally_demo.html`` lands in the current directory; open it and
 hover the strips — each box brightens and shows its share and count. The
-centerpiece is a "dataframe summary": one row per column, with the column's
-tally beside its pavement spark (numeric columns only).
+centerpiece is a "dataframe summary": one row per column with its tally and
+its distribution (a pavement spark for numeric columns, a proportion plot
+for categorical ones).
 """
 
 import math
@@ -74,19 +79,23 @@ def _missing(v):
 
 
 def summary_rows():
-    """One HTML table row per column: name, tally, and pavement spark."""
+    """One HTML table row per column: name, tally, and distribution.
+
+    The distribution is a pavement spark for numeric columns and a
+    proportion plot for the rest — so every column gets a distribution
+    view, where a pavement spark alone would leave the categorical ones
+    blank.
+    """
     rows = []
     for name, values in columns.items():
         tally = psvg.tally(values, height="1.6em")
         if is_numeric(values):
             clean = [v for v in values if not _missing(v)]
-            spark = psvg.spark(clean, bins=8, color="#2166ac", height="1.6em")
+            dist = psvg.spark(clean, bins=8, color="#2166ac", height="1.6em")
         else:
-            # Pavement plots need numbers; a non-numeric column has no
-            # distribution to draw — the tally carries the whole story.
-            spark = '<span class="na">—</span>'
+            dist = psvg.proportion(values, height="1.6em")
         rows.append(f"<tr><td><code>{name}</code></td>"
-                    f"<td>{tally}</td><td>{spark}</td></tr>")
+                    f"<td>{tally}</td><td>{dist}</td></tr>")
     return "\n".join(rows)
 
 
@@ -104,16 +113,36 @@ gallery_rows = "\n".join(
     for label, strip in gallery.items())
 
 
+# A gallery of proportion plots, from low to high cardinality.
+survey = (["strongly agree"] * 30 + ["agree"] * 55 + ["neutral"] * 22
+          + ["disagree"] * 12 + ["strongly disagree"] * 6)
+fruit = ["apple"] * 48 + ["banana"] * 26 + ["cherry"] * 14 + ["date"] * 8
+# A long tail: a few common cities, then hundreds of one-offs.
+cities = (["Springfield"] * 40 + ["Riverton"] * 25 + ["Fairview"] * 15
+          + [f"town-{i}" for i in range(400)])
+ids = [f"order-{rng.randrange(10**6)}" for _ in range(300)]  # essentially all unique
+
+proportion_gallery = {
+    "survey answers (5 levels)": psvg.proportion(survey, height="1.6em"),
+    "fruit picked (4 kinds)": psvg.proportion(fruit, height="1.6em"),
+    "home city (long tail)": psvg.proportion(cities, height="1.6em"),
+    "order id (all unique)": psvg.proportion(ids, height="1.6em"),
+}
+proportion_gallery_rows = "\n".join(
+    f"<tr><td>{label}</td><td>{strip}</td></tr>"
+    for label, strip in proportion_gallery.items())
+
+
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<title>pavement.svg — column tally (working title)</title>
+<title>pavement.svg — column tally &amp; proportion strips</title>
 <style>
   body {{ max-width: 50rem; margin: 3rem auto; padding: 0 1.5rem;
           font: 18px/1.7 Georgia, serif; color: #1a1a1a; background: #fbfaf7; }}
   h1 {{ font-size: 1.6rem; margin-bottom: 0.2rem; }}
   h2 {{ font-size: 1.2rem; margin-top: 2.2rem; }}
   .sub {{ color: #777; font-style: italic; margin-top: 0; }}
-  .pavement-tally, .pavement-spark {{ margin: 0 0.15em; }}
+  .pavement-tally, .pavement-spark, .pavement-proportion {{ margin: 0 0.15em; }}
   table {{ border-collapse: collapse; width: 100%; margin-top: 1rem;
            font-size: 0.95rem; }}
   th, td {{ text-align: left; padding: 0.45rem 0.6rem;
@@ -140,15 +169,33 @@ Pure SVG, no JavaScript, no image files.</p>
 </p>
 
 <h2>A dataframe summary</h2>
-<p>One row per column: the <strong>tally</strong> works on every column,
-numeric or not; the <strong>pavement spark</strong> needs numbers, so a
-categorical or text column shows a dash. Together they answer two different
-questions about each column.</p>
+<p>One row per column: a <strong>tally</strong> of its make-up beside its
+<strong>distribution</strong>. The distribution is a <strong>pavement
+spark</strong> for numeric columns and a <strong>proportion plot</strong> for
+categorical ones — so every column gets a distribution view, where a pavement
+spark alone would leave the categorical rows blank.</p>
 
 <table class="summary">
-<thead><tr><th>column</th><th>tally</th><th>pavement</th></tr></thead>
+<thead><tr><th>column</th><th>tally</th><th>distribution</th></tr></thead>
 <tbody>
 {summary}
+</tbody>
+</table>
+
+<h2>Proportion plots</h2>
+<p>A proportion plot is a column's <code>value_counts()</code>: one box per
+value, widest (most common) first, in alternating blues. Hover a box for its
+value, share, and count. For a high-cardinality column only the top values
+get a box; the rest are lumped into a final <span class="swatch"
+style="background:#5995c5"></span>catch-all box (a blue in between), whose
+tooltip says how many distinct values it covers. Boxes never shrink below a
+visible minimum, and the catch-all kicks in early rather than let a long tail
+of slivers misrepresent it.</p>
+
+<table>
+<thead><tr><th>column</th><th>proportion</th></tr></thead>
+<tbody>
+{proportion_gallery}
 </tbody>
 </table>
 
@@ -177,6 +224,7 @@ def main():
     html = PAGE.format(
         summary=summary_rows(),
         gallery=gallery_rows,
+        proportion_gallery=proportion_gallery_rows,
         user_id=psvg.tally(columns["user_id"]),
         plan=psvg.tally(columns["plan"]),
         legacy_field=psvg.tally(columns["legacy_field"]),
