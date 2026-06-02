@@ -4,7 +4,12 @@ __pycache__/
 dist/
 build/
 examples/.ipynb_checkpoints/
-.claude/
+# Ignore all of .claude/ (local settings, worktrees, skill eval workspaces)
+# except the checked-in, distributable user-facing skill.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/pavement-plots/
 .python-version
 
 # Output of examples/holoviews_demo.py

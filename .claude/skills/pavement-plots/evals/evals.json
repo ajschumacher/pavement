@@ -1,0 +1,29 @@
+{
+  "skill_name": "pavement-plots",
+  "evals": [
+    {
+      "id": 0,
+      "name": "interactive-grouped-dataframe",
+      "prompt": "I've got a pandas DataFrame `df` of house listings with a `neighborhood` column (string) and a `price` column (float). I want an interactive plot for a web dashboard comparing the price distribution across neighborhoods, with prices shown as dollars when you hover. Write the Python code.",
+      "expected_output": "Code that imports an interactive backend (e.g. `import pavement.plotly as pavement`), calls pavement.plot(df['price'], categories=df['neighborhood']) using the tidy categories= input shape, passes value_format=lambda v: f\"${v:,.2f}\" (or similar) for dollar hover formatting, and shows the figure. Should NOT use a manual groupby into a wide list, and should NOT invent a non-existent API.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 1,
+      "name": "inline-html-sparkline",
+      "prompt": "I'm generating an HTML report in Python and want a tiny sparkline of these API response-time numbers [120, 95, 200, 150, 90, 305, 110, 130] right inside a sentence. No extra image files, no JavaScript. Show me the code.",
+      "expected_output": "Code that uses `import pavement.svg as pavement` and calls pavement.spark([...]) which returns an '<svg>...</svg>' string embedded directly into the HTML. Should NOT save an image file, should NOT use matplotlib, and should treat the return value as a string. Bonus if it notes the svg has no dependencies / inherits text color.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "static-rug-for-paper",
+      "prompt": "Make a static pavement plot of this list of measurements [2.1, 3.4, 3.5, 4.0, 4.1, 4.2, 5.8, 9.9] for a figure in a paper, but I want it to read like a rug plot — just the individual values, not boxes. Give me the Python.",
+      "expected_output": "Code that uses `import pavement.matplotlib as pavement` and calls pavement.plot(values, bins=None) to get a rug. Should know bins=None produces the rug; should not pass an invalid argument. Ideally does not add show_box=True (the rug drops the box edges by default, which is what reads as a rug plot).",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}
