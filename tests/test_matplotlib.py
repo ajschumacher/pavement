@@ -169,6 +169,31 @@ def test_draw_pavement_line_props_overrides_linewidth():
     plt.close()
 
 
+def test_draw_pavement_show_box_false_drops_box():
+    plt.figure()
+    artists = draw_pavement([1, 2, 3, 4, 5], show_box=False)
+    assert artists["box"] is None
+    assert artists["ticks"] is not None  # ticks still drawn
+    plt.close()
+
+
+def test_plot_rug_omits_box_by_default():
+    # A rug (bins=None) drops the box edges, so it reads like a plain rug;
+    # a binned row keeps them. Per-row, so a mixed bins sequence mixes too.
+    plt.figure()
+    rug, binned = plot([[1, 2, 2, 3, 5], [1, 2, 2, 3, 5]], bins=[None, 4])
+    assert rug["box"] is None
+    assert binned["box"] is not None
+    plt.close()
+
+
+def test_plot_show_box_true_forces_box_on_rug():
+    plt.figure()
+    (artists,) = plot([1, 2, 2, 3, 5], bins=None, show_box=True)
+    assert artists["box"] is not None
+    plt.close()
+
+
 def test_draw_pavement_repeated_value_makes_a_whisker():
     plt.figure()
     # A repeated value reaches past the box as a whisker — one line per

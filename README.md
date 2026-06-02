@@ -48,6 +48,13 @@ object (matplotlib artists, a `bokeh.plotting.figure`, a
 `plotly.graph_objects.Figure`, or a HoloViews element), so the result
 drops straight into the rest of your workflow.
 
+A rug (`bins=None`) drops the two long box edges by default, leaving just
+the value ticks — so it reads like an ordinary rug plot, and the presence
+of the box is a quick visual cue that you're looking at quantiles rather
+than raw points. Pass `show_box=True` to keep the box on a rug (or
+`show_box=False` to drop it from a binned plot); it is resolved per row,
+so a mixed `bins` sequence gets the right default for each.
+
 The backend-agnostic statistics live at the top level, with no plotting
 dependency of their own:
 

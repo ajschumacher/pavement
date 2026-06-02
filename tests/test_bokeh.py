@@ -44,6 +44,21 @@ def test_glyphs_are_fills_ticks_box():
     assert len(rends["fills"].data_source.data["left"]) == 4
 
 
+def test_glyphs_rug_drops_box_by_default():
+    # A rug (bins=None) omits the box edges; the ticks remain.
+    fig = figure()
+    rends = pavement_glyphs(fig, [1, 2, 2, 3, 5], bins=None)
+    assert rends["box"] is None
+    assert rends["ticks"] is not None
+    assert _box_segments(fig) == []
+
+
+def test_glyphs_show_box_true_keeps_box_on_rug():
+    fig = figure()
+    rends = pavement_glyphs(fig, [1, 2, 2, 3, 5], bins=None, show_box=True)
+    assert type(rends["box"].glyph).__name__ == "Segment"
+
+
 def test_glyphs_drop_fill_when_alpha_zero():
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], fill_alpha=0)

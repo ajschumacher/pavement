@@ -45,7 +45,7 @@ from collections.abc import Iterable, Sequence
 from typing import Literal
 from xml.sax.saxutils import escape, quoteattr
 
-from ._geometry import fmt, row_spec, ValueFormat
+from ._geometry import fmt, resolve_show_box, row_spec, ValueFormat
 from .core import pavement_stats, proportion_stats, tally_stats
 
 __all__ = ["spark", "tally", "proportion"]
@@ -136,6 +136,7 @@ def spark(
     width: float = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     color: str | None = None,
     fill_alpha: float = 0.3,
     line_color: str | None = None,
@@ -178,6 +179,11 @@ def spark(
         How far whisker marks reach beyond the box at repeated values.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw the two long box edges (the borders parallel to
+        the value axis). None (the default) draws them when binned and
+        omits them for a rug (``bins=None``), so a rug spark reads like a
+        plain rug; True or False forces it.
     color : str, optional
         Any CSS color. Tints the lines and fills each bin translucently
         (see *fill_alpha*). Defaults to no fill and ``currentColor``
@@ -331,8 +337,11 @@ def spark(
     # where the value repeats (and closing the box ends at the extremes).
     # A hoverable tick pairs its visible mark with a transparent hit-area
     # inside a <g class="pvtick">, so CSS can thicken the mark on hover.
+    # The two long box edges (perpendicular to the ticks) are dropped for a
+    # rug by default, so it reads like a plain rug rather than a one-row box.
     marks = [stroke_line(*pt(side, value_low), *pt(side, value_high))
-             for side in (position - half, position + half)]
+             for side in (position - half, position + half)] \
+        if resolve_show_box(show_box, bins) else []
     for t in spec.ticks:
         a = pt(position - t.reach, t.value)
         b = pt(position + t.reach, t.value)

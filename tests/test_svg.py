@@ -43,6 +43,22 @@ def test_spark_rug_has_no_bin_rects():
     assert spark([1, 2, 3, 4, 5], bins=None).count('class="pvbin"') == 0
 
 
+def test_spark_rug_drops_box_edges_by_default():
+    # A rug omits the two long box edges (plain, classless <line>s), so it
+    # reads like a plain rug; the per-value tick marks remain.
+    rug = spark([1, 2, 2, 3, 5], bins=None)
+    forced = spark([1, 2, 2, 3, 5], bins=None, show_box=True)
+    # show_box adds exactly the two box edges.
+    assert forced.count("<line") == rug.count("<line") + 2
+
+
+def test_spark_binned_keeps_box_edges():
+    # A binned spark keeps its box; turning show_box off drops two lines.
+    binned = spark([1, 2, 3, 4, 5], bins=4)
+    no_box = spark([1, 2, 3, 4, 5], bins=4, show_box=False)
+    assert no_box.count("<line") == binned.count("<line") - 2
+
+
 def test_spark_horizontal_viewbox():
     assert 'viewBox="0 0 140 30"' in spark([1, 2, 3])
 

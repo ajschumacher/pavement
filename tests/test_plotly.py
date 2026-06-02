@@ -54,6 +54,25 @@ def test_traces_drop_hover_when_disabled():
     assert all(t.mode != "markers" for t in traces)  # no tick-hover layer
 
 
+def _line_segment_count(trace):
+    # The line trace lays each segment out as [a, b, None]; count the None
+    # pen-lifts to count segments (ticks plus, when drawn, two box edges).
+    return sum(1 for v in trace.x if v is None)
+
+
+def test_traces_rug_drops_box_edges_by_default():
+    # A rug (bins=None) keeps the value ticks but drops the two box edges,
+    # so the line trace has exactly one segment per distinct value.
+    rug = _line_trace(pavement_traces([1, 2, 2, 3, 5], bins=None))
+    assert _line_segment_count(rug) == 4  # 4 distinct values, no box edges
+
+
+def test_traces_show_box_true_keeps_box_on_rug():
+    forced = _line_trace(
+        pavement_traces([1, 2, 2, 3, 5], bins=None, show_box=True))
+    assert _line_segment_count(forced) == 4 + 2  # ticks plus two box edges
+
+
 def test_one_fill_trace_per_bin():
     # Four bins -> four fill traces, each a single closed rectangle.
     fills = [t for t in pavement_traces([1, 2, 3, 4, 5], bins=4)

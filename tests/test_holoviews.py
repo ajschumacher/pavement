@@ -26,6 +26,22 @@ def test_elements_returns_fill_ticks_box():
     assert len(els["box"]) == 2    # two long edges
 
 
+def test_elements_rug_drops_box_by_default():
+    # A rug (bins=None) leaves the box element empty, so it reads like a
+    # plain rug; an explicit show_box=True keeps the two edges.
+    els = pavement_elements([1, 2, 2, 3, 5], bins=None)
+    assert isinstance(els["box"], hv.Segments)
+    assert len(els["box"]) == 0
+    assert len(els["ticks"]) == 4  # one per distinct value
+    forced = pavement_elements([1, 2, 2, 3, 5], bins=None, show_box=True)
+    assert len(forced["box"]) == 2
+
+
+def test_plot_rug_renders_with_empty_box():
+    # An empty box element must still render cleanly through a backend.
+    hv.renderer("bokeh").get_plot(plot([1, 2, 2, 3, 5], bins=None))
+
+
 def test_elements_one_tick_per_distinct_value_with_whisker():
     # Heavy repetition collapses several quantile edges onto one value.
     els = pavement_elements([0, 0, 0, 0, 1, 2, 3], bins=4)
