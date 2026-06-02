@@ -1,0 +1,10 @@
+{
+  "name": "pavement-plots",
+  "description": "Teaches Claude to use the pavement plotting library correctly — quantile-based pavement plots and inline sparklines across the matplotlib, Bokeh, Plotly, HoloViews, and dependency-free SVG backends.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Aaron Schumacher"
+  },
+  "homepage": "https://github.com/ajschumacher/pavement",
+  "license": "MIT"
+}

@@ -193,6 +193,30 @@ Install with `pip install pavement[holoviews]` (plus `bokeh` and/or
 `plotly`). See `examples/holoviews_demo.py`.
 
 
+## Using pavement with Claude
+
+This repo ships a [Claude Code](https://code.claude.com/docs) plugin that
+teaches Claude to use pavement correctly — which backend to import, the
+three `plot` input shapes, and the idioms that are easy to get wrong from
+memory (`bins=None` rugs, the per-row `show_box` default, `value_format`).
+
+Add this repo as a plugin marketplace and install it:
+
+    /plugin marketplace add ajschumacher/pavement
+    /plugin install pavement-plots@pavement
+
+Once installed, Claude consults the skill automatically whenever you ask
+it to make a pavement plot or sparkline. To try it without installing —
+or when working in a clone of this repo — load it directly for one
+session:
+
+    claude --plugin-dir ./plugins/pavement-plots
+
+The skill itself is plain Markdown at
+`plugins/pavement-plots/skills/pavement-plots/`, so you can read or adapt
+it without Claude Code.
+
+
 ## Development
 
     pip install -e '.[test]'              # core only
