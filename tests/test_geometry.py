@@ -11,6 +11,7 @@ from pavement._geometry import (
     normalize_rows,
     place,
     resolve_colors,
+    resolve_show_box,
     row_spec,
     tick_segment,
 )
@@ -104,6 +105,18 @@ def test_tick_segment_orientation():
 def test_box_edges_two_long_sides():
     assert box_edges(1, 0.3, 0, 10, "vertical") == [
         (0.7, 0, 0.7, 10), (1.3, 0, 1.3, 10)]
+
+
+def test_resolve_show_box_default_off_for_rug():
+    # None (auto): box for a binned row, no box for a rug (bins is None).
+    assert resolve_show_box(None, 4) is True
+    assert resolve_show_box(None, None) is False
+
+
+def test_resolve_show_box_explicit_overrides_either_way():
+    # An explicit bool wins regardless of bins.
+    assert resolve_show_box(True, None) is True
+    assert resolve_show_box(False, 4) is False
 
 
 def test_bin_corners_orientation():

@@ -174,6 +174,20 @@ def box_edges(position: float, half: float, low: float, high: float,
     return edges
 
 
+def resolve_show_box(show_box: bool | None, bins: int | None) -> bool:
+    """Whether to draw a row's box edges (the long sides parallel to the
+    value axis), given the *show_box* override and the row's *bins*.
+
+    The two long edges are what visually distinguish a binned pavement from
+    a plain rug: dropping them leaves only the value ticks, so a rug
+    (``bins=None``) reads like an ordinary rug plot and the presence of the
+    box signals "these are quantiles, not raw points". So the default
+    (``show_box=None``) draws the box for a binned row and omits it for a
+    rug; an explicit ``True``/``False`` overrides that either way.
+    """
+    return bins is not None if show_box is None else show_box
+
+
 def bin_corners(low: float, high: float, position: float, half: float,
                 orientation: Orientation) -> tuple[tuple[float, float],
                                                     tuple[float, float]]:

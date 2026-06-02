@@ -69,6 +69,7 @@ from ._geometry import (
     complete_color_map,
     normalize_rows,
     resolve_colors,
+    resolve_show_box,
     row_spec,
     tick_segment,
     ValueFormat,
@@ -100,6 +101,7 @@ def _row_geometry(
     orientation: Literal["vertical", "horizontal"],
     whisker_extent: float,
     show_whiskers: bool,
+    show_box: bool,
     value_format: ValueFormat | None,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, visible lines, and tick hovers.
@@ -142,11 +144,13 @@ def _row_geometry(
             else (t.value, position)
         ticks.append((tx, ty, t.quantile, t.value_str))
 
-    # Box edges: the two long sides, spanning the full value range.
-    for x0, y0, x1, y1 in box_edges(position, spec.half, spec.value_low,
-                                    spec.value_high, orientation):
-        line_x += [x0, x1, None]
-        line_y += [y0, y1, None]
+    # Box edges: the two long sides, spanning the full value range. Dropped
+    # for a rug (show_box False), leaving only the ticks — a plain rug.
+    if show_box:
+        for x0, y0, x1, y1 in box_edges(position, spec.half, spec.value_low,
+                                        spec.value_high, orientation):
+            line_x += [x0, x1, None]
+            line_y += [y0, y1, None]
 
     return {"bins": bins, "line_x": line_x, "line_y": line_y, "ticks": ticks}
 
@@ -159,6 +163,7 @@ def pavement_traces(
     width: float = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     color: str | None = None,
     fill_alpha: float = 0.3,
@@ -194,6 +199,10 @@ def pavement_traces(
         How far whisker marks extend beyond the box at repeated values.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw the two long box edges. None (the default) draws
+        them when binned and omits them for a rug (``bins=None``), so a rug
+        reads like a plain rug plot; True or False forces it.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis. 'vertical' puts values on the
         y-axis; 'horizontal' puts them on the x-axis.
@@ -234,7 +243,8 @@ def pavement_traces(
     """
     values = pavement_stats(data, bins=bins, weights=weights)
     geom = _row_geometry(values, position, width, orientation,
-                         whisker_extent, show_whiskers, value_format)
+                         whisker_extent, show_whiskers,
+                         resolve_show_box(show_box, bins), value_format)
     if color is None:
         color = _default_colors(1)[0]
     legendgroup = name if name is not None else None
@@ -298,6 +308,7 @@ def add_pavement(
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     color: str | Sequence[str] | None = None,
     fill_alpha: float = 0.3,
@@ -344,6 +355,11 @@ def add_pavement(
         How far whisker marks extend beyond the box.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw each row's two long box edges. None (the default)
+        draws them for a binned row and omits them for a rug
+        (``bins=None``); True or False forces it. Resolved per row, so a
+        mixed *bins* sequence gets the right default for each.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis.
     color : str or sequence of str, optional
@@ -404,9 +420,10 @@ def add_pavement(
         traces = pavement_traces(
             dataset, bins=b, weights=w, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-            orientation=orientation, color=col_, fill_alpha=fill_alpha,
-            line_width=line_width, name=name, hover=hover,
-            value_format=value_format, show_legend=show_legend and n > 1)
+            show_box=show_box, orientation=orientation, color=col_,
+            fill_alpha=fill_alpha, line_width=line_width, name=name,
+            hover=hover, value_format=value_format,
+            show_legend=show_legend and n > 1)
         for trace in traces:
             fig.add_trace(trace, **add)
     return fig
@@ -443,6 +460,7 @@ def plot(
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
     value_format: ValueFormat | None = None,
@@ -488,6 +506,11 @@ def plot(
         How far whisker marks extend beyond the box.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw each row's two long box edges. None (the default)
+        draws them for a binned row and omits them for a rug
+        (``bins=None``), so a rug reads like a plain rug plot; True or
+        False forces it. Resolved per row.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis.
     value_label : str, default: 'value'
@@ -553,9 +576,9 @@ def plot(
         fig, data, weights=weights, positions=positions,
         categories=categories, labels=labels, bins=bins, widths=widths,
         whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-        orientation=orientation, color=color, fill_alpha=fill_alpha,
-        line_width=line_width, hover=hover, value_format=value_format,
-        show_legend=show_legend)
+        show_box=show_box, orientation=orientation, color=color,
+        fill_alpha=fill_alpha, line_width=line_width, hover=hover,
+        value_format=value_format, show_legend=show_legend)
 
     pos_kw = _position_axis_kwargs(labelled, positions, resolved_labels,
                                    max_width)

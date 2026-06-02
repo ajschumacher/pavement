@@ -56,6 +56,7 @@ from ._geometry import (
     hover_fields,
     normalize_rows,
     resolve_colors,
+    resolve_show_box,
     row_spec,
     tick_segment,
     ValueFormat,
@@ -106,6 +107,7 @@ def _row_geometry(
     orientation: Literal["vertical", "horizontal"],
     whisker_extent: float,
     show_whiskers: bool,
+    show_box: bool,
     group: Hashable | None,
     value_format: ValueFormat | None,
 ) -> tuple[list[tuple], list[tuple], list[tuple]]:
@@ -139,9 +141,10 @@ def _row_geometry(
         seg = tick_segment(position, t.reach, t.value, orientation)
         ticks.append((*seg, t.quantile, t.value_str, *extra))
 
-    # Box edges: the two long sides, spanning the full value range.
+    # Box edges: the two long sides, spanning the full value range. Dropped
+    # for a rug (show_box False), leaving only the ticks — a plain rug.
     edges = box_edges(position, spec.half, spec.value_low, spec.value_high,
-                      orientation)
+                      orientation) if show_box else []
     return fills, ticks, edges
 
 
@@ -153,6 +156,7 @@ def pavement_elements(
     width: float = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     group: Hashable | None = None,
     value_format: ValueFormat | None = None,
@@ -181,6 +185,11 @@ def pavement_elements(
         How far whisker marks extend beyond the box at repeated values.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw the two long box edges. None (the default) draws
+        them when binned and omits them for a rug (``bins=None``), so a rug
+        reads like a plain rug plot; True or False forces it. When omitted,
+        the ``"box"`` element is an empty `holoviews.Segments`.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis. 'vertical' puts values on the
         y-axis; 'horizontal' puts them on the x-axis.
@@ -215,7 +224,8 @@ def pavement_elements(
     values = pavement_stats(data, bins=bins, weights=weights)
     fills, ticks, edges = _row_geometry(
         values, position, width, orientation,
-        whisker_extent, show_whiskers, group, value_format)
+        whisker_extent, show_whiskers, resolve_show_box(show_box, bins),
+        group, value_format)
     fill_vdims = _FILL_VDIMS if group is None else [*_FILL_VDIMS, "group"]
     tick_vdims = _TICK_VDIMS if group is None else [*_TICK_VDIMS, "group"]
     return {
@@ -373,6 +383,7 @@ def plot(
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
     value_format: ValueFormat | None = None,
@@ -426,6 +437,12 @@ def plot(
         How far whisker marks extend beyond the box.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw each row's two long box edges. None (the default)
+        draws them for a binned row and omits them for a rug
+        (``bins=None``), so a rug reads like a plain rug plot; True or
+        False forces it. Resolved per row, so a mixed *bins* sequence gets
+        the right default for each.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis.
     value_label : str, default: 'value'
@@ -513,7 +530,8 @@ def plot(
         els = pavement_elements(
             dataset, bins=b, weights=w, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-            orientation=orientation, group=group, value_format=value_format)
+            show_box=show_box, orientation=orientation, group=group,
+            value_format=value_format)
         # Fill behind (hover target), then the box edges, then the ticks.
         parts = [_style(els[role], role, col, fill_alpha, hover)
                  for role in ("fill", "box", "ticks")]

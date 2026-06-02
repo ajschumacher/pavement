@@ -25,7 +25,7 @@ from matplotlib.transforms import blended_transform_factory
 
 from matplotlib.figure import Figure
 
-from ._geometry import broadcast, normalize_rows, row_spec
+from ._geometry import broadcast, normalize_rows, resolve_show_box, row_spec
 from .core import pavement_stats, pavement_stats2d
 
 __all__ = [
@@ -48,6 +48,7 @@ def draw_pavement(
     width: float = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | None = None,
     box_props: Mapping[str, Any] | None = None,
@@ -81,6 +82,11 @@ def draw_pavement(
         which controls outlier cutoffs on the value axis.
     show_whiskers : bool, default: True
         If False, suppress the whisker marks even at repeated values.
+    show_box : bool, default: True
+        Whether to draw the two long box edges (the borders parallel to
+        the value axis, perpendicular to the value ticks). Set False to
+        drop them, leaving only the ticks — a plain rug. The higher-level
+        `plot` turns this off by default for a rug (``bins=None``).
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis. 'vertical' puts values on the
         y-axis (matplotlib's boxplot default); 'horizontal' puts them
@@ -111,7 +117,8 @@ def draw_pavement(
           or ``None`` if *box_props* was not given.
         - ``"ticks"``: one tick per distinct quantile value, extended
           into a whisker where the value repeats.
-        - ``"box"``: the two long edges of the box.
+        - ``"box"``: the two long edges of the box, or ``None`` when
+          *show_box* is False.
 
     Raises
     ------
@@ -159,8 +166,11 @@ def draw_pavement(
         [position - t.reach for t in spec.ticks],
         [position + t.reach for t in spec.ticks],
         **props)
+    # The two long box edges run along the value axis (perpendicular to the
+    # ticks). Dropping them leaves only the ticks, so a rug reads like a
+    # plain rug plot rather than a one-row box.
     artists['box'] = along([pos_lo, pos_hi], spec.value_low, spec.value_high,
-                           **props)
+                           **props) if show_box else None
     return artists
 
 
@@ -174,6 +184,7 @@ def plot(
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     value_label: str | None = None,
     color: str | Sequence[str] | None = None,
@@ -233,6 +244,13 @@ def plot(
         which controls outlier cutoffs on the value axis.
     show_whiskers : bool, default: True
         If False, suppress whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw each row's two long box edges (the borders
+        parallel to the value axis). None (the default) draws them for a
+        binned row and omits them for a rug (``bins=None``), so a rug
+        reads like a plain rug plot while a binned pavement keeps its box;
+        True or False forces the choice for every row. Resolved per row,
+        so a mixed *bins* sequence gets the right default for each.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis. 'vertical' puts values on the
         y-axis (matplotlib's boxplot default); 'horizontal' puts them
@@ -321,6 +339,7 @@ def plot(
         artists.append(draw_pavement(
             values, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
+            show_box=resolve_show_box(show_box, b),
             orientation=orientation, line_props=row_line or None,
             box_props=bp, ax=ax))
     if labelled:
@@ -342,6 +361,7 @@ def spark(
     width: float = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     color: str | None = None,
     fill_alpha: float = 0.3,
     line_props: Mapping[str, Any] | None = None,
@@ -387,6 +407,10 @@ def spark(
         How far whisker marks extend beyond the box at repeated values.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw the two long box edges. None (the default) draws
+        them when binned and omits them for a rug (``bins=None``), so a
+        rug spark reads like a plain rug; True or False forces it.
     color : str, optional
         Tints the lines and, unless *box_props* is given, draws a
         translucent fill of the same color (see *fill_alpha*). Defaults
@@ -450,6 +474,7 @@ def spark(
     draw_pavement(
         values, position=position, width=width,
         whisker_extent=whisker_extent, show_whiskers=show_whiskers,
+        show_box=resolve_show_box(show_box, bins),
         orientation=orientation, line_props=row_line or None,
         box_props=box_props, ax=ax)
     # Fit the view tightly to the drawn geometry. The perpendicular extent
@@ -497,6 +522,7 @@ def margin(
     size: float = 0.04,
     expand_margins: bool = True,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     line_props: Mapping[str, Any] | None = None,
     box_props: Mapping[str, Any] | None = None,
     clip_on: bool = False,
@@ -559,6 +585,11 @@ def margin(
         the same name on seaborn's ``rugplot``.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw the two long box edges. None (the default) draws
+        them when binned and omits them for a rug (``bins=None``), so a
+        rug marginal reads like an ordinary rug plot; True or False forces
+        it.
     line_props : dict, optional
         Line2D properties for the box edges. Defaults to
         ``{'color': 'black', 'linewidth': 1.0}``.
@@ -646,6 +677,7 @@ def margin(
         width=box_size,
         whisker_extent=whisker_extent,
         show_whiskers=show_whiskers,
+        show_box=resolve_show_box(show_box, bins),
         orientation=orientation,
         line_props=props,
         box_props=bprops,

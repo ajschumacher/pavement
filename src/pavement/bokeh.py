@@ -76,6 +76,7 @@ from ._geometry import (
     complete_color_map,
     normalize_rows,
     resolve_colors,
+    resolve_show_box,
     row_spec,
     tick_segment,
     ValueFormat,
@@ -103,6 +104,7 @@ def _row_geometry(
     orientation: Literal["vertical", "horizontal"],
     whisker_extent: float,
     show_whiskers: bool,
+    show_box: bool,
     value_format: ValueFormat | None,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, quantile ticks, and box edges.
@@ -117,7 +119,7 @@ def _row_geometry(
       hover strings. A repeated value reaches past the box as a whisker and
       reads as a span ("X% to Y%"), so every line is drawn exactly once.
     - ``box``: the two long box edges as ``(x0, y0, x1, y1)`` segments,
-      spanning the full value range.
+      spanning the full value range — empty when *show_box* is False.
 
     The shared `row_spec` does the binning and one-tick-per-distinct-value
     (whisker) logic; this lays the result out the way Bokeh's glyphs want.
@@ -140,9 +142,10 @@ def _row_geometry(
         x0, y0, x1, y1 = tick_segment(position, t.reach, t.value, orientation)
         ticks.append((x0, y0, x1, y1, t.quantile, t.value_str))
 
-    # Box edges: the two long sides, spanning the full value range.
+    # Box edges: the two long sides, spanning the full value range. Dropped
+    # for a rug (show_box False), leaving only the ticks — a plain rug.
     box = list(box_edges(position, spec.half, spec.value_low,
-                         spec.value_high, orientation))
+                         spec.value_high, orientation)) if show_box else []
 
     return {"bins": bins, "ticks": ticks, "box": box}
 
@@ -156,6 +159,7 @@ def pavement_glyphs(
     width: float = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     color: str | None = None,
     fill_alpha: float = 0.3,
@@ -192,6 +196,10 @@ def pavement_glyphs(
         How far whisker marks extend beyond the box at repeated values.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw the two long box edges. None (the default) draws
+        them when binned and omits them for a rug (``bins=None``), so a rug
+        reads like a plain rug plot; True or False forces it.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis. 'vertical' puts values on the y-axis;
         'horizontal' puts them on the x-axis.
@@ -220,7 +228,8 @@ def pavement_glyphs(
         - ``"fills"``: the bin quads (a hover target), or ``None`` if
           *fill_alpha* is 0.
         - ``"ticks"``: the quantile-tick segments (a hover target).
-        - ``"box"``: the two box-edge segments (purely visual).
+        - ``"box"``: the two box-edge segments (purely visual), or
+          ``None`` when *show_box* resolves to False (e.g. a rug).
 
     See Also
     --------
@@ -230,13 +239,14 @@ def pavement_glyphs(
     """
     values = pavement_stats(data, bins=bins, weights=weights)
     geom = _row_geometry(values, position, width, orientation,
-                         whisker_extent, show_whiskers, value_format)
+                         whisker_extent, show_whiskers,
+                         resolve_show_box(show_box, bins), value_format)
     if color is None:
         color = _default_colors(1)[0]
     group = None if name is None else [str(name)] * len(geom["bins"])
     tick_group = None if name is None else [str(name)] * len(geom["ticks"])
 
-    renderers: dict[str, GlyphRenderer] = {"fills": None}
+    renderers: dict[str, GlyphRenderer] = {"fills": None, "box": None}
 
     # Bins: one borderless filled quad each, hovering anywhere inside.
     if fill_alpha > 0:
@@ -265,10 +275,12 @@ def pavement_glyphs(
         name=None if name is None else str(name))
 
     # Box edges: the two long sides, purely visual (no hover), same style.
-    bx0, by0, bx1, by1 = zip(*geom["box"])
-    renderers["box"] = fig.segment(
-        x0=list(bx0), y0=list(by0), x1=list(bx1), y1=list(by1),
-        line_color=color, line_width=line_width)
+    # Absent for a rug (show_box False), so only the ticks remain.
+    if geom["box"]:
+        bx0, by0, bx1, by1 = zip(*geom["box"])
+        renderers["box"] = fig.segment(
+            x0=list(bx0), y0=list(by0), x1=list(bx1), y1=list(by1),
+            line_color=color, line_width=line_width)
 
     return renderers
 
@@ -284,6 +296,7 @@ def add_pavement(
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     color: str | Sequence[str] | None = None,
     fill_alpha: float = 0.3,
@@ -329,6 +342,11 @@ def add_pavement(
         How far whisker marks extend beyond the box.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw each row's two long box edges. None (the default)
+        draws them for a binned row and omits them for a rug
+        (``bins=None``); True or False forces it. Resolved per row, so a
+        mixed *bins* sequence gets the right default for each.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis.
     color : str or sequence of str, optional
@@ -388,8 +406,9 @@ def add_pavement(
         rends = pavement_glyphs(
             fig, dataset, bins=b, weights=w, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-            orientation=orientation, color=col, fill_alpha=fill_alpha,
-            line_width=line_width, name=name, value_format=value_format)
+            show_box=show_box, orientation=orientation, color=col,
+            fill_alpha=fill_alpha, line_width=line_width, name=name,
+            value_format=value_format)
         if rends["fills"] is not None:
             fill_renderers.append(rends["fills"])
         tick_renderers.append(rends["ticks"])
@@ -462,6 +481,7 @@ def plot(
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
+    show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
     value_format: ValueFormat | None = None,
@@ -506,6 +526,11 @@ def plot(
         How far whisker marks extend beyond the box.
     show_whiskers : bool, default: True
         Whether to draw whisker marks at repeated quantile values.
+    show_box : bool or None, default: None
+        Whether to draw each row's two long box edges. None (the default)
+        draws them for a binned row and omits them for a rug
+        (``bins=None``), so a rug reads like a plain rug plot; True or
+        False forces it. Resolved per row.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis.
     value_label : str, default: 'value'
@@ -574,9 +599,9 @@ def plot(
         fig, data, weights=weights, positions=positions,
         categories=categories, labels=labels, bins=bins, widths=widths,
         whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-        orientation=orientation, color=color, fill_alpha=fill_alpha,
-        line_width=line_width, hover=hover, value_format=value_format,
-        show_legend=show_legend)
+        show_box=show_box, orientation=orientation, color=color,
+        fill_alpha=fill_alpha, line_width=line_width, hover=hover,
+        value_format=value_format, show_legend=show_legend)
 
     # Label the value axis (x for horizontal, y otherwise); tick/pad the
     # perpendicular position axis.
