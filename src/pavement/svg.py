@@ -1139,11 +1139,10 @@ def summary(
     - **A dataframe** — a pandas or polars ``DataFrame``, or a plain ``dict``
       mapping column name to a sequence of values (handy with neither
       installed). Renders one row per column, under a top row summarizing the
-      frame as a whole: its label is the row count, and its tally treats each
-      *whole row*
-      as the entity, so "duplicate" means a duplicated row and "missing" a row
-      that is entirely blank. That row's distribution cell is left empty (a
-      frame has no single distribution).
+      frame as a whole: its label is the column count, its tally treats each
+      *whole row* as the entity (so "duplicate" means a duplicated row and
+      "missing" a row that is entirely blank), and its distribution cell shows
+      the row count (a frame has no single distribution to draw there).
     - **A Series or 1D sequence** — a pandas ``Series``, a list, a numpy
       array, etc. Renders a single row. A bare sequence has no accessible
       name, so where a column name would go it shows the entry count instead
@@ -1196,11 +1195,13 @@ def summary(
     if columns_data is not None:
         names, columns = columns_data
         n_rows = len(columns[0]) if columns else 0
-        # The frame as a whole: the row count, and a tally over whole rows.
+        # The frame as a whole: column count on the left, a tally over whole
+        # rows in the middle, and the row count on the right.
         keys = [_row_key(row) for row in zip(*columns)] if columns else []
         rows.append(_summary_row(
-            _count_label(n_rows, 'row'),
-            _tally_strip(keys, 'row', opts), '', total=True))
+            _count_label(len(names), 'column'),
+            _tally_strip(keys, 'row', opts),
+            _count_label(n_rows, 'row'), total=True))
         for name, values in zip(names, columns):
             present = [v for v in values if not _is_missing(v)]
             rows.append(_summary_row(
