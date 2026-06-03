@@ -181,18 +181,20 @@ def test_summary_numeric_resolution_follows_distinct_count():
 
 def test_summary_dataframe_has_total_row_and_one_row_per_column():
     out = str(summary({"a": [1, 2, 3], "b": ["x", "y", "z"], "c": [1.0, 2.0, 3.0]}))
-    # Top "rows" row + 3 column rows -> 4 tally strips.
+    # Top header row + 3 column rows -> 4 tally strips.
     assert out.count('class="pavement-tally"') == 4
-    assert "3 rows" in out
+    assert "3 columns" in out   # column count in the label cell
+    assert "3 rows" in out      # row count in the distribution cell
     for name in ("a", "b", "c"):
         assert f">{name}</span>" in out        # each column labelled
 
 
-def test_summary_dataframe_total_row_distribution_cell_is_empty():
-    # The frame has no single distribution: exactly the per-column ones.
+def test_summary_dataframe_total_row_distribution_cell_shows_row_count():
+    # The top row's distribution cell holds the row count, not a spark.
     out = str(summary({"a": [1, 2, 3], "b": [4, 5, 6]}))
     # Two numeric columns -> two sparks; the total row adds none.
     assert out.count('class="pavement-spark"') == 2
+    assert "3 rows" in out
 
 
 def test_summary_dataframe_row_tally_counts_whole_rows():
@@ -219,6 +221,7 @@ def test_summary_all_missing_column_has_tally_but_no_distribution():
 
 def test_summary_empty_dict_is_zero_rows():
     out = str(summary({}))
+    assert "0 columns" in out
     assert "0 rows" in out
     _wellformed(out)
 
