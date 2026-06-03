@@ -1,8 +1,9 @@
 """
-Tests for ordered non-float column types — ``date``, ``datetime``, and
-``Decimal``. They are projected onto a numeric axis (`pavement.svg._project`)
-and drawn as pavement sparks in `spark` — and so in `summary` and the
-accessors — rather than treated as categorical.
+Tests for ordered non-float column types — ``date``, ``datetime``,
+``Decimal``, ``timedelta``, and numpy ``datetime64``/``timedelta64``. They are
+projected onto a numeric axis (`pavement.svg._project`) and drawn as pavement
+sparks in `spark` — and so in `summary` and the accessors — rather than
+treated as categorical.
 """
 
 import datetime as dt
@@ -177,3 +178,130 @@ def test_summary_polars_date_column_is_a_spark():
     df = pl.DataFrame({"d": [dt.date(2020, 1, 1), dt.date(2020, 2, 1),
                              dt.date(2020, 3, 1), dt.date(2020, 4, 1)]})
     assert 'class="pavement-spark"' in str(summary(df))
+
+
+# ---------------------------------------------------------------------------
+# timedelta: Python timedelta, pandas Timedelta, polars Duration
+# ---------------------------------------------------------------------------
+
+def test_project_timedelta_whole_days():
+    data, fmt = _project([dt.timedelta(days=1), dt.timedelta(days=7)])
+    assert data == [86400.0, 7 * 86400.0]
+    assert fmt(86400.0) == "1 day"
+    assert fmt(7 * 86400.0) == "7 days"
+
+
+def test_project_timedelta_sub_day():
+    data, fmt = _project([dt.timedelta(hours=1, minutes=30),
+                          dt.timedelta(hours=25, minutes=5)])
+    assert data[0] == pytest.approx(5400.0)
+    assert fmt(5400.0) == "01:30"
+    assert fmt(25 * 3600 + 5 * 60) == "1d 01:05"
+
+
+def test_project_timedelta_negative_whole_days():
+    _, fmt = _project([dt.timedelta(days=-2), dt.timedelta(days=-1)])
+    assert fmt(-2 * 86400.0) == "-2 days"
+    assert fmt(-86400.0) == "-1 day"
+
+
+def test_pavement_column_accepts_timedelta():
+    assert _pavement_column([dt.timedelta(1), dt.timedelta(2), dt.timedelta(3)])
+
+
+def test_pavement_column_rejects_mixed_timedelta_and_number():
+    assert not _pavement_column([dt.timedelta(1), 1])
+
+
+def test_spark_on_timedeltas():
+    deltas = [dt.timedelta(hours=i) for i in range(1, 25)]
+    out = spark(deltas, bins=4)
+    _wf(out)
+    assert out.count('class="pvbin"') == 4
+    assert re.search(r"\d+:\d{2}", out)          # an HH:MM appears in a tooltip
+
+
+def test_summary_timedelta_column_is_a_spark():
+    deltas = [dt.timedelta(hours=i) for i in range(1, 41)]
+    out = str(summary({"duration": deltas}))
+    assert 'class="pavement-spark"' in out
+    assert 'class="pavement-proportion"' not in out
+
+
+def test_summary_pandas_timedelta_column_is_a_spark():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"delta": pd.to_timedelta(
+        [f"{i} days" for i in range(1, 30)])})
+    assert 'class="pavement-spark"' in str(summary(df))
+
+
+def test_summary_polars_duration_column_is_a_spark():
+    pl = pytest.importorskip("polars")
+    df = pl.DataFrame({"dur": [dt.timedelta(hours=i) for i in range(1, 30)]})
+    assert 'class="pavement-spark"' in str(summary(df))
+
+
+# ---------------------------------------------------------------------------
+# numpy datetime64 / timedelta64 (skipped if numpy not installed)
+# ---------------------------------------------------------------------------
+
+def test_project_numpy_datetime64():
+    np = pytest.importorskip("numpy")
+    dates = [np.datetime64('2020-01-01', 'D') + np.timedelta64(i * 30, 'D')
+             for i in range(5)]
+    data, fmt = _project(dates)
+    assert all(isinstance(x, float) for x in data)
+    assert data[0] < data[-1]                        # order preserved
+    assert re.match(r"\d{4}-\d{2}-\d{2}", fmt(data[0]))
+
+
+def test_project_numpy_timedelta64():
+    np = pytest.importorskip("numpy")
+    deltas = [np.timedelta64(i * 3600, 's') for i in range(1, 6)]
+    data, fmt = _project(deltas)
+    assert all(isinstance(x, float) for x in data)
+    assert data[0] < data[-1]
+    assert ":" in fmt(data[0])                       # HH:MM appears
+
+
+def test_project_numpy_datetime64_ns_precision():
+    np = pytest.importorskip("numpy")
+    dates = [np.datetime64('2020-01-01T12:00:00', 'ns'),
+             np.datetime64('2020-06-01T00:00:00', 'ns')]
+    data, fmt = _project(dates)
+    assert all(isinstance(x, float) for x in data)
+    assert data[0] < data[1]
+
+
+def test_pavement_column_accepts_numpy_datetime64():
+    np = pytest.importorskip("numpy")
+    col = [np.datetime64('2020-01-01', 'D') + np.timedelta64(i, 'D')
+           for i in range(5)]
+    assert _pavement_column(col)
+
+
+def test_pavement_column_accepts_numpy_timedelta64():
+    np = pytest.importorskip("numpy")
+    col = [np.timedelta64(i * 3600, 's') for i in range(1, 6)]
+    assert _pavement_column(col)
+
+
+def test_pavement_column_rejects_mixed_numpy_temporal_types():
+    np = pytest.importorskip("numpy")
+    assert not _pavement_column([np.datetime64('2020-01-01', 'D'),
+                                 np.timedelta64(1, 'D')])
+
+
+def test_summary_numpy_datetime64_column_is_a_spark():
+    np = pytest.importorskip("numpy")
+    col = [np.datetime64('2020-01-01', 'D') + np.timedelta64(i * 30, 'D')
+           for i in range(40)]
+    out = str(summary({"event": col}))
+    assert 'class="pavement-spark"' in out
+
+
+def test_summary_numpy_timedelta64_column_is_a_spark():
+    np = pytest.importorskip("numpy")
+    col = [np.timedelta64(i * 3600, 's') for i in range(1, 41)]
+    out = str(summary({"delay": col}))
+    assert 'class="pavement-spark"' in out

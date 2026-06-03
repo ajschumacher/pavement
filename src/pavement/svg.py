@@ -149,13 +149,27 @@ def _project(data: list[Any]) -> tuple[list[Any], ValueFormat | None]:
     - a ``date``/``datetime`` (including pandas ``Timestamp`` and polars
       temporals) becomes POSIX seconds, paired with a formatter that shows the
       quantile values as dates — or date-times, when any value carries a time
-      of day.
+      of day;
+    - a ``timedelta`` (including ``pandas.Timedelta`` and polars ``Duration``
+      via ``.to_list()``) becomes total seconds, with a formatter showing
+      ``"N days"`` for whole-day durations or ``"Nd HH:MM"`` / ``"HH:MM"``
+      otherwise;
+    - a numpy ``datetime64`` or ``timedelta64`` is cast to microsecond
+      resolution via ``.astype('[us]')`` and then delegated to the
+      appropriate branch above.
 
     Anything else is returned unchanged. *data* is assumed non-empty and of a
     single family (as `summary` guarantees via `_pavement_column`); the first
     element picks the branch. Returns ``(values, value_format_or_None)``.
     """
     sample = data[0]
+    # numpy datetime64 / timedelta64: cast to microseconds then delegate.
+    # Must come before the numbers.Real check because numpy timedelta64
+    # registers as numbers.Real (its MRO includes signedinteger).
+    if (hasattr(sample, 'item')
+            and type(sample).__name__ in ('datetime64', 'timedelta64')):
+        name = type(sample).__name__
+        return _project([v.astype(f'{name}[us]').item() for v in data])
     if isinstance(sample, numbers.Real):       # int/float/bool/numpy reals
         return data, None
     if isinstance(sample, Decimal):
@@ -173,6 +187,25 @@ def _project(data: list[Any]) -> tuple[list[Any], ValueFormat | None]:
             def show(s: float) -> str:
                 return _dt.datetime.fromtimestamp(s).date().isoformat()
         return seconds, show
+    if isinstance(sample, _dt.timedelta):      # timedelta, pandas Timedelta, polars Duration
+        secs = [v.total_seconds() for v in data]
+        whole_days = all(v.seconds == 0 and v.microseconds == 0 for v in data)
+        if whole_days:
+            def show(s: float) -> str:
+                d = round(s / 86400)
+                return f"{d} day" if abs(d) == 1 else f"{d} days"
+        else:
+            def show(s: float) -> str:
+                neg = s < 0
+                abs_s = abs(s)
+                d, rem = divmod(int(abs_s), 86400)
+                h, rem = divmod(rem, 3600)
+                m = rem // 60
+                prefix = "-" if neg else ""
+                if d:
+                    return f"{prefix}{d}d {h:02d}:{m:02d}"
+                return f"{prefix}{h:02d}:{m:02d}"
+        return secs, show
     return data, None
 
 
@@ -212,9 +245,11 @@ def spark(
     data : iterable of float
         The values to summarize as a single pavement row. Besides plain
         numbers, an ordered non-float family is accepted and projected onto a
-        numeric axis: ``Decimal``, and ``date``/``datetime`` (including pandas
-        ``Timestamp`` and polars temporals), the latter shown as dates in the
-        tooltips by default (see *value_format* and `_project`).
+        numeric axis: ``Decimal``; ``date``/``datetime`` (including pandas
+        ``Timestamp`` and polars temporals), shown as dates in the tooltips;
+        ``timedelta`` (including ``pandas.Timedelta`` and polars ``Duration``),
+        shown as durations; and numpy ``datetime64``/``timedelta64`` arrays
+        (see *value_format* and `_project`).
     weights : sequence of float, optional
         Positive weights parallel to *data*.
     bins : int or None, default: 4
@@ -932,9 +967,11 @@ def _is_numeric(value: Any) -> bool:
 
 def _pavement_column(present: list[Any]) -> bool:
     """Whether a column's *present* (non-missing) values are a single ordered
-    family a pavement can draw — all real numbers, all ``Decimal``, or all
-    ``date``/``datetime`` — so it gets a `spark` (which projects the non-float
-    families onto a number line, see `_project`) rather than a `proportion`.
+    family a pavement can draw — all real numbers, all ``Decimal``, all
+    ``date``/``datetime``, all ``timedelta`` (durations), or all numpy
+    ``datetime64``/``timedelta64`` — so it gets a `spark` (which projects the
+    non-float families onto a number line, see `_project`) rather than a
+    `proportion`.
 
     Requiring one family keeps the projection well-defined and sends mixed or
     un-orderable columns (and booleans, which read as a two-level category) to
@@ -942,9 +979,15 @@ def _pavement_column(present: list[Any]) -> bool:
     """
     if not present:
         return False
+    sample = present[0]
     return (all(_is_numeric(v) for v in present)
             or all(isinstance(v, Decimal) for v in present)
-            or all(isinstance(v, _dt.date) for v in present))
+            or all(isinstance(v, _dt.date) for v in present)
+            or all(isinstance(v, _dt.timedelta) for v in present)
+            or (hasattr(sample, 'item')
+                and type(sample).__name__ in ('datetime64', 'timedelta64')
+                and all(type(v).__name__ == type(sample).__name__
+                        for v in present)))
 
 
 # A single canonical marker for a missing cell, so that two rows missing the
