@@ -541,7 +541,7 @@ def proportion(
 
     See Also
     --------
-    tally : The distinct/repeated/missing companion strip.
+    tally : The distinct/duplicate/missing companion strip.
     pavement.core.proportion_stats : The value counts it draws.
     """
     stats = proportion_stats(data)
@@ -656,7 +656,7 @@ def tally(
     different question. Where a spark summarizes the *distribution* of a
     numeric column, a tally summarizes the *column itself*: three boxes,
     sized in proportion to how many of the column's values are distinct
-    (leftmost), how many merely repeat a value already seen (middle), and
+    (leftmost), how many duplicate a value already seen (middle), and
     how many are missing (rightmost). It works on a column of any type, and
     surfaces exactly what a pavement plot can't — missing values and
     distinctness.
@@ -674,11 +674,12 @@ def tally(
         The column's values, of any type (see `tally_stats`).
     orientation : {'vertical', 'horizontal'}, default: 'horizontal'
         Box layout. 'horizontal' lays the boxes left-to-right
-        (distinct, repeated, missing); 'vertical' stacks them top-to-bottom
+        (distinct, duplicate, missing); 'vertical' stacks them top-to-bottom
         in the same order.
     distinct_color, repeated_color, missing_color : str
-        Any CSS color for each box. Default to a dark blue, a light blue,
-        and a muted dark red.
+        Any CSS color for each box (``repeated_color`` tints the
+        ``duplicate`` box). Default to a dark blue, a light blue, and a
+        muted dark red.
     line_color : str or None, default: None
         Color of an optional hairline outlining each box (and so separating
         adjacent boxes). The default, None, leaves the boxes borderless,
@@ -755,7 +756,7 @@ def tally(
 
     segments = [(label, color, count) for label, color, count in (
         ('distinct', distinct_color, counts['distinct']),
-        ('repeated', repeated_color, counts['repeated']),
+        ('duplicate', repeated_color, counts['repeated']),
         ('missing', missing_color, counts['missing']),
     ) if count > 0]  # a category with no values draws no box
     lengths = _box_lengths([count for _, _, count in segments], span, min_box)
@@ -796,7 +797,7 @@ def tally(
     if inline:
         root_style += f'height:{height};width:auto;vertical-align:-0.15em;'
     label = (f"column tally: {counts['distinct']} distinct, "
-             f"{counts['repeated']} repeated, {counts['missing']} missing "
+             f"{counts['repeated']} duplicate, {counts['missing']} missing "
              f"of {total} {word}")
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
@@ -998,7 +999,7 @@ def summary(
     The compact, at-a-glance view to reach for when data first lands. It pairs
     the column-summary strips of this module into a borderless, headerless
     table — one row per column, each showing its `tally` (how much of it is
-    distinct, repeated, or missing) beside its distribution. The distribution
+    distinct, duplicate, or missing) beside its distribution. The distribution
     is a pavement `spark` for a numeric column and a `proportion` strip for a
     categorical one, so every column gets a distribution view where a pavement
     alone would leave the categorical ones blank. Every box is hoverable for
@@ -1013,7 +1014,7 @@ def summary(
       column name to a sequence of values (handy with no pandas installed).
       Renders one row per column, under a top row summarizing the frame as a
       whole: its label is the row count, and its tally treats each *whole row*
-      as the entity, so "repeated" means a duplicated row and "missing" a row
+      as the entity, so "duplicate" means a duplicated row and "missing" a row
       that is entirely blank. That row's distribution cell is left empty (a
       frame has no single distribution).
     - **A Series or 1D sequence** — a pandas ``Series``, a list, a numpy
@@ -1057,7 +1058,7 @@ def summary(
 
     See Also
     --------
-    tally : The distinct/repeated/missing strip in each row.
+    tally : The distinct/duplicate/missing strip in each row.
     proportion : The categorical distribution strip.
     spark : The numeric distribution sparkline.
     """

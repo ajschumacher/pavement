@@ -10,7 +10,7 @@ won't clash), putting the pavement strips a method away::
     df.pave()                       # the whole-frame summary (renders inline)
     df.pave.summary()               # the same, spelled out
     df.pave.spark("price")          # a numeric column's pavement sparkline
-    df.pave.tally("plan")           # a column's distinct/repeated/missing strip
+    df.pave.tally("plan")           # a column's distinct/duplicate/missing strip
     df.pave.proportion("plan")      # a column's value-counts strip
 
     s = df["price"]

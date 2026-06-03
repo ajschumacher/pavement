@@ -6,7 +6,7 @@ Both are companions to the ``spark`` sparkline, in the same borderless form
 factor, answering questions a pavement plot can't:
 
 - A **tally** summarizes a column's make-up — how many values are distinct
-  (dark blue), repeated (light blue), or missing (dark red) — for a column
+  (dark blue), duplicate (light blue), or missing (dark red) — for a column
   of any type.
 - A **proportion** plot summarizes a column's value counts (à la pandas
   ``value_counts``): one box per value, widest first, with a catch-all for
@@ -51,7 +51,7 @@ columns = {
             for _ in range(N)],
     # Numeric and heavily skewed, no missing, many repeats at the low end.
     "purchases": [int(rng.expovariate(1 / 2.5)) for _ in range(N)],
-    # A boolean flag: only two distinct values, so almost all "repeated".
+    # A boolean flag: only two distinct values, so almost all "duplicate".
     "is_active": [rng.random() < 0.7 for _ in range(N)],
     # Free-text-ish: mostly distinct, a chunk missing (None / empty string).
     "referrer": [None if rng.random() < 0.25 else
@@ -157,14 +157,14 @@ PAGE = """<!doctype html>
 </style></head><body>
 
 <h1>Column tally</h1>
-<p class="sub">A glance at a column's make-up: how much is distinct, repeated,
+<p class="sub">A glance at a column's make-up: how much is distinct, duplicate,
 or missing. Hover any strip — each box brightens and shows its share and
 count, and the distinct box also notes how many values appear exactly once.
 Pure SVG, no JavaScript, no image files.</p>
 
 <p class="legend">
   <span class="swatch" style="background:#2166ac"></span>distinct &nbsp;
-  <span class="swatch" style="background:#92c5de"></span>repeated &nbsp;
+  <span class="swatch" style="background:#92c5de"></span>duplicate &nbsp;
   <span class="swatch" style="background:#b2182b"></span>missing
 </p>
 

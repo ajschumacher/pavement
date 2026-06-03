@@ -239,10 +239,13 @@ def test_tally_horizontal_viewbox():
 
 
 def test_tally_hover_text_has_share_and_count():
-    out = tally([1, 1, 2, 2, None])   # distinct 2/5, repeated 2/5, missing 1/5
-    # label on its own line, then "P% (X of Y entries)".
+    out = tally([1, 1, 2, 2, None])   # distinct 2/5, duplicate 2/5, missing 1/5
+    # label on its own line, then "P% (X of Y entries)". The middle box is
+    # labelled "duplicate" (not "repeated").
     assert "distinct\n40% (2 of 5 entries)" in out
+    assert "duplicate\n40% (2 of 5 entries)" in out
     assert "missing\n20% (1 of 5 entries)" in out
+    assert "repeated" not in out
 
 
 def test_tally_distinct_box_shows_appearing_once_line():
