@@ -79,7 +79,8 @@ of values (strings, etc.).
 Proportion-of-each-category strip; the top `max_boxes` categories plus an "other" catch-all.
 
 `tally` also takes `noun="value"` — the singular noun for its tooltips/aria-label
-(pluralized with `s`); `summary` passes `"row"` for its whole-frame tally.
+(pluralized for display, e.g. `entry`→`entries`); `summary` passes `"row"` for its
+whole-frame tally and `"entry"` for each column (a count that includes any missing).
 
 ### `summary(data, color=..., height="1.6em", hover=True, highlight=True, class_="pavement-summary", path=None)`
 A whole-dataframe / Series / sequence summary as one HTML `<table>`: a row per column

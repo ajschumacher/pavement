@@ -81,6 +81,15 @@ def _num(value: float) -> str:
     return f"{value:.2f}".rstrip('0').rstrip('.')
 
 
+def _plural(noun: str) -> str:
+    """English plural of a count noun: a final consonant + ``y`` becomes
+    ``ies`` (``entry`` -> ``entries``), otherwise just add ``s`` (``row`` ->
+    ``rows``, ``value`` -> ``values``)."""
+    if noun.endswith('y') and noun[-2:-1] not in 'aeiou':
+        return noun[:-1] + 'ies'
+    return noun + 's'
+
+
 def _pct(count: int, total: int) -> str:
     """Format a share as a whole-percent string for a tally tooltip.
 
@@ -707,9 +716,9 @@ def tally(
         cursor — a cue that the strip is interactive.
     noun : str, default: 'value'
         Singular noun for what each entry is, used in the tooltips and the
-        ``aria-label`` (e.g. ``"3 of 5 values"``); pluralized by adding
-        ``'s'``. `summary` passes ``'row'`` for the whole-frame tally, whose
-        entries are dataframe rows rather than column values.
+        ``aria-label`` (e.g. ``"3 of 5 values"``); pluralized for display
+        (``entry`` -> ``entries``). `summary` passes ``'row'`` for the
+        whole-frame tally (entries are rows) and ``'entry'`` for a column.
     class_ : str, default: 'pavement-tally'
         CSS class on the root ``<svg>``, a hook for your own styling.
     path : str, optional
@@ -752,7 +761,7 @@ def tally(
         ('missing', missing_color, counts['missing']),
     ) if count > 0]  # a category with no values draws no box
     lengths = _box_lengths([count for _, _, count in segments], span, min_box)
-    word = noun if total == 1 else noun + 's'
+    word = noun if total == 1 else _plural(noun)
 
     parts: list[str] = []
     offset = 0.0
@@ -921,7 +930,7 @@ _NAME_STYLE = ('font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
 
 def _count_label(n: int, noun: str) -> str:
     """A muted ``"1,234 rows"`` style count for a summary's label cell."""
-    return f'<span style="{_COUNT_STYLE}">{n:,} {noun if n == 1 else noun + "s"}</span>'
+    return f'<span style="{_COUNT_STYLE}">{n:,} {noun if n == 1 else _plural(noun)}</span>'
 
 
 def _summary_row(label: str, tally_html: str, dist_html: str,
@@ -1011,8 +1020,9 @@ def summary(
       frame has no single distribution).
     - **A Series or 1D sequence** — a pandas ``Series``, a list, a numpy
       array, etc. Renders a single row. A bare sequence has no accessible
-      name, so where a column name would go it shows the value count instead
-      (e.g. ``"1,234 values"``).
+      name, so where a column name would go it shows the entry count instead
+      (e.g. ``"1,234 entries"`` — "entries", not "values", since the count
+      includes any missing ones).
 
     A numeric column's pavement resolution adapts to how many *distinct*
     values it has: a rug (every value shown, each hoverable) up to 24, then
@@ -1069,14 +1079,14 @@ def summary(
             present = [v for v in values if not _is_missing(v)]
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
-                _tally_strip(values, 'value', opts),
+                _tally_strip(values, 'entry', opts),
                 _distribution_strip(values, present, color, opts)))
     else:
         values = list(data)
         present = [v for v in values if not _is_missing(v)]
         rows.append(_summary_row(
-            _count_label(len(values), 'value'),
-            _tally_strip(values, 'value', opts),
+            _count_label(len(values), 'entry'),
+            _tally_strip(values, 'entry', opts),
             _distribution_strip(values, present, color, opts)))
 
     table = (f'<table class={quoteattr(class_)} '

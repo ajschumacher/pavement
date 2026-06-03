@@ -14,6 +14,7 @@ from pavement.svg import (
     Summary,
     _choose_bins,
     _is_numeric,
+    _plural,
     _row_key,
     summary,
 )
@@ -55,6 +56,16 @@ def test_choose_bins_rug_limit_matches_spark_tick_hover_limit():
 # ---------------------------------------------------------------------------
 # Numeric detection
 # ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("singular, plural", [
+    ("value", "values"),
+    ("row", "rows"),
+    ("entry", "entries"),       # consonant + y -> ies, not "entrys"
+    ("day", "days"),            # vowel + y -> just s
+])
+def test_plural(singular, plural):
+    assert _plural(singular) == plural
+
 
 def test_is_numeric_accepts_ints_and_floats():
     assert _is_numeric(3) and _is_numeric(3.5) and _is_numeric(-2)
@@ -117,13 +128,23 @@ def test_summary_is_wellformed_xml(data):
 # Single series / sequence
 # ---------------------------------------------------------------------------
 
-def test_summary_series_shows_value_count_where_a_name_would_be():
+def test_summary_series_shows_entry_count_where_a_name_would_be():
+    # "entries", not "values": the count includes any missing, so "values"
+    # would wrongly imply they are all present. And it pluralizes correctly
+    # (entry -> entries, never "entrys").
     out = str(summary(list(range(1234))))
-    assert "1,234 values" in out               # thousands separator, plural
+    assert "1,234 entries" in out              # thousands separator, plural
+    assert "entrys" not in out
 
 
-def test_summary_series_singular_value_noun():
-    assert "1 value<" in str(summary([42]))    # one value, no trailing "s"
+def test_summary_series_singular_entry_noun():
+    assert "1 entry<" in str(summary([42]))    # one entry, singular
+
+
+def test_summary_series_tally_tooltip_uses_entries():
+    # The single-series tally talks of entries too, matching the label.
+    out = str(summary([1, 1, 2, None]))        # 4 entries
+    assert any("of 4 entries" in t for t in _titles(out))
 
 
 def test_summary_numeric_series_uses_a_spark():
@@ -207,10 +228,10 @@ def test_summary_constant_numeric_column_does_not_crash():
 
 
 def test_summary_empty_sequence_is_graceful():
-    # A higher-level convenience: an empty input summarizes to "0 values"
+    # A higher-level convenience: an empty input summarizes to "0 entries"
     # with empty strips rather than raising the way a bare strip would.
     out = str(summary([]))
-    assert "0 values" in out
+    assert "0 entries" in out
     assert 'class="pavement-spark"' not in out
     assert 'class="pavement-tally"' not in out
     _wellformed(out)
@@ -218,7 +239,7 @@ def test_summary_empty_sequence_is_graceful():
 
 def test_summary_all_missing_series_has_tally_but_no_distribution():
     out = str(summary([None, float("nan"), None]))
-    assert "3 values" in out
+    assert "3 entries" in out
     assert 'class="pavement-tally"' in out          # all-missing tally (red)
     assert 'class="pavement-spark"' not in out
     assert 'class="pavement-proportion"' not in out
@@ -277,7 +298,7 @@ def test_summary_writes_fragment_for_other_suffix(tmp_path):
 def test_summary_accepts_a_pandas_series():
     pd = pytest.importorskip("pandas")
     out = str(summary(pd.Series([1, 2, 2, 3, None], name="ignored")))
-    assert "5 values" in out                   # the count, not the name
+    assert "5 entries" in out                  # the count, not the name
     assert 'class="pavement-spark"' in out
     _wellformed(out)
 
