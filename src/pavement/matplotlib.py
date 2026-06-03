@@ -47,7 +47,7 @@ def draw_pavement(
     position: float = 1,
     width: float = 0.6,
     whisker_extent: float = 0.1,
-    show_whiskers: bool = True,
+    show_whiskers: bool = False,
     show_box: bool = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | None = None,
@@ -80,7 +80,7 @@ def draw_pavement(
         How far the whisker marks extend beyond the box, perpendicular
         to the value axis. Unrelated to matplotlib's ``boxplot(whis=)``,
         which controls outlier cutoffs on the value axis.
-    show_whiskers : bool, default: True
+    show_whiskers : bool, default: False
         If False, suppress the whisker marks even at repeated values.
     show_box : bool, default: True
         Whether to draw the two long box edges (the borders parallel to
@@ -183,7 +183,7 @@ def plot(
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
-    show_whiskers: bool = True,
+    show_whiskers: bool = False,
     show_box: bool | None = None,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     value_label: str | None = None,
@@ -242,7 +242,7 @@ def plot(
         How far the whisker marks extend beyond the box, perpendicular
         to the value axis. Unrelated to matplotlib's ``boxplot(whis=)``,
         which controls outlier cutoffs on the value axis.
-    show_whiskers : bool, default: True
+    show_whiskers : bool, default: False
         If False, suppress whisker marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw each row's two long box edges (the borders
@@ -360,7 +360,7 @@ def spark(
     orientation: Literal['vertical', 'horizontal'] = 'horizontal',
     width: float = 0.6,
     whisker_extent: float = 0.1,
-    show_whiskers: bool = True,
+    show_whiskers: bool = False,
     show_box: bool | None = None,
     color: str | None = None,
     fill_alpha: float = 0.3,
@@ -405,7 +405,7 @@ def spark(
         scaled to fit whatever is drawn.
     whisker_extent : float, default: 0.1
         How far whisker marks extend beyond the box at repeated values.
-    show_whiskers : bool, default: True
+    show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw the two long box edges. None (the default) draws
@@ -521,7 +521,7 @@ def margin(
     pad: float = 0.03,
     size: float = 0.04,
     expand_margins: bool = True,
-    show_whiskers: bool = True,
+    show_whiskers: bool = False,
     show_box: bool | None = None,
     line_props: Mapping[str, Any] | None = None,
     box_props: Mapping[str, Any] | None = None,
@@ -583,7 +583,7 @@ def margin(
         perpendicular axis so the strip does not overlap the data.
         No effect for 'outside' placements. Mirrors the argument of
         the same name on seaborn's ``rugplot``.
-    show_whiskers : bool, default: True
+    show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw the two long box edges. None (the default) draws

@@ -129,7 +129,7 @@ def test_row_spec_default_reach_is_half():
 
 def test_row_spec_repeated_value_is_one_tick_with_whisker():
     # 0 lands on several quantile edges: one tick, reaching past the box.
-    spec = row_spec([0, 0, 0, 1, 2], width=0.6, whisker_extent=0.1)
+    spec = row_spec([0, 0, 0, 1, 2], width=0.6, whisker_extent=0.1, show_whiskers=True)
     assert len(spec.ticks) == 3  # one per distinct value
     assert max(t.reach for t in spec.ticks) > 0.3
     # the repeated value's quantile reads as a span
