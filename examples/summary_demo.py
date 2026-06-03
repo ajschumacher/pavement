@@ -26,6 +26,7 @@ It writes ``summary_demo.html`` to the current directory; open it and hover
 the strips — each box shows its share, value, and count.
 """
 
+import datetime
 import math
 import random
 
@@ -58,6 +59,11 @@ people = {
     # ~40 distinct integer ages -> 4 equal-mass bins.
     "age": [NA if rng.random() < 0.05 else round(rng.gauss(38, 11))
             for _ in range(N)],
+    # A date column -> a pavement laid out on a time axis (dates in the
+    # tooltips), skewed toward recent signups.
+    "signup_date": [datetime.date(2023, 1, 1)
+                    + datetime.timedelta(days=round(730 * rng.random() ** 2))
+                    for _ in range(N)],
     # Heavily skewed, many distinct values -> 8 bins shows the long right tail.
     "purchases": [round(rng.expovariate(1 / 30), 1) for _ in range(N)],
     # Continuous, essentially all distinct -> the full 16-bin pavement.
@@ -153,8 +159,9 @@ JavaScript. Hover any strip for its share, value, and count.</p>
 treats each <em>whole row</em> as the entity. Numeric columns get a pavement
 <strong>spark</strong> whose resolution adapts to how many distinct values
 they have — a rug for <code>rating</code>, then more equal-mass bins through
-<code>age</code>, <code>purchases</code>, and <code>latency_ms</code>.
-Categorical columns get a <strong>proportion</strong> strip, and
+<code>age</code>, <code>purchases</code>, and <code>latency_ms</code>. Dates
+work too: <code>signup_date</code> is laid out on a time axis (hover for the
+dates). Categorical columns get a <strong>proportion</strong> strip, and
 <code>legacy_field</code> shows what an almost-all-missing column looks like.</p>
 {pavement.summary(people)}
 

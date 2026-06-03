@@ -118,9 +118,11 @@ take a column of any type and return an `<svg>` string like `spark` does.
 `pavement.summary` turns a whole dataframe, Series, or sequence into one
 inline HTML table — the thing to glance at when data first lands. Each
 column becomes a row pairing its **tally** (how much is distinct, duplicate, or
-missing) with its **distribution**: a pavement spark for numeric columns and a
-proportion strip for categorical ones, so every column gets a distribution
-view where a pavement alone would leave the categorical rows blank. A
+missing) with its **distribution**: a pavement spark for ordered columns —
+numbers, decimals, and dates/datetimes (a temporal column is laid out on a
+time axis) — and a proportion strip for categorical ones, so every column gets
+a distribution view where a pavement alone would leave the categorical rows
+blank. A
 dataframe is topped by a row summarizing the frame itself — its row count and
 a tally that treats each *whole row* as the entity, so "duplicate" means a
 duplicated row and "missing" a row that is entirely blank.
