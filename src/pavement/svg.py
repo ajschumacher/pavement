@@ -893,27 +893,27 @@ def tally(
 # lands, and it renders inline in Jupyter through `Summary._repr_html_`.
 # ---------------------------------------------------------------------------
 
-# Choosing a numeric column's pavement resolution from how many *distinct*
-# values it holds. While they stay few enough to read one at a time a rug
-# shows them all — the limit matches `spark`'s tick_hover_limit, so every tick
-# is individually hoverable — and past that an equal-mass binned pavement,
-# doubling the bin count each time the distinct count quadruples, capped at 16
+# Choosing a numeric column's pavement resolution from its total value count.
+# While the column is small enough to read one value at a time, a rug shows
+# them all — the limit matches `spark`'s tick_hover_limit, so every tick is
+# individually hoverable — and past that an equal-mass binned pavement,
+# doubling the bin count each time the total roughly quadruples, capped at 16
 # (finer bins don't read at a sparkline's size).
 _RUG_LIMIT = 24
-_BIN_THRESHOLDS = ((96, 4), (384, 8))  # distinct < cut -> that many bins
+_BIN_THRESHOLDS = ((97, 4), (257, 8))  # n < cut -> that many bins
 _MAX_BINS = 16
 
 
-def _choose_bins(distinct: int) -> int | None:
-    """Bins for a numeric column's spark, from its distinct-value count.
+def _choose_bins(n: int) -> int | None:
+    """Bins for a numeric column's spark, from its total value count.
 
     None (a rug) up to ``_RUG_LIMIT``, then 4, 8, and a 16-bin cap — see the
     reasoning on the module constants above.
     """
-    if distinct <= _RUG_LIMIT:
+    if n <= _RUG_LIMIT:
         return None
     for cut, bins in _BIN_THRESHOLDS:
-        if distinct < cut:
+        if n < cut:
             return bins
     return _MAX_BINS
 
@@ -1040,7 +1040,7 @@ def _distribution_strip(values: list[Any], present: list[Any],
     if not present:
         return ''
     if _pavement_column(present):
-        return spark(present, bins=_choose_bins(len(set(present))),
+        return spark(present, bins=_choose_bins(len(present)),
                      color=color, **opts)
     return proportion(values, **opts)
 
@@ -1107,9 +1107,9 @@ def summary(
       (e.g. ``"1,234 entries"`` — "entries", not "values", since the count
       includes any missing ones).
 
-    A pavement column's resolution adapts to how many *distinct* values it has:
-    a rug (every value shown, each hoverable) up to 24, then equal-mass bins —
-    4, then 8 past 96 distinct, then 16 past 384 — so a small column reads
+    A pavement column's resolution adapts to its total value count: a rug
+    (every value shown, each hoverable) up to 24, then equal-mass bins — 4
+    bins up to 96 values, 8 bins up to 256, then 16 — so a small column reads
     value-by-value and a large one as a smooth shape.
 
     Parameters
