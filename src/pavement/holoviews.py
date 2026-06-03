@@ -11,7 +11,7 @@ select it with ``hv.extension(...)`` first, as usual.
 
 A pavement row is built from three overlaid components: a borderless
 `holoviews.Rectangles` of the equal-mass bins (a hover target carrying
-each bin's value range and quantile band), and two `holoviews.Segments`
+each bin's value range, quantile band, and value count), and two `holoviews.Segments`
 — the quantile ticks and the box edges. Keeping the lines separate from
 the fill means the ticks and box share one consistent style; a repeated
 quantile value (data piled up) simply extends its own tick into a
@@ -65,11 +65,12 @@ from ._geometry import (
 __all__ = ["pavement_elements", "plot", "with_marginals"]
 
 # Hover dimensions carrying the display strings shown verbatim by every
-# backend: a quantile (band for a box, single level for a tick) and a
-# value (range for a box, single value for a tick). Fills also keep
-# numeric low/high for the plotly hover geometry (not shown).
-_FILL_VDIMS = ["low", "high", "quantiles", "values"]
-_TICK_VDIMS = ["quantiles", "values"]
+# backend: a quantile (band for a box, single level for a tick), a value
+# (range for a box, single value for a tick), and a count ("N of M values"
+# inside the box / on the tick). Fills also keep numeric low/high for the
+# plotly hover geometry (not shown).
+_FILL_VDIMS = ["low", "high", "quantiles", "values", "counts"]
+_TICK_VDIMS = ["quantiles", "values", "counts"]
 
 
 # Each backend names the same style differently; map them so one call
@@ -110,36 +111,38 @@ def _row_geometry(
     show_box: bool,
     group: Hashable | None,
     value_format: ValueFormat | None,
+    data: Sequence[float] | None = None,
 ) -> tuple[list[tuple], list[tuple], list[tuple]]:
     """Build the (fill, tick, box-edge) tuples for one row.
 
     Returns ``(fills, ticks, edges)``. A fill is
-    ``(x0, y0, x1, y1, low, high, quantiles, values[, group])``; a tick
-    is ``(x0, y0, x1, y1, quantiles, values[, group])``; an edge is
-    ``(x0, y0, x1, y1)``. *quantiles* and *values* are display strings
-    shared verbatim by every backend's hover; *low*/*high* stay numeric
-    for the plotly hover geometry. The shared `row_spec` does the binning
-    and the one-tick-per-distinct-value (whisker) logic.
+    ``(x0, y0, x1, y1, low, high, quantiles, values, counts[, group])``; a
+    tick is ``(x0, y0, x1, y1, quantiles, values, counts[, group])``; an edge
+    is ``(x0, y0, x1, y1)``. *quantiles*, *values*, and *counts* are display
+    strings shared verbatim by every backend's hover; *low*/*high* stay
+    numeric for the plotly hover geometry. The shared `row_spec` does the
+    binning, the one-tick-per-distinct-value (whisker) logic, and (from
+    *data*) the per-bin/per-tick value counts.
     """
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers, value_format)
+                    whisker_extent, show_whiskers, value_format, data=data)
     extra = () if group is None else (group,)
 
     # Fills: one borderless rectangle per equal-mass bin, a hover target
-    # reading as a quantile band and a value range.
+    # reading as a quantile band, a value range, and a value count.
     fills: list[tuple] = []
     for b in spec.bins:
         (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
                                          orientation)
         fills.append((x0, y0, x1, y1, b.low, b.high, b.band, b.value_range,
-                      *extra))
+                      b.count, *extra))
 
     # Ticks: one per distinct value, reaching past the box as a whisker
     # where it repeats. A line hover reads as a single quantile and value.
     ticks: list[tuple] = []
     for t in spec.ticks:
         seg = tick_segment(position, t.reach, t.value, orientation)
-        ticks.append((*seg, t.quantile, t.value_str, *extra))
+        ticks.append((*seg, t.quantile, t.value_str, t.count, *extra))
 
     # Box edges: the two long sides, spanning the full value range. Dropped
     # for a rug (show_box False), leaving only the ticks — a plain rug.
@@ -207,13 +210,13 @@ def pavement_elements(
         Maps component name to the unstyled HoloViews element:
 
         - ``"fill"``: a `holoviews.Rectangles` of the equal-mass bins,
-          with value dimensions ``low``, ``high``, ``band`` (and
-          ``group`` if given). Meant to be drawn borderless, as a hover
-          target behind the lines.
+          with value dimensions ``low``, ``high``, ``quantiles``,
+          ``values``, ``counts`` (and ``group`` if given). Meant to be
+          drawn borderless, as a hover target behind the lines.
         - ``"ticks"``: a `holoviews.Segments`, one tick per distinct
           quantile value (extended into a whisker where the value
-          repeats), with value dimensions ``value``, ``level`` (and
-          ``group`` if given).
+          repeats), with value dimensions ``quantiles``, ``values``,
+          ``counts`` (and ``group`` if given).
         - ``"box"``: a `holoviews.Segments` of the two long box edges.
 
     See Also
@@ -221,11 +224,12 @@ def pavement_elements(
     plot : The headline, multi-row function built on this.
     pavement.pavement_stats : The underlying quantile computation.
     """
+    data = list(data)
     values = pavement_stats(data, bins=bins, weights=weights)
     fills, ticks, edges = _row_geometry(
         values, position, width, orientation,
         whisker_extent, show_whiskers, resolve_show_box(show_box, bins),
-        group, value_format)
+        group, value_format, data=data)
     fill_vdims = _FILL_VDIMS if group is None else [*_FILL_VDIMS, "group"]
     tick_vdims = _TICK_VDIMS if group is None else [*_TICK_VDIMS, "group"]
     return {
@@ -331,6 +335,7 @@ def _plotly_hover_layer(
     high = fill.dimension_values("high")
     quantiles = fill.dimension_values("quantiles")
     values = fill.dimension_values("values")
+    counts = fill.dimension_values("counts")
     if len(low) == 0:
         return hv.Scatter([])
     # The bins stack along the value axis at a single position; sample
@@ -347,7 +352,7 @@ def _plotly_hover_layer(
                     0, len(low) - 1)
     fields = hover_fields(group is not None)
     prefix = [str(group)] if group is not None else []
-    customdata = [prefix + [quantiles[i], values[i]] for i in which]
+    customdata = [prefix + [quantiles[i], values[i], counts[i]] for i in which]
     template = "<br>".join(
         f"%{{customdata[{k}]}}" for k in range(len(fields))) + "<extra></extra>"
     constant = np.full(_HOVER_SAMPLES, position)

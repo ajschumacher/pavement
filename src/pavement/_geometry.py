@@ -22,6 +22,7 @@ Nothing here imports a plotting library.
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
@@ -58,6 +59,8 @@ class Bin:
     high: float           # value-axis high edge
     band: str             # quantile-band hover string, e.g. "0% to 25%"
     value_range: str      # value-range hover string, e.g. "1 to 2"
+    count: str = ""       # count hover string, e.g. "3 of 20 values" (the
+                          # data strictly inside the bin); "" if not computed
 
 
 @dataclass
@@ -68,6 +71,8 @@ class Tick:
                           # when it exceeds the row half-width)
     quantile: str         # quantile hover string ("25%" or "25% to 50%")
     value_str: str        # value hover string
+    count: str = ""       # count hover string, e.g. "5 of 20 values" (the
+                          # data exactly at this value); "" if not computed
 
 
 @dataclass
@@ -90,6 +95,7 @@ def row_spec(
     whisker_extent: float = 0.1,
     show_whiskers: bool = True,
     value_format: ValueFormat | None = None,
+    data: Sequence[float] | None = None,
 ) -> RowSpec:
     """
     Build one row's `RowSpec` from sorted quantile *values*.
@@ -103,15 +109,43 @@ def row_spec(
     *value_format* maps a value to its hover display string (a bin's value
     range, a tick's value); it defaults to `fmt`. The quantile/percent
     strings are unaffected, as they aren't data values.
+
+    *data*, if given, is the raw values the plot is drawn from — the
+    non-missing values, of which there are ``len(data)``. When present, each
+    bin and tick gets a ``count`` hover string, ``"X of Y values"``, where Y
+    is ``len(data)`` and X is how many data points fall *strictly inside* the
+    bin (low < d < high) or fall *exactly* at the tick's value. Every data
+    point lands in exactly one bin or tick — a point on a bin edge is the
+    edge's tick, never either neighbouring bin — so the counts partition the
+    data. Counts are unweighted, even when *values* came from weighted
+    quantiles.
     """
     show = value_format or fmt
     n_bins = len(values) - 1
     half = width / 2
 
+    ordered = sorted(data) if data is not None else None
+    total = len(ordered) if ordered is not None else 0
+
+    def count(lo: float | None, hi: float | None, value: float | None) -> str:
+        """The ``"X of Y values"`` line: a strict ``lo``..``hi`` interior
+        (a bin) or an exact ``value`` match (a tick). Empty without *data*."""
+        if ordered is None:
+            return ""
+        if value is not None:
+            x = bisect_right(ordered, value) - bisect_left(ordered, value)
+        else:
+            # The open interval (lo, hi); a zero-width bin (lo == hi, from a
+            # repeated quantile value) has no strict interior, so clamp the
+            # otherwise-negative difference to 0.
+            x = max(0, bisect_left(ordered, hi) - bisect_right(ordered, lo))
+        return f"{x:,} of {total:,} {'value' if total == 1 else 'values'}"
+
     bins: list[Bin] = []
     for i, (low, high) in enumerate(zip(values, values[1:])):
         band = f"{i/n_bins:.0%} to {(i+1)/n_bins:.0%}" if n_bins else ""
-        bins.append(Bin(low, high, band, f"{show(low)} to {show(high)}"))
+        bins.append(Bin(low, high, band, f"{show(low)} to {show(high)}",
+                        count(low, high, None)))
 
     ticks: list[Tick] = []
     i = 0
@@ -127,7 +161,8 @@ def row_spec(
             quantile = f"{i/n_bins:.0%} to {j/n_bins:.0%}"
         else:
             quantile = f"{i/n_bins:.0%}"
-        ticks.append(Tick(values[i], reach, quantile, show(values[i])))
+        ticks.append(Tick(values[i], reach, quantile, show(values[i]),
+                          count(None, None, values[i])))
         i = j + 1
 
     return RowSpec(bins=bins, ticks=ticks, position=position, half=half,
@@ -279,8 +314,8 @@ def resolve_colors(color: str | Sequence[str] | None, n: int,
 # ---------------------------------------------------------------------------
 
 def hover_fields(has_group: bool) -> list[str]:
-    """The hover field order every backend renders: group?, quantile, value."""
-    return (["group"] if has_group else []) + ["quantiles", "values"]
+    """The hover field order every backend renders: group?, quantile, value, count."""
+    return (["group"] if has_group else []) + ["quantiles", "values", "counts"]
 
 
 def complete_color_map(

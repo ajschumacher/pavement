@@ -20,17 +20,20 @@ Each pavement row is drawn with plain Bokeh glyphs, so it carries its own
 hover and drops onto any figure:
 
 - one borderless filled `quad <bokeh.plotting.figure.quad>` per equal-mass bin,
-  hovering its quantile band and value range;
+  hovering its quantile band, value range, and how many values fall inside it;
 - a `segment <bokeh.plotting.figure.segment>` of quantile ticks (reaching past
   the box into a whisker where a value repeats, so every line is drawn once),
-  each hovering its single quantile and value — the rug-style read; and
+  each hovering its single quantile, value, and how many values fall on it —
+  the rug-style read; and
 - a `segment <bokeh.plotting.figure.segment>` of the two box edges, purely
   visual, sharing the ticks' style.
 
-Hover reads the same as the other backends: the box hover is a quantile band
-and value range, the tick hover a single quantile and value (both led by the
-row's name when it has one). Unlike Plotly's figure-level shapes, Bokeh glyphs
-hover directly, so no invisible marker layer is needed.
+Hover reads the same as the other backends: the box hover is a quantile band,
+value range, and value count; the tick hover a single quantile, value, and
+count (both led by the row's name when it has one). Every value is counted in
+exactly one bin (strictly inside) or tick (exactly on it). Unlike Plotly's
+figure-level shapes, Bokeh glyphs hover directly, so no invisible marker layer
+is needed.
 
 The functions mirror the rest of the package:
 
@@ -74,6 +77,7 @@ from ._geometry import (
     box_edges,
     broadcast,
     complete_color_map,
+    hover_fields,
     normalize_rows,
     resolve_colors,
     resolve_show_box,
@@ -106,41 +110,43 @@ def _row_geometry(
     show_whiskers: bool,
     show_box: bool,
     value_format: ValueFormat | None,
+    data: Sequence[float] | None = None,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, quantile ticks, and box edges.
 
     Returns a dict with:
 
-    - ``bins``: one ``(left, right, bottom, top, band, value_range)`` per
-      equal-mass bin — a `quad`'s extents plus its hover strings ("X% to Y%",
-      "X to Y").
-    - ``ticks``: one ``(x0, y0, x1, y1, quantile, value)`` per distinct
+    - ``bins``: one ``(left, right, bottom, top, band, value_range, count)``
+      per equal-mass bin — a `quad`'s extents plus its hover strings ("X% to
+      Y%", "X to Y", "N of M values").
+    - ``ticks``: one ``(x0, y0, x1, y1, quantile, value, count)`` per distinct
       quantile value — a segment crossing the value axis, plus its rug-style
       hover strings. A repeated value reaches past the box as a whisker and
       reads as a span ("X% to Y%"), so every line is drawn exactly once.
     - ``box``: the two long box edges as ``(x0, y0, x1, y1)`` segments,
       spanning the full value range — empty when *show_box* is False.
 
-    The shared `row_spec` does the binning and one-tick-per-distinct-value
-    (whisker) logic; this lays the result out the way Bokeh's glyphs want.
+    The shared `row_spec` does the binning, the one-tick-per-distinct-value
+    (whisker) logic, and (from *data*) the per-bin/per-tick value counts;
+    this lays the result out the way Bokeh's glyphs want.
     """
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers, value_format)
+                    whisker_extent, show_whiskers, value_format, data=data)
 
     # Bins: one borderless quad per equal-mass bin (left, right, bottom,
-    # top), carrying its quantile band and value range for hover.
-    bins: list[tuple[float, float, float, float, str, str]] = []
+    # top), carrying its quantile band, value range, and count for hover.
+    bins: list[tuple[float, float, float, float, str, str, str]] = []
     for b in spec.bins:
         (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
                                          orientation)
-        bins.append((x0, x1, y0, y1, b.band, b.value_range))
+        bins.append((x0, x1, y0, y1, b.band, b.value_range, b.count))
 
     # Ticks: a segment per distinct value, reaching past the box as a
     # whisker where it repeats. Hover reads as a single quantile and value.
-    ticks: list[tuple[float, float, float, float, str, str]] = []
+    ticks: list[tuple[float, float, float, float, str, str, str]] = []
     for t in spec.ticks:
         x0, y0, x1, y1 = tick_segment(position, t.reach, t.value, orientation)
-        ticks.append((x0, y0, x1, y1, t.quantile, t.value_str))
+        ticks.append((x0, y0, x1, y1, t.quantile, t.value_str, t.count))
 
     # Box edges: the two long sides, spanning the full value range. Dropped
     # for a rug (show_box False), leaving only the ticks — a plain rug.
@@ -237,10 +243,12 @@ def pavement_glyphs(
     plot : Build a whole figure from one or more datasets.
     pavement.pavement_stats : The underlying quantile computation.
     """
+    data = list(data)
     values = pavement_stats(data, bins=bins, weights=weights)
     geom = _row_geometry(values, position, width, orientation,
                          whisker_extent, show_whiskers,
-                         resolve_show_box(show_box, bins), value_format)
+                         resolve_show_box(show_box, bins), value_format,
+                         data=data)
     if color is None:
         color = _default_colors(1)[0]
     group = None if name is None else [str(name)] * len(geom["bins"])
@@ -250,9 +258,9 @@ def pavement_glyphs(
 
     # Bins: one borderless filled quad each, hovering anywhere inside.
     if fill_alpha > 0:
-        left, right, bottom, top, band, value_range = zip(*geom["bins"])
+        left, right, bottom, top, band, value_range, counts = zip(*geom["bins"])
         fill_data = dict(left=left, right=right, bottom=bottom, top=top,
-                         quantiles=band, values=value_range)
+                         quantiles=band, values=value_range, counts=counts)
         if group is not None:
             fill_data["group"] = group
         renderers["fills"] = fig.quad(
@@ -263,9 +271,9 @@ def pavement_glyphs(
 
     # Ticks: a segment per distinct quantile value, hovering its single
     # quantile and value. Drawn opaque, like the box.
-    x0, y0, x1, y1, quantile, value = zip(*geom["ticks"])
+    x0, y0, x1, y1, quantile, value, counts = zip(*geom["ticks"])
     tick_data = dict(x0=x0, y0=y0, x1=x1, y1=y1,
-                     quantiles=quantile, values=value)
+                     quantiles=quantile, values=value, counts=counts)
     if tick_group is not None:
         tick_data["group"] = tick_group
     renderers["ticks"] = fig.segment(
@@ -422,13 +430,14 @@ def add_pavement(
 
     if hover:
         # One hover tool over every bin and tick. The bins and ticks share
-        # the column names 'quantiles' and 'values' (and 'group' when named),
-        # so a single tooltip template reads correctly off either: a hovered
-        # bin shows its band and value range, a hovered tick its single
-        # quantile and value — the same layout and order as the other
-        # backends, led by the name when present.
+        # the column names 'quantiles', 'values', and 'counts' (and 'group'
+        # when named), so a single tooltip template reads correctly off
+        # either: a hovered bin shows its band, value range, and how many
+        # values fall inside it; a hovered tick its single quantile, value,
+        # and how many values fall on it — the same layout and order as the
+        # other backends, led by the name when present.
         has_group = n > 1
-        rows = (["@group"] if has_group else []) + ["@quantiles", "@values"]
+        rows = ["@" + f for f in hover_fields(has_group)]
         fig.add_tools(HoverTool(
             renderers=fill_renderers + tick_renderers,
             tooltips="<br>".join(rows)))

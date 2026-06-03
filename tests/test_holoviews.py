@@ -148,7 +148,7 @@ def test_pavement_bokeh_hover_is_clean_quantile_value_template():
     # Both fills and ticks hover the same quantile/value layout, stacked
     # by line break, with no raw x0/y0/x1/y1 corners. (bokeh normalizes
     # @field to @{field}.)
-    assert templates == {"@{quantiles}<br>@{values}"}
+    assert templates == {"@{quantiles}<br>@{values}<br>@{counts}"}
 
 
 def test_pavement_bokeh_group_hover_leads_with_group():
@@ -156,7 +156,7 @@ def test_pavement_bokeh_group_hover_leads_with_group():
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
     # With a group, it is the first hover line.
-    assert all(h.tooltips == "@{group}<br>@{quantiles}<br>@{values}"
+    assert all(h.tooltips == "@{group}<br>@{quantiles}<br>@{values}<br>@{counts}"
                for h in hovers)
 
 
@@ -356,13 +356,14 @@ def test_pavement_plotly_adds_invisible_hover_layer():
     hover = [t for t in fig["data"] if t.get("hovertemplate")]
     assert len(hover) == 1
     assert (hover[0].get("marker") or {}).get("opacity") == 0
-    # Same two-line quantile/value layout as bokeh, via customdata.
+    # Same three-line quantile/value/count layout as bokeh, via customdata.
     assert hover[0]["hovertemplate"] == (
-        "%{customdata[0]}<br>%{customdata[1]}<extra></extra>")
+        "%{customdata[0]}<br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>")
     # The customdata carries the same display strings bokeh shows: the
-    # first sample falls in the first bin (0% to 25%, a value range).
+    # first sample falls in the first bin (0% to 25%, a value range, a count).
     assert hover[0]["customdata"][0][0] == "0% to 25%"
     assert " to " in hover[0]["customdata"][0][1]
+    assert hover[0]["customdata"][0][2].endswith(" values")
     # A dense line of points (not one per bin) so hovering anywhere along
     # a bin works, each labelled by the bin it falls in.
     assert len(hover[0]["customdata"]) > 8

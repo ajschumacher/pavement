@@ -1,5 +1,6 @@
 import pytest
 
+from pavement.core import pavement_stats
 from pavement._geometry import (
     bin_corners,
     bin_polygon,
@@ -61,6 +62,53 @@ def test_row_spec_value_format_defaults_to_fmt():
     # None (the default) is the 3-sig-fig fmt — same as omitting it.
     assert (row_spec([1, 2, 3, 4, 5], value_format=None).bins[0].value_range
             == row_spec([1, 2, 3, 4, 5]).bins[0].value_range == "1 to 2")
+
+
+def test_row_spec_counts_empty_without_data():
+    # No data passed -> no "X of Y values" line (the historical behavior).
+    spec = row_spec([1, 2, 3, 4, 5])
+    assert [b.count for b in spec.bins] == ["", "", "", ""]
+    assert [t.count for t in spec.ticks] == ["", "", "", "", ""]
+
+
+def test_row_spec_counts_partition_the_data():
+    # 8 distinct values into 4 bins: the Type-2 quantile edges fall between
+    # data points, so each interior bin holds two values and each end bin
+    # one, while the min and max sit on their ticks. Every value lands in
+    # exactly one bin or tick.
+    data = [1, 2, 3, 4, 5, 6, 7, 8]
+    spec = row_spec(pavement_stats(data, bins=4), data=data)
+    assert [b.count for b in spec.bins] == [
+        "1 of 8 values", "2 of 8 values", "2 of 8 values", "1 of 8 values"]
+    assert [t.count for t in spec.ticks] == [
+        "1 of 8 values", "0 of 8 values", "0 of 8 values",
+        "0 of 8 values", "1 of 8 values"]
+
+
+def test_row_spec_counts_sum_to_total():
+    # The partition invariant on messier data (repeats, weights): the per-bin
+    # (strictly inside) and per-tick (exactly on) counts always cover every
+    # value exactly once, so the X's sum to Y.
+    data = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9]
+    for bins in (None, 1, 2, 3, 4, 8):
+        spec = row_spec(pavement_stats(data, bins=bins), data=data)
+        xs = [int(s.count.split()[0]) for s in (*spec.bins, *spec.ticks)]
+        assert sum(xs) == len(data), bins
+
+
+def test_row_spec_counts_repeats_land_on_their_tick():
+    # A repeated value is one tick reaching past the box; its count is every
+    # copy. The zero-width bins it straddles hold nothing.
+    data = [0, 0, 0, 1, 2]
+    spec = row_spec(pavement_stats(data, bins=4), data=data)
+    assert {t.value: t.count for t in spec.ticks}[0] == "3 of 5 values"
+    assert all(b.count == "0 of 5 values" for b in spec.bins
+               if b.low == b.high)
+
+
+def test_row_spec_count_noun_singular_for_one_value():
+    spec = row_spec(pavement_stats([7], bins=None), data=[7])
+    assert spec.ticks[0].count == "1 of 1 value"
 
 
 def test_row_spec_default_reach_is_half():
@@ -215,8 +263,8 @@ def test_resolve_colors_length_mismatch():
 
 
 def test_hover_fields():
-    assert hover_fields(False) == ["quantiles", "values"]
-    assert hover_fields(True) == ["group", "quantiles", "values"]
+    assert hover_fields(False) == ["quantiles", "values", "counts"]
+    assert hover_fields(True) == ["group", "quantiles", "values", "counts"]
 
 
 def test_complete_color_map_fills_and_skips_used():
