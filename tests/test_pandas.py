@@ -149,7 +149,14 @@ def test_enable_repr_series_false_leaves_series_alone(ipython_shell):
 
 def test_enable_repr_without_a_session_raises(monkeypatch):
     # No running IPython -> a clear error rather than silently doing nothing.
-    monkeypatch.setattr("IPython.get_ipython", lambda: None)
+    # Whether IPython is merely not *running* (get_ipython() is None) or not
+    # installed at all (ModuleNotFoundError), the functions must raise.
+    try:
+        import IPython
+    except ModuleNotFoundError:
+        pass  # not installed: enable_repr raises for that reason on its own
+    else:
+        monkeypatch.setattr(IPython, "get_ipython", lambda: None)
     with pytest.raises(RuntimeError):
         pp.enable_repr()
     with pytest.raises(RuntimeError):
