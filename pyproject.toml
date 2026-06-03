@@ -38,6 +38,11 @@ plotly = ["plotly>=5.0"]
 holoviews = ["holoviews>=1.15"]
 # Every backend at once, e.g. `pip install pavement[all]`.
 all = ["pavement[matplotlib,bokeh,plotly,holoviews]"]
+# Dataframe-library integrations (pavement.pandas / pavement.polars). The
+# accessor modules import their library only when imported, so these are
+# optional conveniences, not backends, and stay out of `all`.
+pandas = ["pandas"]
+polars = ["polars"]
 
 [project.urls]
 Homepage = "https://github.com/ajschumacher/pavement"

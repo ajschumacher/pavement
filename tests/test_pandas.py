@@ -9,7 +9,7 @@ import pytest
 pd = pytest.importorskip("pandas")
 
 import pavement.pandas as pp  # noqa: E402  (importing registers the accessor)
-from pavement.pandas import _SVG  # noqa: E402
+from pavement._inline import SVG  # noqa: E402
 from pavement.svg import Summary  # noqa: E402
 
 
@@ -18,7 +18,7 @@ from pavement.svg import Summary  # noqa: E402
 # ---------------------------------------------------------------------------
 
 def test_svg_wrapper_is_a_string_that_also_renders():
-    x = _SVG("<svg>hi</svg>")
+    x = SVG("<svg>hi</svg>")
     assert isinstance(x, str)                 # behaves like the plain string
     assert x.startswith("<svg")
     assert x._repr_html_() == "<svg>hi</svg>"  # but renders inline in Jupyter

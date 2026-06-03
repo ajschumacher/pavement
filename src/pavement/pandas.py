@@ -43,29 +43,10 @@ from typing import Any
 
 import pandas as pd
 
-from .core import _is_missing
+from ._inline import SVG, disable_summary_repr, enable_summary_repr, present
 from .svg import proportion, spark, summary, tally
 
 __all__ = ["enable_repr", "disable_repr"]
-
-
-class _SVG(str):
-    """An ``<svg>`` string that also renders inline in Jupyter.
-
-    A ``str`` subclass, so it embeds in HTML, saves, slices, and compares
-    exactly like the plain string the svg backend returns — but in a notebook
-    the rich display shows the rendered graphic (via ``_repr_html_``) instead
-    of the source text.
-    """
-
-    def _repr_html_(self) -> str:
-        return str(self)
-
-
-def _present(values: Any) -> list[Any]:
-    """A column's non-missing values, for the numeric spark (which can't plot
-    a missing value). `tally` and `proportion` handle missing themselves."""
-    return [v for v in values if not _is_missing(v)]
 
 
 class _PaveFrame:
@@ -80,14 +61,14 @@ class _PaveFrame:
     def summary(self, **kwargs: Any) -> Any:
         return summary(self._frame, **kwargs)
 
-    def spark(self, column: Any, **kwargs: Any) -> _SVG:
-        return _SVG(spark(_present(self._frame[column]), **kwargs))
+    def spark(self, column: Any, **kwargs: Any) -> SVG:
+        return SVG(spark(present(self._frame[column]), **kwargs))
 
-    def tally(self, column: Any, **kwargs: Any) -> _SVG:
-        return _SVG(tally(self._frame[column], **kwargs))
+    def tally(self, column: Any, **kwargs: Any) -> SVG:
+        return SVG(tally(self._frame[column], **kwargs))
 
-    def proportion(self, column: Any, **kwargs: Any) -> _SVG:
-        return _SVG(proportion(self._frame[column], **kwargs))
+    def proportion(self, column: Any, **kwargs: Any) -> SVG:
+        return SVG(proportion(self._frame[column], **kwargs))
 
 
 class _PaveSeries:
@@ -102,14 +83,14 @@ class _PaveSeries:
     def summary(self, **kwargs: Any) -> Any:
         return summary(self._series, **kwargs)
 
-    def spark(self, **kwargs: Any) -> _SVG:
-        return _SVG(spark(_present(self._series), **kwargs))
+    def spark(self, **kwargs: Any) -> SVG:
+        return SVG(spark(present(self._series), **kwargs))
 
-    def tally(self, **kwargs: Any) -> _SVG:
-        return _SVG(tally(self._series, **kwargs))
+    def tally(self, **kwargs: Any) -> SVG:
+        return SVG(tally(self._series, **kwargs))
 
-    def proportion(self, **kwargs: Any) -> _SVG:
-        return _SVG(proportion(self._series, **kwargs))
+    def proportion(self, **kwargs: Any) -> SVG:
+        return SVG(proportion(self._series, **kwargs))
 
 
 # Register on import. pandas caches the accessor per object and warns only if
@@ -117,24 +98,6 @@ class _PaveSeries:
 # it cleanly.
 pd.api.extensions.register_dataframe_accessor("pave")(_PaveFrame)
 pd.api.extensions.register_series_accessor("pave")(_PaveSeries)
-
-
-def _html_formatter() -> Any:
-    """The active IPython ``text/html`` formatter, or a clear error if there
-    is no running IPython/Jupyter to register one on."""
-    try:
-        from IPython import get_ipython
-    except ModuleNotFoundError as exc:  # pragma: no cover - env without IPython
-        raise RuntimeError(
-            "enable_repr/disable_repr need IPython; run inside Jupyter/IPython."
-        ) from exc
-    ip = get_ipython()
-    if ip is None:
-        raise RuntimeError(
-            "enable_repr/disable_repr must be called inside a running "
-            "IPython/Jupyter session."
-        )
-    return ip.display_formatter.formatters["text/html"]
 
 
 def enable_repr(series: bool = True, **summary_kwargs: Any) -> None:
@@ -148,16 +111,10 @@ def enable_repr(series: bool = True, **summary_kwargs: Any) -> None:
 
     Raises ``RuntimeError`` if there is no running IPython/Jupyter session.
     """
-    formatter = _html_formatter()
-    formatter.for_type(
-        pd.DataFrame, lambda frame: summary(frame, **summary_kwargs)._repr_html_())
-    if series:
-        formatter.for_type(
-            pd.Series, lambda s: summary(s, **summary_kwargs)._repr_html_())
+    types = [pd.DataFrame] + ([pd.Series] if series else [])
+    enable_summary_repr(types, **summary_kwargs)
 
 
 def disable_repr() -> None:
     """Restore pandas' normal display, undoing `enable_repr`."""
-    formatter = _html_formatter()
-    formatter.pop(pd.DataFrame, None)
-    formatter.pop(pd.Series, None)
+    disable_summary_repr([pd.DataFrame, pd.Series])

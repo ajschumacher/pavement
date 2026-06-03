@@ -32,10 +32,11 @@ distribution per column) that displays itself in Jupyter::
 It lives in `pavement.svg` (and so, like that backend, needs no extra), and
 is exposed here as the package's headline data-summary entry point.
 
-pandas users can go further: ``import pavement.pandas`` registers a ``.pave``
-accessor (``df.pave()``, ``df.pave.spark("col")``, …) and an opt-in
-summary-as-default-display toggle. That activates on its own import, never on
-a bare ``import pavement``, so the core stays dependency-free.
+pandas and polars users can go further: ``import pavement.pandas`` (or
+``import pavement.polars``) registers a ``.pave`` accessor (``df.pave()``,
+``df.pave.spark("col")``, …) and an opt-in summary-as-default-display toggle.
+That activates on its own import, never on a bare ``import pavement``, so the
+core stays dependency-free.
 """
 
 from __future__ import annotations
