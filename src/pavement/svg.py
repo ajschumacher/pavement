@@ -152,8 +152,9 @@ def _project(data: list[Any]) -> tuple[list[Any], ValueFormat | None]:
       of day;
     - a ``timedelta`` (including ``pandas.Timedelta`` and polars ``Duration``
       via ``.to_list()``) becomes total seconds, with a formatter showing
-      ``"N days"`` for whole-day durations or ``"Nd HH:MM"`` / ``"HH:MM"``
-      otherwise;
+      ``"N days"`` for whole-day durations, ``"Nd HH:MM:SS"`` / ``"HH:MM:SS"``
+      when any value has a non-zero second component, or ``"Nd HH:MM"`` /
+      ``"HH:MM"`` when all values are whole minutes;
     - a numpy ``datetime64`` or ``timedelta64`` is cast to microsecond
       resolution via ``.astype('[us]')`` and then delegated to the
       appropriate branch above.
@@ -194,6 +195,17 @@ def _project(data: list[Any]) -> tuple[list[Any], ValueFormat | None]:
             def show(s: float) -> str:
                 d = round(s / 86400)
                 return f"{d} day" if abs(d) == 1 else f"{d} days"
+        elif any(v.seconds % 60 != 0 or v.microseconds != 0 for v in data):
+            def show(s: float) -> str:
+                neg = s < 0
+                abs_s = abs(s)
+                d, rem = divmod(int(abs_s), 86400)
+                h, rem = divmod(rem, 3600)
+                m, sec = divmod(rem, 60)
+                prefix = "-" if neg else ""
+                if d:
+                    return f"{prefix}{d}d {h:02d}:{m:02d}:{sec:02d}"
+                return f"{prefix}{h:02d}:{m:02d}:{sec:02d}"
         else:
             def show(s: float) -> str:
                 neg = s < 0
