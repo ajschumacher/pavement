@@ -200,7 +200,7 @@ def test_summary_dataframe_row_tally_counts_whole_rows():
     out = str(summary({"a": [1, 1, None, 2], "b": ["x", "x", None, "y"]}))
     top = _titles(out)
     assert any("distinct" in t and "2 of 4 rows" in t for t in top)
-    assert any("repeated" in t and "1 of 4 rows" in t for t in top)
+    assert any("duplicate" in t and "1 of 4 rows" in t for t in top)
     assert any("missing" in t and "1 of 4 rows" in t for t in top)
 
 

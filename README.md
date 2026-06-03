@@ -108,7 +108,7 @@ the same idea to a raster image for print.
 
 Alongside `spark`, `pavement.svg` has two column-summary strips in the same
 borderless form factor: `tally`, which shows how much of a column is
-distinct, repeated, or missing, and `proportion`, which shows its value
+distinct, duplicate, or missing, and `proportion`, which shows its value
 counts (à la pandas `value_counts`) with a catch-all for a long tail. Both
 take a column of any type and return an `<svg>` string like `spark` does.
 
@@ -117,12 +117,12 @@ take a column of any type and return an `<svg>` string like `spark` does.
 
 `pavement.summary` turns a whole dataframe, Series, or sequence into one
 inline HTML table — the thing to glance at when data first lands. Each
-column becomes a row pairing its **tally** (how much is distinct, repeated, or
+column becomes a row pairing its **tally** (how much is distinct, duplicate, or
 missing) with its **distribution**: a pavement spark for numeric columns and a
 proportion strip for categorical ones, so every column gets a distribution
 view where a pavement alone would leave the categorical rows blank. A
 dataframe is topped by a row summarizing the frame itself — its row count and
-a tally that treats each *whole row* as the entity, so "repeated" means a
+a tally that treats each *whole row* as the entity, so "duplicate" means a
 duplicated row and "missing" a row that is entirely blank.
 
     import pavement
@@ -150,7 +150,7 @@ putting the strips a method away:
     df.pave()                     # the whole-frame summary, rendered inline
     df.pave.summary()             # the same, spelled out
     df.pave.spark("price")        # a numeric column's pavement sparkline
-    df.pave.tally("plan")         # a column's distinct/repeated/missing strip
+    df.pave.tally("plan")         # a column's distinct/duplicate/missing strip
     df.pave.proportion("plan")    # a column's value-counts strip
     df["price"].pave.spark()      # on a Series, the helpers take no column name
 

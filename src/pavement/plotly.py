@@ -21,17 +21,17 @@ with ``row=``/``col=`` and carries its own hover. A row is:
 
 - one borderless filled rectangle per equal-mass bin, each its own trace
   with ``hoveron='fills'`` so hovering anywhere inside the box shows that
-  bin's quantile band, value range, and how many values fall inside it;
+  bin's value range, percentile band, and the share of values inside it;
 - a single line trace for the quantile ticks and box edges (with whiskers
   where a value repeats, so every line is drawn once); and
-- an invisible marker at each quantile tick, carrying that tick's single
-  quantile, value, and how many values fall on it — the rug-style read.
+- an invisible marker at each quantile tick, carrying that tick's value,
+  percentile, and the share of values on it — the rug-style read.
 
 Plotly hovers filled areas and markers but not lines, so the line trace
 is purely visual and the two hover layers (box fills, tick markers) carry
 the text. Hover reads the same as the other backends: the box hover is a
-quantile band, value range, and value count; the tick hover a single
-quantile, value, and count (both led by the row's name when it has one).
+value range, percentile band, and value share; the tick hover a single
+value, percentile, and share (both led by the row's name when it has one).
 Every value is counted in exactly one bin (strictly inside) or tick
 (exactly on it).
 
@@ -112,8 +112,8 @@ def _row_geometry(
     Returns a dict with:
 
     - ``bins``: one ``(xs, ys, band, value_range, count)`` per equal-mass
-      bin — a closed rectangle plus its hover strings ("X% to Y%", "X to Y",
-      "N of M values").
+      bin — a closed rectangle plus its hover strings ("p0 to p25", "X to Y",
+      "P% (N of M values)").
     - ``line_x`` / ``line_y``: the quantile ticks and the two box edges as
       flat coordinate lists, ``None`` breaking between segments (Plotly's
       lift-the-pen convention). A tick reaches past the box into a whisker
@@ -121,7 +121,7 @@ def _row_geometry(
     - ``ticks``: one ``(x, y, quantile, value, count)`` per distinct quantile
       value — the point (at the row center, on the value axis) and hover
       strings for the rug-style tick hover. A repeated value reads as a
-      span ("X% to Y%").
+      span ("p25 to p50").
 
     The shared `row_spec` does the binning, the one-tick-per-distinct-value
     (whisker) logic, and (from *data*) the per-bin/per-tick value counts;
@@ -255,8 +255,8 @@ def pavement_traces(
     if color is None:
         color = _default_colors(1)[0]
     legendgroup = name if name is not None else None
-    # Hover lines: the name (when present), then the band/value — same
-    # layout and order as the other backends' hover.
+    # Hover lines: the name (when present), then value / percentile / count —
+    # same layout and order as the other backends' hover.
     prefix = [] if name is None else [str(name)]
 
     traces: list[go.Scatter] = []
@@ -270,7 +270,7 @@ def pavement_traces(
     # need to bake an alpha into the color string (and no matplotlib).
     if fill_alpha > 0:
         for xs, ys, band, value_range, count in geom["bins"]:
-            text = "<br>".join(prefix + [band, value_range, count])
+            text = "<br>".join(prefix + [value_range, band, count])
             traces.append(go.Scatter(
                 x=xs, y=ys, mode="lines", line=dict(width=0), fill="toself",
                 fillcolor=color, opacity=fill_alpha, hoveron="fills",
@@ -290,9 +290,11 @@ def pavement_traces(
         showlegend=show_legend and not legend_taken, hoverinfo="skip"))
 
     # Tick markers: an invisible point at each quantile value, hovering as
-    # a single quantile and value — the rug-style read of a line.
+    # a single value, percentile, and share — the rug-style read of a line.
+    # An empty percentile (a single-value spark) drops out rather than
+    # leaving a blank line.
     if hover:
-        texts = ["<br>".join(prefix + [quantile, value, count])
+        texts = ["<br>".join(s for s in prefix + [value, quantile, count] if s)
                  for _, _, quantile, value, count in geom["ticks"]]
         traces.append(go.Scatter(
             x=[t[0] for t in geom["ticks"]],

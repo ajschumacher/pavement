@@ -11,7 +11,7 @@ select it with ``hv.extension(...)`` first, as usual.
 
 A pavement row is built from three overlaid components: a borderless
 `holoviews.Rectangles` of the equal-mass bins (a hover target carrying
-each bin's value range, quantile band, and value count), and two `holoviews.Segments`
+each bin's value range, percentile band, and value share), and two `holoviews.Segments`
 — the quantile ticks and the box edges. Keeping the lines separate from
 the fill means the ticks and box share one consistent style; a repeated
 quantile value (data piled up) simply extends its own tick into a
@@ -129,7 +129,7 @@ def _row_geometry(
     extra = () if group is None else (group,)
 
     # Fills: one borderless rectangle per equal-mass bin, a hover target
-    # reading as a quantile band, a value range, and a value count.
+    # reading as a value range, a percentile band, and a value share.
     fills: list[tuple] = []
     for b in spec.bins:
         (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
@@ -318,9 +318,9 @@ def _plotly_hover_layer(
     hold hover, and its plotly Scatter exposes no tooltip control. So for
     plotly we overlay a dense line of invisible markers down the row's
     value axis (the bins stack along it at one position) and use a render
-    hook to inject a hovertemplate and each marker's bin's quantile band
-    and value range as customdata — the same display strings, in the same
-    order, as bokeh's glyph hover.
+    hook to inject a hovertemplate and each marker's bin's value range,
+    percentile band, and value share as customdata — the same display
+    strings, in the same order, as bokeh's glyph hover.
 
     The hook finds its own trace by matching the markers' value-axis
     coordinates (distinctive per row) against either trace axis —
@@ -352,7 +352,8 @@ def _plotly_hover_layer(
                     0, len(low) - 1)
     fields = hover_fields(group is not None)
     prefix = [str(group)] if group is not None else []
-    customdata = [prefix + [quantiles[i], values[i], counts[i]] for i in which]
+    # customdata order must match hover_fields: group?, value, percentile, count.
+    customdata = [prefix + [values[i], quantiles[i], counts[i]] for i in which]
     template = "<br>".join(
         f"%{{customdata[{k}]}}" for k in range(len(fields))) + "<extra></extra>"
     constant = np.full(_HOVER_SAMPLES, position)

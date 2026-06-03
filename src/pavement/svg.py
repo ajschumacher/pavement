@@ -17,8 +17,8 @@ That makes it the natural fit for an inline sparkline:
   ``height: 1em; width: auto``, so ``spark(values)`` drops into a
   sentence and tracks the font size like a word.
 - **Interactive with zero JavaScript.** Every equal-mass bin is a hover
-  target carrying its quantile band and value range in a native
-  ``<title>`` tooltip — the same hover text the Bokeh and Plotly
+  target carrying its value range, percentile band, and value share in a
+  native ``<title>`` tooltip — the same hover text the Bokeh and Plotly
   backends show — and each quantile tick carries its single value. A
   small rug (``bins=None``) makes every value hoverable; a dense one
   falls back to a single whole-spark summary instead (see
@@ -46,7 +46,7 @@ from collections.abc import Iterable, Sequence
 from typing import Any, Literal
 from xml.sax.saxutils import escape, quoteattr
 
-from ._geometry import fmt, resolve_show_box, row_spec, ValueFormat
+from ._geometry import fmt, pct, resolve_show_box, row_spec, ValueFormat
 from .core import _is_missing, pavement_stats, proportion_stats, tally_stats
 
 __all__ = ["spark", "tally", "proportion", "summary", "Summary"]
@@ -88,19 +88,6 @@ def _plural(noun: str) -> str:
     if noun.endswith('y') and noun[-2:-1] not in 'aeiou':
         return noun[:-1] + 'ies'
     return noun + 's'
-
-
-def _pct(count: int, total: int) -> str:
-    """Format a share as a whole-percent string for a tally tooltip.
-
-    A nonzero share that would round down to ``0%`` shows ``<1%`` instead,
-    so a real-but-tiny slice (a stray missing value among thousands) never
-    reads as nothing.
-    """
-    frac = count / total
-    if 0 < frac < 0.005:
-        return "<1%"
-    return f"{frac:.0%}"
 
 
 def _box_lengths(counts: list[int], span: float, min_box: float) -> list[float]:
@@ -215,9 +202,10 @@ def spark(
         If False, omit sizing and leave it to your own CSS.
     hover : bool, default: True
         If True, add native ``<title>`` tooltips (no JavaScript): per bin,
-        a quantile band, value range, and how many values fall strictly
-        inside it (``"3 of 20 values"``); per tick, its value and how many
-        values fall exactly on it (subject to *tick_hover_limit*). Every
+        its value range, percentile band, and the share of values falling
+        strictly inside it (``"1 to 2.5\\np0 to p25\\n15% (3 of 20
+        values)"``); per tick, its value, percentile, and the share of
+        values falling exactly on it (subject to *tick_hover_limit*). Every
         value is counted in exactly one bin or tick. When nothing finer is
         hoverable — a dense rug — a single whole-spark summary is used
         instead, so a spark is read value-by-value or summarised, never
@@ -311,12 +299,12 @@ def spark(
     if bins is not None:
         # Equal-mass bins: a translucent (or invisible) rect each, spanning
         # the box thickness. Drawn first so they sit behind the lines, and
-        # they double as hover targets — the band/range tooltip and the CSS
-        # highlight both attach here.
+        # they double as hover targets — the value-range/percentile/count
+        # tooltip and the CSS highlight both attach here.
         for b in spec.bins:
             x0, y0 = pt(position - half, b.low)
             x1, y1 = pt(position + half, b.high)
-            bin_text = b.band + chr(10) + b.value_range + chr(10) + b.count
+            bin_text = b.value_range + chr(10) + b.band + chr(10) + b.count
             title = f'<title>{escape(bin_text)}</title>' if hover else ''
             parts.append(rect(
                 x0, y0, x1, y1, cls=' class="pvbin"',
@@ -358,8 +346,11 @@ def spark(
         a = pt(position - t.reach, t.value)
         b = pt(position + t.reach, t.value)
         if per_tick_hover:
-            label = (t.quantile + chr(10) + t.value_str) if t.quantile \
-                else t.value_str
+            # value first, then the percentile cut point (absent for a
+            # single-value spark), then the count/share — the shared order.
+            label = t.value_str
+            if t.quantile:
+                label += chr(10) + t.quantile
             label += chr(10) + t.count
             marks.append(
                 '<g class="pvtick">'
@@ -523,9 +514,10 @@ def proportion(
     inline : bool, default: True
         If True, size the root so the strip drops into running text.
     hover : bool, default: True
-        If True, give each box a ``<title>`` tooltip — its share, value, and
-        count, e.g. ``'10% "dog"\\n10 of 100 values'``. The catch-all reports
-        the lumped share and how many distinct values it covers. False turns
+        If True, give each box a ``<title>`` tooltip — its value, then its
+        share and count, e.g. ``'dog\\n10% (10 of 100 values)'``. The
+        catch-all reports the lumped share and how many distinct values it
+        covers. False turns
         tooltips off.
     highlight : bool, default: True
         If True, add a scoped ``<style>`` that brightens the box under the
@@ -549,7 +541,7 @@ def proportion(
 
     See Also
     --------
-    tally : The distinct/repeated/missing companion strip.
+    tally : The distinct/duplicate/missing companion strip.
     pavement.core.proportion_stats : The value counts it draws.
     """
     stats = proportion_stats(data)
@@ -590,15 +582,15 @@ def proportion(
         if hover:
             if is_catch:
                 lumped = k - shown
-                text = (f"{_pct(count, total)} other\n"
-                        f"{count:,} of {total:,} {noun}\n"
+                text = (f"other\n"
+                        f"{pct(count, total)} ({count:,} of {total:,} {noun})\n"
                         f"(across {lumped:,} distinct values)")
             else:
                 value = str(items[index][0])
                 if value_crop is not None and len(value) > value_crop:
                     value = value[:value_crop] + "…"
-                text = (f'{_pct(count, total)} "{value}"\n'
-                        f"{count:,} of {total:,} {noun}")
+                text = (f"{value}\n"
+                        f"{pct(count, total)} ({count:,} of {total:,} {noun})")
             title = f'<title>{escape(text)}</title>'
         parts.append(
             f'<rect class="tvbox" x="{_num(x)}" y="{_num(y)}" '
@@ -664,7 +656,7 @@ def tally(
     different question. Where a spark summarizes the *distribution* of a
     numeric column, a tally summarizes the *column itself*: three boxes,
     sized in proportion to how many of the column's values are distinct
-    (leftmost), how many merely repeat a value already seen (middle), and
+    (leftmost), how many duplicate a value already seen (middle), and
     how many are missing (rightmost). It works on a column of any type, and
     surfaces exactly what a pavement plot can't — missing values and
     distinctness.
@@ -682,11 +674,12 @@ def tally(
         The column's values, of any type (see `tally_stats`).
     orientation : {'vertical', 'horizontal'}, default: 'horizontal'
         Box layout. 'horizontal' lays the boxes left-to-right
-        (distinct, repeated, missing); 'vertical' stacks them top-to-bottom
+        (distinct, duplicate, missing); 'vertical' stacks them top-to-bottom
         in the same order.
     distinct_color, repeated_color, missing_color : str
-        Any CSS color for each box. Default to a dark blue, a light blue,
-        and a muted dark red.
+        Any CSS color for each box (``repeated_color`` tints the
+        ``duplicate`` box). Default to a dark blue, a light blue, and a
+        muted dark red.
     line_color : str or None, default: None
         Color of an optional hairline outlining each box (and so separating
         adjacent boxes). The default, None, leaves the boxes borderless,
@@ -710,10 +703,11 @@ def tally(
         If True, set ``height``/``width``/``vertical-align`` on the root so
         the strip drops into running text and sits on the baseline.
     hover : bool, default: True
-        If True, give each box a ``<title>`` tooltip — its share and count,
-        e.g. ``"60% distinct\\n3 of 5 entries"``. The distinct box adds a
-        line for how many of those entries appear exactly once, e.g.
-        ``"(2 appearing once)"``. False turns tooltips off.
+        If True, give each box a ``<title>`` tooltip — its label, then its
+        share and count, e.g. ``"distinct\\n60% (3 of 5 entries)"``. The
+        distinct box adds a line for how many of those entries appear
+        exactly once, e.g. ``"(2 appearing once)"``. False turns tooltips
+        off.
     highlight : bool, default: True
         If True, add a scoped ``<style>`` that brightens the box under the
         cursor — a cue that the strip is interactive.
@@ -762,7 +756,7 @@ def tally(
 
     segments = [(label, color, count) for label, color, count in (
         ('distinct', distinct_color, counts['distinct']),
-        ('repeated', repeated_color, counts['repeated']),
+        ('duplicate', repeated_color, counts['repeated']),
         ('missing', missing_color, counts['missing']),
     ) if count > 0]  # a category with no values draws no box
     lengths = _box_lengths([count for _, _, count in segments], span, min_box)
@@ -777,7 +771,7 @@ def tally(
             x, y, w, h = 0.0, offset, view_w, length
         title = ''
         if hover:
-            text = f"{_pct(count, total)} {label}\n{count:,} of {total:,} {word}"
+            text = f"{label}\n{pct(count, total)} ({count:,} of {total:,} {word})"
             if label == 'distinct':  # how many of the distinct values are singletons
                 text += f"\n({counts['once']:,} appearing once)"
             title = f'<title>{escape(text)}</title>'
@@ -803,7 +797,7 @@ def tally(
     if inline:
         root_style += f'height:{height};width:auto;vertical-align:-0.15em;'
     label = (f"column tally: {counts['distinct']} distinct, "
-             f"{counts['repeated']} repeated, {counts['missing']} missing "
+             f"{counts['repeated']} duplicate, {counts['missing']} missing "
              f"of {total} {word}")
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
@@ -1010,7 +1004,7 @@ def summary(
     The compact, at-a-glance view to reach for when data first lands. It pairs
     the column-summary strips of this module into a borderless, headerless
     table — one row per column, each showing its `tally` (how much of it is
-    distinct, repeated, or missing) beside its distribution. The distribution
+    distinct, duplicate, or missing) beside its distribution. The distribution
     is a pavement `spark` for a numeric column and a `proportion` strip for a
     categorical one, so every column gets a distribution view where a pavement
     alone would leave the categorical ones blank. Every box is hoverable for
@@ -1026,7 +1020,7 @@ def summary(
       installed). Renders one row per column, under a top row summarizing the
       frame as a whole: its label is the row count, and its tally treats each
       *whole row*
-      as the entity, so "repeated" means a duplicated row and "missing" a row
+      as the entity, so "duplicate" means a duplicated row and "missing" a row
       that is entirely blank. That row's distribution cell is left empty (a
       frame has no single distribution).
     - **A Series or 1D sequence** — a pandas ``Series``, a list, a numpy
@@ -1070,7 +1064,7 @@ def summary(
 
     See Also
     --------
-    tally : The distinct/repeated/missing strip in each row.
+    tally : The distinct/duplicate/missing strip in each row.
     proportion : The categorical distribution strip.
     spark : The numeric distribution sparkline.
     """

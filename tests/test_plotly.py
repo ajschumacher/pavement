@@ -84,24 +84,24 @@ def test_one_fill_trace_per_bin():
 def test_box_hover_is_band_and_range():
     fills = [t for t in pavement_traces([1, 2, 3, 4, 5], bins=4)
              if t.fill == "toself"]
-    # Each box hovers (anywhere inside) its quantile band, value range, and
-    # how many values fall strictly inside it — the same layout as the other
-    # backends. With one value per quantile, every value is on a tick, so the
-    # boxes hold none.
-    assert fills[0].text == "0% to 25%<br>1 to 2<br>0 of 5 values"
-    assert fills[-1].text == "75% to 100%<br>4 to 5<br>0 of 5 values"
+    # Each box hovers (anywhere inside) its value range, percentile band, and
+    # the share of values falling strictly inside it — the same layout as the
+    # other backends. With one value per quantile, every value is on a tick,
+    # so the boxes hold none.
+    assert fills[0].text == "1 to 2<br>p0 to p25<br>0% (0 of 5 values)"
+    assert fills[-1].text == "4 to 5<br>p75 to p100<br>0% (0 of 5 values)"
     assert fills[0].hoveron == "fills"
     assert fills[0].hovertemplate == "%{text}<extra></extra>"
 
 
 def test_tick_hover_is_single_quantile_and_value():
     ticks = _tick_trace(pavement_traces([1, 2, 3, 4, 5], bins=4))
-    # A tick hovers its single quantile, value, and how many values fall on
+    # A tick hovers its value, percentile, and the share of values falling on
     # it — the rug-style read.
     assert list(ticks.text) == [
-        "0%<br>1<br>1 of 5 values", "25%<br>2<br>1 of 5 values",
-        "50%<br>3<br>1 of 5 values", "75%<br>4<br>1 of 5 values",
-        "100%<br>5<br>1 of 5 values"]
+        "1<br>p0<br>20% (1 of 5 values)", "2<br>p25<br>20% (1 of 5 values)",
+        "3<br>p50<br>20% (1 of 5 values)", "4<br>p75<br>20% (1 of 5 values)",
+        "5<br>p100<br>20% (1 of 5 values)"]
     assert ticks.hovertemplate == "%{text}<extra></extra>"
 
 
@@ -115,19 +115,19 @@ def test_named_hover_leads_with_name():
 
 def test_value_format_customizes_value_strings():
     # A custom value_format reformats the value strings in both hover
-    # layers (box ranges and tick values); the quantiles are unchanged.
+    # layers (box ranges and tick values); the percentiles are unchanged.
     traces = pavement_traces([1, 2, 3, 4, 5], bins=4,
                              value_format=lambda v: f"${v:.2f}")
     fill = next(t for t in traces if t.fill == "toself")
     ticks = _tick_trace(traces)
-    assert fill.text == "0% to 25%<br>$1.00 to $2.00<br>0 of 5 values"
-    assert list(ticks.text)[0] == "0%<br>$1.00<br>1 of 5 values"
+    assert fill.text == "$1.00 to $2.00<br>p0 to p25<br>0% (0 of 5 values)"
+    assert list(ticks.text)[0] == "$1.00<br>p0<br>20% (1 of 5 values)"
 
 
 def test_value_format_threads_through_plot():
     fig = plot([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
     fills = _fill_traces(fig)
-    assert fills[0].text == "0% to 25%<br>$1.00 to $2.00<br>0 of 5 values"
+    assert fills[0].text == "$1.00 to $2.00<br>p0 to p25<br>0% (0 of 5 values)"
 
 
 def test_horizontal_swaps_axes():
