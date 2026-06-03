@@ -169,9 +169,10 @@ label shows the value count instead. Numeric values give a spark:</p>
 <p>Everything above is just <code>str(pavement.summary(...))</code> dropped
 into this page. In Jupyter you skip the <code>str()</code> — the last line of
 a cell, <code>pavement.summary(df)</code>, renders the table inline on its
-own. And for pandas, <code>import pavement.pandas</code> adds a
-<code>.pave</code> accessor: <code>df.pave()</code>,
-<code>df.pave.spark("age")</code>, <code>df.pave.tally("plan")</code> — or
+own. And for pandas or polars, <code>import pavement.pandas</code> (or
+<code>import pavement.polars</code>) adds a <code>.pave</code> accessor:
+<code>df.pave()</code>, <code>df.pave.spark("age")</code>,
+<code>df.pave.tally("plan")</code> — or
 <code>pavement.pandas.enable_repr()</code> to make the summary every
 DataFrame's default preview.</p>
 

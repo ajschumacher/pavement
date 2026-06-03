@@ -899,21 +899,26 @@ def _row_key(row: Iterable[Any]) -> Any:
 def _as_columns(data: Any) -> tuple[list[Any], list[list[Any]]] | None:
     """Pull ``(names, columns)`` out of a dataframe-like input, else ``None``.
 
-    Handles a plain ``dict`` of column name -> values and a pandas-style
-    DataFrame (anything exposing both ``.columns`` and an ``.items()`` that
-    yields name/column pairs). Returns ``None`` for everything else — a
-    Series, list, array, or other 1D sequence — which `summary` treats as a
-    single column. Each column is materialized as a list of its values.
+    Handles a plain ``dict`` of column name -> values, a pandas-style DataFrame
+    (anything exposing both ``.columns`` and an ``.items()`` yielding
+    name/column pairs), and a polars DataFrame (``.columns`` plus
+    ``.get_columns()``). Returns ``None`` for everything else — a Series, list,
+    array, or other 1D sequence — which `summary` treats as a single column.
+    Each column is materialized as a list of its values.
     """
     if isinstance(data, dict):
         return list(data.keys()), [list(values) for values in data.values()]
-    if hasattr(data, 'columns') and hasattr(data, 'items'):  # e.g. a DataFrame
+    if hasattr(data, 'columns') and hasattr(data, 'items'):  # pandas DataFrame
         names: list[Any] = []
         columns: list[list[Any]] = []
         for name, column in data.items():
             names.append(name)
             columns.append(list(column))
         return names, columns
+    if hasattr(data, 'columns') and hasattr(data, 'get_columns'):  # polars
+        # get_columns() returns Series; to_list() maps nulls to None and a
+        # float NaN to nan, both of which `_is_missing` already handles.
+        return list(data.columns), [s.to_list() for s in data.get_columns()]
     return None
 
 
@@ -1013,10 +1018,11 @@ def summary(
 
     What *data* may be:
 
-    - **A dataframe** — a pandas ``DataFrame``, or a plain ``dict`` mapping
-      column name to a sequence of values (handy with no pandas installed).
-      Renders one row per column, under a top row summarizing the frame as a
-      whole: its label is the row count, and its tally treats each *whole row*
+    - **A dataframe** — a pandas or polars ``DataFrame``, or a plain ``dict``
+      mapping column name to a sequence of values (handy with neither
+      installed). Renders one row per column, under a top row summarizing the
+      frame as a whole: its label is the row count, and its tally treats each
+      *whole row*
       as the entity, so "repeated" means a duplicated row and "missing" a row
       that is entirely blank. That row's distribution cell is left empty (a
       frame has no single distribution).

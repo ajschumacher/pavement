@@ -7,7 +7,7 @@ function you're calling; the common `plot` parameters are shared across backends
 - [`plot` (all backends)](#plot-all-backends)
 - [matplotlib-only: `plot2d`, `margin`, `spark`](#matplotlib-only)
 - [`pavement.svg`: `spark`, `tally`, `proportion`, `summary`](#pavementsvg)
-- [`pavement.pandas`: the `.pave` accessor + `enable_repr`](#pavementpandas)
+- [`pavement.pandas` / `pavement.polars`: the `.pave` accessor + `enable_repr`](#pavementpandas--pavementpolars)
 - [Interactive builders: `with_marginals`, `pavement_traces`/`glyphs`/`elements`, `add_pavement`](#interactive-builders)
 - [Statistics (top level)](#statistics-top-level)
 
@@ -95,15 +95,17 @@ over *whole rows*, where "missing" is an all-blank row). `data` may be a pandas
 `pavement.summary`. A numeric column's resolution auto-scales by distinct-value count: a
 rug (≤24), then 4, 8 (>96), and 16 (>384) equal-mass bins. `color` tints the numeric sparks.
 
-## `pavement.pandas`
+## `pavement.pandas` / `pavement.polars`
 
 ```python
 import pavement.pandas    # needs pandas; registers the .pave accessor on import
+import pavement.polars    # the polars counterpart — identical API
 ```
 
-Importing the module registers a `.pave` accessor on pandas `DataFrame` and `Series` (via
-pandas' `register_*_accessor`, so it's namespaced). Activates on this import only, never on
-a bare `import pavement`.
+Importing either module registers a `.pave` accessor on that library's `DataFrame` and
+`Series` (via pandas' `register_*_accessor` / polars' `register_*_namespace`, so it's
+namespaced). Activates on its own import only, never on a bare `import pavement`. The two
+read identically (and `pavement.summary(df)` already accepts a frame from either directly).
 
 - `df.pave(**kw)` and `df.pave.summary(**kw)` → `pavement.summary(df, **kw)` (a `Summary`).
 - `df.pave.spark(col, **kw)` → a numeric column's `spark` (missing values dropped first).
@@ -114,8 +116,8 @@ The single-column helpers return the glyph's `<svg>` string wrapped in a `str` s
 it renders inline in Jupyter yet still behaves as the plain string (embed/save) elsewhere.
 
 ### `enable_repr(series=True, **summary_kwargs)` / `disable_repr()`
-Register/unregister an IPython HTML formatter so every `DataFrame` (and, unless
-`series=False`, every `Series`) displays as its `pavement.summary` in the notebook —
+On each module, register/unregister an IPython HTML formatter so every `DataFrame` (and,
+unless `series=False`, every `Series`) displays as its `pavement.summary` in the notebook —
 **replacing** the normal data-table preview (opt-in). `summary_kwargs` (e.g. `height`,
 `color`) are forwarded. Raises `RuntimeError` outside a running IPython/Jupyter session.
 

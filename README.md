@@ -138,13 +138,14 @@ rest of `pavement.svg` it is pure SVG with no dependencies and no JavaScript;
 `str()` gives the HTML fragment and `path="summary.html"` saves a standalone
 page. See `examples/summary_demo.py`.
 
-### Tighter pandas integration (`import pavement.pandas`)
+### Tighter dataframe integration (`pavement.pandas`, `pavement.polars`)
 
-For pandas users, importing `pavement.pandas` registers a `.pave` accessor on
-`DataFrame` and `Series` (through pandas' official accessor API, so it's
-namespaced and won't clash), putting the strips a method away:
+For pandas or polars users, importing `pavement.pandas` (or `pavement.polars`)
+registers a `.pave` accessor on `DataFrame` and `Series` — through each
+library's own accessor/namespace API, so it's namespaced and won't clash —
+putting the strips a method away:
 
-    import pavement.pandas        # registers .pave (needs pandas)
+    import pavement.pandas        # registers .pave (or: import pavement.polars)
 
     df.pave()                     # the whole-frame summary, rendered inline
     df.pave.summary()             # the same, spelled out
@@ -153,18 +154,19 @@ namespaced and won't clash), putting the strips a method away:
     df.pave.proportion("plan")    # a column's value-counts strip
     df["price"].pave.spark()      # on a Series, the helpers take no column name
 
-The single-column helpers return the glyph's `<svg>` string, but wrapped so it
-*also* renders inline in a notebook (it's a `str` subclass, so it still embeds
-and saves like the plain string elsewhere). You can also make the summary a
-frame's default notebook display — strictly opt-in, since it *replaces* the
-usual data-table preview:
+The two read identically; `pavement.summary(df)` itself also accepts a frame
+from either library directly. The single-column helpers return the glyph's
+`<svg>` string, but wrapped so it *also* renders inline in a notebook (it's a
+`str` subclass, so it still embeds and saves like the plain string elsewhere).
+You can also make the summary a frame's default notebook display — strictly
+opt-in, since it *replaces* the usual data-table preview:
 
     pavement.pandas.enable_repr()    # every DataFrame/Series previews as a summary
-    pavement.pandas.disable_repr()   # restore pandas' normal display
+    pavement.pandas.disable_repr()   # restore the library's normal display
 
-The integration activates on `import pavement.pandas` (never on a bare `import
-pavement`), in the spirit of `import hvplot.pandas`, so the core package stays
-dependency-free.
+The integration activates on `import pavement.pandas` / `import pavement.polars`
+(never on a bare `import pavement`), in the spirit of `import hvplot.pandas`, so
+the core package stays dependency-free.
 
 
 ## Interactive plots (Plotly)
