@@ -9,9 +9,9 @@ description: >-
   the matplotlib, Bokeh, Plotly, HoloViews, or dependency-free SVG backends. Use it even
   when the user just says "pavement plot", imports `pavement.matplotlib`/`.bokeh`/
   `.plotly`/`.holoviews`/`.svg`, or asks for `spark`, `plot2d`, `margin`, `with_marginals`,
-  `tally`, `proportion`, or `summary` (an inline dataframe summary) — these are
-  pavement-specific APIs that are easy to get subtly wrong from memory, so consult this
-  skill rather than guessing the call shape.
+  `tally`, `proportion`, `summary` (an inline dataframe summary), or the pandas `.pave`
+  accessor — these are pavement-specific APIs that are easy to get subtly wrong from
+  memory, so consult this skill rather than guessing the call shape.
 ---
 
 # pavement plots
@@ -125,6 +125,13 @@ pavement.summary(df)                          # whole-dataframe summary table
 categorical), plus a top row summarizing the whole frame (row count + a whole-row tally).
 It accepts a pandas `DataFrame`/`Series`, a `dict` of columns, or a 1D sequence, and
 renders inline in Jupyter (it returns a `Summary` with `_repr_html_`; `str()` is the HTML).
+
+For pandas specifically, prefer the accessor: `import pavement.pandas` registers `.pave`
+on `DataFrame`/`Series`, so `df.pave()` is the summary, `df.pave.summary()` the same, and
+`df.pave.spark("col")` / `.tally("col")` / `.proportion("col")` give a single column's
+strip (a Series' helpers take no column name). `pavement.pandas.enable_repr()` /
+`disable_repr()` make the summary a frame's default inline display (opt-in; it replaces the
+data table). The accessor activates on `import pavement.pandas`, like `import hvplot.pandas`.
 
 **Plotly, Bokeh, HoloViews** each add `with_marginals(...)`, which adjoins pavement
 strips to a scatter (x on top, y on the right) — a richer rug, color-matched to the
