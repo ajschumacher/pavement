@@ -214,9 +214,11 @@ def spark(
         so the spark drops into running text and sits on the baseline.
         If False, omit sizing and leave it to your own CSS.
     hover : bool, default: True
-        If True, add native ``<title>`` tooltips (no JavaScript): a
-        quantile band and value range per bin, and a single value per
-        tick (subject to *tick_hover_limit*). When nothing finer is
+        If True, add native ``<title>`` tooltips (no JavaScript): per bin,
+        a quantile band, value range, and how many values fall strictly
+        inside it (``"3 of 20 values"``); per tick, its value and how many
+        values fall exactly on it (subject to *tick_hover_limit*). Every
+        value is counted in exactly one bin or tick. When nothing finer is
         hoverable — a dense rug — a single whole-spark summary is used
         instead, so a spark is read value-by-value or summarised, never
         both. False turns all tooltips off.
@@ -262,7 +264,7 @@ def spark(
     values = pavement_stats(data, bins=bins, weights=weights)
     position = 1.0
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers, value_format)
+                    whisker_extent, show_whiskers, value_format, data=data)
     fmt_value = value_format or fmt
     reach = max(t.reach for t in spec.ticks)
     half = spec.half
@@ -314,7 +316,8 @@ def spark(
         for b in spec.bins:
             x0, y0 = pt(position - half, b.low)
             x1, y1 = pt(position + half, b.high)
-            title = (f'<title>{escape(b.band + chr(10) + b.value_range)}</title>'
+            title = (f'<title>{escape(b.band + chr(10) + b.value_range
+                                       + chr(10) + b.count)}</title>'
                      if hover else '')
             parts.append(rect(
                 x0, y0, x1, y1, cls=' class="pvbin"',
@@ -358,6 +361,7 @@ def spark(
         if per_tick_hover:
             label = (t.quantile + chr(10) + t.value_str) if t.quantile \
                 else t.value_str
+            label += chr(10) + t.count
             marks.append(
                 '<g class="pvtick">'
                 + stroke_line(*a, *b, attrs=' class="pvmark"')

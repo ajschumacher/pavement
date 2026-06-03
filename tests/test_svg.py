@@ -95,6 +95,24 @@ def test_spark_hover_adds_band_tooltip():
     assert "0% to 25%" in out                # a quantile band
 
 
+def test_spark_hover_adds_value_count_line():
+    # Each bin tooltip ends with how many values fall strictly inside it,
+    # and each tick tooltip with how many fall exactly on it — every value
+    # counted once across the eight. The quantile edges land between points,
+    # so the interior bins hold two values and the extremes sit on ticks.
+    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=4)
+    assert "0% to 25%\n1 to 2.5\n1 of 8 values" in out   # a bin tooltip
+    assert "2 of 8 values" in out                        # a fuller interior bin
+    assert "0%\n1\n1 of 8 values" in out                 # the min, on its tick
+
+
+def test_spark_rug_tick_hover_includes_count():
+    # A small rug is hoverable value-by-value; each tooltip ends with the
+    # value's own count (one each, here).
+    out = spark([10, 20, 30, 40, 50], bins=None)
+    assert "50%\n30\n1 of 5 values" in out   # the median value, on its tick
+
+
 def test_spark_hover_false_omits_titles():
     assert "<title>" not in spark([1, 2, 3, 4, 5], hover=False)
 

@@ -84,19 +84,24 @@ def test_one_fill_trace_per_bin():
 def test_box_hover_is_band_and_range():
     fills = [t for t in pavement_traces([1, 2, 3, 4, 5], bins=4)
              if t.fill == "toself"]
-    # Each box hovers (anywhere inside) its quantile band and value range,
-    # the same layout as the other backends.
-    assert fills[0].text == "0% to 25%<br>1 to 2"
-    assert fills[-1].text == "75% to 100%<br>4 to 5"
+    # Each box hovers (anywhere inside) its quantile band, value range, and
+    # how many values fall strictly inside it — the same layout as the other
+    # backends. With one value per quantile, every value is on a tick, so the
+    # boxes hold none.
+    assert fills[0].text == "0% to 25%<br>1 to 2<br>0 of 5 values"
+    assert fills[-1].text == "75% to 100%<br>4 to 5<br>0 of 5 values"
     assert fills[0].hoveron == "fills"
     assert fills[0].hovertemplate == "%{text}<extra></extra>"
 
 
 def test_tick_hover_is_single_quantile_and_value():
     ticks = _tick_trace(pavement_traces([1, 2, 3, 4, 5], bins=4))
-    # A tick hovers its single quantile and value — the rug-style read.
+    # A tick hovers its single quantile, value, and how many values fall on
+    # it — the rug-style read.
     assert list(ticks.text) == [
-        "0%<br>1", "25%<br>2", "50%<br>3", "75%<br>4", "100%<br>5"]
+        "0%<br>1<br>1 of 5 values", "25%<br>2<br>1 of 5 values",
+        "50%<br>3<br>1 of 5 values", "75%<br>4<br>1 of 5 values",
+        "100%<br>5<br>1 of 5 values"]
     assert ticks.hovertemplate == "%{text}<extra></extra>"
 
 
@@ -115,14 +120,14 @@ def test_value_format_customizes_value_strings():
                              value_format=lambda v: f"${v:.2f}")
     fill = next(t for t in traces if t.fill == "toself")
     ticks = _tick_trace(traces)
-    assert fill.text == "0% to 25%<br>$1.00 to $2.00"
-    assert list(ticks.text)[0] == "0%<br>$1.00"
+    assert fill.text == "0% to 25%<br>$1.00 to $2.00<br>0 of 5 values"
+    assert list(ticks.text)[0] == "0%<br>$1.00<br>1 of 5 values"
 
 
 def test_value_format_threads_through_plot():
     fig = plot([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
     fills = _fill_traces(fig)
-    assert fills[0].text == "0% to 25%<br>$1.00 to $2.00"
+    assert fills[0].text == "0% to 25%<br>$1.00 to $2.00<br>0 of 5 values"
 
 
 def test_horizontal_swaps_axes():

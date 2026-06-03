@@ -155,7 +155,7 @@ def test_pavement_has_hover_by_default():
     fig = plot([1, 2, 3, 4, 5])
     hovers = fig.select(HoverTool)
     assert len(hovers) == 1
-    assert hovers[0].tooltips == "@quantiles<br>@values"
+    assert hovers[0].tooltips == "@quantiles<br>@values<br>@counts"
 
 
 def test_pavement_hover_can_be_disabled():
@@ -180,7 +180,8 @@ def test_pavement_legend_toggles_whole_row():
 
 def test_pavement_named_hover_leads_with_group():
     fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
-    assert fig.select(HoverTool)[0].tooltips == "@group<br>@quantiles<br>@values"
+    assert fig.select(HoverTool)[0].tooltips == \
+        "@group<br>@quantiles<br>@values<br>@counts"
 
 
 def test_pavement_tidy_splits_by_category():
