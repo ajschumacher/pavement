@@ -24,6 +24,14 @@
       "expected_output": "Code that uses `import pavement.matplotlib as pavement` and calls pavement.plot(values, bins=None) to get a rug. Should know bins=None produces the rug; should not pass an invalid argument. Ideally does not add show_box=True (the rug drops the box edges by default, which is what reads as a rug plot).",
       "files": [],
       "assertions": []
+    },
+    {
+      "id": 3,
+      "name": "inline-dataframe-summary",
+      "prompt": "I just loaded a pandas DataFrame `df` in a Jupyter notebook and want a quick at-a-glance overview of every column inline in the cell — how much of each column is missing or repeated, and the shape of its distribution. What's the one-liner?",
+      "expected_output": "Code that calls pavement.summary(df) (either `import pavement; pavement.summary(df)` or `import pavement.svg as pavement; pavement.summary(df)`) as the last line of the cell so its _repr_html_ renders the table inline. Should know summary takes the whole DataFrame directly (not a per-column loop), and should NOT wrap it in print()/str() or invent a non-existent API like df.pavement() or pavement.plot for this.",
+      "files": [],
+      "assertions": []
     }
   ]
 }

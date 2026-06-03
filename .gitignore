@@ -22,3 +22,6 @@ value_format_demo.html
 
 # Output of examples/column_summary_demo.py
 column_summary_demo.html
+
+# Output of examples/summary_demo.py
+summary_demo.html

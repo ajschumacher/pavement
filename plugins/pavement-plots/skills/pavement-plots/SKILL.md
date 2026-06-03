@@ -9,8 +9,9 @@ description: >-
   the matplotlib, Bokeh, Plotly, HoloViews, or dependency-free SVG backends. Use it even
   when the user just says "pavement plot", imports `pavement.matplotlib`/`.bokeh`/
   `.plotly`/`.holoviews`/`.svg`, or asks for `spark`, `plot2d`, `margin`, `with_marginals`,
-  `tally`, or `proportion` — these are pavement-specific APIs that are easy to get subtly
-  wrong from memory, so consult this skill rather than guessing the call shape.
+  `tally`, `proportion`, or `summary` (an inline dataframe summary) — these are
+  pavement-specific APIs that are easy to get subtly wrong from memory, so consult this
+  skill rather than guessing the call shape.
 ---
 
 # pavement plots
@@ -110,12 +111,20 @@ pavement.spark(values, path="spark.png")    # word-sized borderless raster image
 ```python
 import pavement.svg as pavement
 html = pavement.spark([1, 2, 3, 4, 5])      # returns an "<svg>...</svg>" string
-html = pavement.tally(["a", "a", "b", None]) # per-value categorical strip
-html = pavement.proportion(category_labels)  # proportion-of-each-category strip
+html = pavement.tally(["a", "a", "b", None]) # distinct/repeated/missing strip
+html = pavement.proportion(category_labels)  # value-counts strip (à la value_counts)
+pavement.summary(df)                          # whole-dataframe summary table
 ```
 `spark` defaults to `currentColor` (inherits text color, dark-mode friendly) and
 `height="1em"` (scales with text). Each equal-mass bin is a hover target with a native
 `<title>` tooltip. Pass `path="spark.svg"`/`"spark.html"` to save.
+
+`summary(data)` is the headline data-summary call (also re-exported as top-level
+`pavement.summary`): it returns a one-row-per-column HTML table pairing each column's
+`tally` with its distribution (a `spark` for numeric columns, a `proportion` for
+categorical), plus a top row summarizing the whole frame (row count + a whole-row tally).
+It accepts a pandas `DataFrame`/`Series`, a `dict` of columns, or a 1D sequence, and
+renders inline in Jupyter (it returns a `Summary` with `_repr_html_`; `str()` is the HTML).
 
 **Plotly, Bokeh, HoloViews** each add `with_marginals(...)`, which adjoins pavement
 strips to a scatter (x on top, y on the right) — a richer rug, color-matched to the
