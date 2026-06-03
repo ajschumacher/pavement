@@ -44,8 +44,8 @@ def _missing(value):
 # ---------------------------------------------------------------------------
 # A made-up "dataframe" as a plain dict of columns (no pandas needed). The mix
 # is the point: numeric and not, clean and not, and — among the numeric ones —
-# a spread of distinct-value counts, so the summary's auto-resolution shows a
-# rug, then 4, 8, and 16 equal-mass bins as the columns get richer.
+# a spread of total value counts, so the summary's auto-resolution shows rugs
+# for small columns and 4, 8, or 16 equal-mass bins as the columns get larger.
 # ---------------------------------------------------------------------------
 people = {
     # A unique key: every row distinct, nothing missing.
@@ -53,10 +53,10 @@ people = {
     # Few levels, lots of repeats, a little missing -> a proportion strip.
     "plan": [rng.choice(["free", "free", "free", "pro", "pro", "team", None])
              for _ in range(N)],
-    # ~6 distinct values -> a rug (every value its own hoverable tick).
+    # ~450 values present (10% missing) -> 16 equal-mass bins.
     "rating": [rng.choice([1, 2, 3, 4, 5]) if rng.random() > 0.1 else NA
                for _ in range(N)],
-    # ~40 distinct integer ages -> 4 equal-mass bins.
+    # ~475 values present (5% missing) -> 16 equal-mass bins.
     "age": [NA if rng.random() < 0.05 else round(rng.gauss(38, 11))
             for _ in range(N)],
     # A date column -> a pavement laid out on a time axis (dates in the
@@ -68,9 +68,9 @@ people = {
     "session_duration": [datetime.timedelta(
                              seconds=max(30, round(rng.expovariate(1 / 1800))))
                          for _ in range(N)],
-    # Heavily skewed, many distinct values -> 8 bins shows the long right tail.
+    # Heavily skewed, 500 values -> 16 bins shows the long right tail.
     "purchases": [round(rng.expovariate(1 / 30), 1) for _ in range(N)],
-    # Continuous, essentially all distinct -> the full 16-bin pavement.
+    # Continuous, 500 values -> the full 16-bin pavement.
     "latency_ms": [round(rng.lognormvariate(3, 0.6), 2) for _ in range(N)],
     # Free-text-ish, high cardinality, a chunk missing -> proportion catch-all.
     "referrer": [None if rng.random() < 0.2 else
@@ -192,11 +192,10 @@ JavaScript. Hover any strip for its share, value, and count.</p>
 <p>One row per column, under a top row for the frame as a whole: its
 <strong>{len(next(iter(people.values())))} rows</strong>, and a tally that
 treats each <em>whole row</em> as the entity. Numeric columns get a pavement
-<strong>spark</strong> whose resolution adapts to how many distinct values
-they have — a rug for <code>rating</code>, then more equal-mass bins through
-<code>age</code>, <code>purchases</code>, and <code>latency_ms</code>. Dates
-work too: <code>signup_date</code> is laid out on a time axis (hover for the
-dates). Durations too: <code>session_duration</code> shows timedeltas on a
+<strong>spark</strong> whose resolution adapts to how many values are present —
+a rug for 24 or fewer, then 4, 8, or 16 equal-mass bins for larger columns.
+Dates work too: <code>signup_date</code> is laid out on a time axis (hover for
+the dates). Durations too: <code>session_duration</code> shows timedeltas on a
 duration axis (e.g. <em>1d 02:00</em>). Categorical columns get a
 <strong>proportion</strong> strip, and <code>legacy_field</code> shows what an
 almost-all-missing column looks like.</p>

@@ -31,17 +31,17 @@ def _titles(html):
 
 
 # ---------------------------------------------------------------------------
-# Bin selection: rug up to 24, then 4 / 8 / 16
+# Bin selection: rug up to 24, then 4 / 8 / 16 based on total value count
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("distinct, expected", [
+@pytest.mark.parametrize("n, expected", [
     (1, None), (24, None),          # rug while few enough to read tick-by-tick
-    (25, 4), (95, 4),               # then four equal-mass bins
-    (96, 8), (383, 8),              # eight past 96 distinct
-    (384, 16), (10_000, 16),        # sixteen past 384, and capped there
+    (25, 4), (96, 4),               # then four equal-mass bins up to 96
+    (97, 8), (256, 8),              # eight bins up to 256
+    (257, 16), (10_000, 16),        # sixteen past 256, and capped there
 ])
-def test_choose_bins_thresholds(distinct, expected):
-    assert _choose_bins(distinct) == expected
+def test_choose_bins_thresholds(n, expected):
+    assert _choose_bins(n) == expected
 
 
 def test_choose_bins_rug_limit_matches_spark_tick_hover_limit():
