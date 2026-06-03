@@ -64,6 +64,10 @@ people = {
     "signup_date": [datetime.date(2023, 1, 1)
                     + datetime.timedelta(days=round(730 * rng.random() ** 2))
                     for _ in range(N)],
+    # A timedelta column -> a pavement on a duration axis (e.g. "1d 03:45").
+    "session_duration": [datetime.timedelta(
+                             seconds=max(30, round(rng.expovariate(1 / 1800))))
+                         for _ in range(N)],
     # Heavily skewed, many distinct values -> 8 bins shows the long right tail.
     "purchases": [round(rng.expovariate(1 / 30), 1) for _ in range(N)],
     # Continuous, essentially all distinct -> the full 16-bin pavement.
@@ -126,6 +130,37 @@ call on a real <code>DataFrame</code>.)</em></p>
 """
 
 
+# Optionally show numpy datetime64 / timedelta64 arrays directly (no pandas
+# needed), if numpy is installed.
+numpy_section = ""
+try:
+    import numpy as np
+
+    events = {
+        "event_time": [
+            np.datetime64("2024-01-01", "s") + np.timedelta64(i * 3600, "s")
+            for i in range(N)
+        ],
+        "response_delay": [
+            np.timedelta64(max(1, round(rng.expovariate(1 / 60))), "s")
+            for _ in range(N)
+        ],
+    }
+    numpy_section = f"""
+<h2>Numpy <code>datetime64</code> and <code>timedelta64</code> arrays</h2>
+<p>Raw numpy arrays work too — no pandas or polars needed.
+<code>datetime64</code> columns land on a time axis; <code>timedelta64</code>
+columns show durations (e.g. <em>00:01</em> for one minute).</p>
+{pavement.summary(events)}
+"""
+except ImportError:
+    numpy_section = """
+<h2>Numpy arrays</h2>
+<p><em>(Install numpy to see <code>datetime64</code> and
+<code>timedelta64</code> arrays as pavement sparks.)</em></p>
+"""
+
+
 PAGE = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <title>pavement.summary — inline dataframe summaries</title>
@@ -161,8 +196,10 @@ treats each <em>whole row</em> as the entity. Numeric columns get a pavement
 they have — a rug for <code>rating</code>, then more equal-mass bins through
 <code>age</code>, <code>purchases</code>, and <code>latency_ms</code>. Dates
 work too: <code>signup_date</code> is laid out on a time axis (hover for the
-dates). Categorical columns get a <strong>proportion</strong> strip, and
-<code>legacy_field</code> shows what an almost-all-missing column looks like.</p>
+dates). Durations too: <code>session_duration</code> shows timedeltas on a
+duration axis (e.g. <em>1d 02:00</em>). Categorical columns get a
+<strong>proportion</strong> strip, and <code>legacy_field</code> shows what an
+almost-all-missing column looks like.</p>
 {pavement.summary(people)}
 
 <h2>A single Series</h2>
@@ -171,7 +208,7 @@ label shows the value count instead. Numeric values give a spark:</p>
 {pavement.summary(daily_signups)}
 <p>…and categorical values give a proportion strip:</p>
 {pavement.summary(survey)}
-{pandas_section}
+{pandas_section}{numpy_section}
 <h2>In a notebook</h2>
 <p>Everything above is just <code>str(pavement.summary(...))</code> dropped
 into this page. In Jupyter you skip the <code>str()</code> — the last line of
