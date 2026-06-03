@@ -316,9 +316,8 @@ def spark(
         for b in spec.bins:
             x0, y0 = pt(position - half, b.low)
             x1, y1 = pt(position + half, b.high)
-            title = (f'<title>{escape(b.band + chr(10) + b.value_range
-                                       + chr(10) + b.count)}</title>'
-                     if hover else '')
+            bin_text = b.band + chr(10) + b.value_range + chr(10) + b.count
+            title = f'<title>{escape(bin_text)}</title>' if hover else ''
             parts.append(rect(
                 x0, y0, x1, y1, cls=' class="pvbin"',
                 extra=f'fill="{fill_paint}" fill-opacity="{_num(rest_opacity)}" '
