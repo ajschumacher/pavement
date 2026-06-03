@@ -41,8 +41,10 @@ Examples
 
 from __future__ import annotations
 
+import datetime as _dt
 import numbers
 from collections.abc import Iterable, Sequence
+from decimal import Decimal
 from typing import Any, Literal
 from xml.sax.saxutils import escape, quoteattr
 
@@ -138,6 +140,55 @@ def _box_lengths(counts: list[int], span: float, min_box: float) -> list[float]:
             for i in range(k)]
 
 
+def _to_epoch(value: _dt.date) -> float:
+    """A ``date`` or ``datetime`` as POSIX seconds — a monotonic float the
+    pavement geometry can use and average."""
+    if isinstance(value, _dt.datetime):
+        return value.timestamp()
+    return _dt.datetime(value.year, value.month, value.day).timestamp()
+
+
+def _project(data: list[Any]) -> tuple[list[Any], ValueFormat | None]:
+    """Map an ordered, non-float family onto a numeric axis for the pavement,
+    with a default tooltip formatter that renders the values back.
+
+    A pavement is a number line, but the SVG geometry needs plain floats and
+    the Type-2 quantile midpoint needs values it can average — neither of which
+    a ``datetime`` (you can't add two) or a ``Decimal`` (``Decimal * float``
+    raises) supports directly. So:
+
+    - real numbers (``int``/``float``/numpy scalars) pass through untouched;
+    - ``Decimal`` becomes ``float``;
+    - a ``date``/``datetime`` (including pandas ``Timestamp`` and polars
+      temporals) becomes POSIX seconds, paired with a formatter that shows the
+      quantile values as dates — or date-times, when any value carries a time
+      of day.
+
+    Anything else is returned unchanged. *data* is assumed non-empty and of a
+    single family (as `summary` guarantees via `_pavement_column`); the first
+    element picks the branch. Returns ``(values, value_format_or_None)``.
+    """
+    sample = data[0]
+    if isinstance(sample, numbers.Real):       # int/float/bool/numpy reals
+        return data, None
+    if isinstance(sample, Decimal):
+        return [float(v) for v in data], None
+    if isinstance(sample, _dt.date):           # date or datetime (a subclass)
+        seconds = [_to_epoch(v) for v in data]
+        with_time = any(
+            isinstance(v, _dt.datetime)
+            and (v.hour or v.minute or v.second or v.microsecond) for v in data)
+        if with_time:
+            def show(s: float) -> str:
+                return _dt.datetime.fromtimestamp(s).isoformat(
+                    sep=' ', timespec='minutes')
+        else:
+            def show(s: float) -> str:
+                return _dt.datetime.fromtimestamp(s).date().isoformat()
+        return seconds, show
+    return data, None
+
+
 def spark(
     data: Iterable[float],
     weights: Sequence[float] | None = None,
@@ -172,7 +223,11 @@ def spark(
     Parameters
     ----------
     data : iterable of float
-        The values to summarize as a single pavement row.
+        The values to summarize as a single pavement row. Besides plain
+        numbers, an ordered non-float family is accepted and projected onto a
+        numeric axis: ``Decimal``, and ``date``/``datetime`` (including pandas
+        ``Timestamp`` and polars temporals), the latter shown as dates in the
+        tooltips by default (see *value_format* and `_project`).
     weights : sequence of float, optional
         Positive weights parallel to *data*.
     bins : int or None, default: 4
@@ -226,7 +281,10 @@ def spark(
         Function mapping a value to its tooltip display string, e.g.
         ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges, the
         per-tick values, and the whole-spark summary; defaults to 3
-        significant figures.
+        significant figures (or, for projected ``date``/``datetime`` data, to
+        a date renderer). If given, it overrides that default and receives the
+        *projected* numeric value for non-float input (POSIX seconds for
+        dates, ``float`` for ``Decimal``).
     tick_hover_limit : int or None, default: 24
         Cap on how many ticks (distinct values) get their own per-value
         tooltip. At or below it, each tick is individually hoverable; a
@@ -261,6 +319,12 @@ def spark(
     n = len(data)
     if n == 0:
         raise ValueError("data must be non-empty")
+    # Project an ordered non-float family (Decimal, date/datetime) onto a
+    # numeric axis, taking its renderer as the default tooltip format. A
+    # caller-supplied value_format still wins (and then receives the projected
+    # value); real numbers pass through unchanged.
+    data, projected_format = _project(data)
+    value_format = value_format or projected_format
     values = pavement_stats(data, bins=bins, weights=weights)
     position = 1.0
     spec = row_spec(values, position, width, orientation,
@@ -872,10 +936,21 @@ def _is_numeric(value: Any) -> bool:
     return not isinstance(value, bool) and isinstance(value, numbers.Real)
 
 
-def _numeric_column(present: list[Any]) -> bool:
-    """Whether a column's *present* (non-missing) values are all numeric — and
-    there is at least one — so it gets a pavement spark, not a proportion."""
-    return bool(present) and all(_is_numeric(v) for v in present)
+def _pavement_column(present: list[Any]) -> bool:
+    """Whether a column's *present* (non-missing) values are a single ordered
+    family a pavement can draw — all real numbers, all ``Decimal``, or all
+    ``date``/``datetime`` — so it gets a `spark` (which projects the non-float
+    families onto a number line, see `_project`) rather than a `proportion`.
+
+    Requiring one family keeps the projection well-defined and sends mixed or
+    un-orderable columns (and booleans, which read as a two-level category) to
+    a proportion instead.
+    """
+    if not present:
+        return False
+    return (all(_is_numeric(v) for v in present)
+            or all(isinstance(v, Decimal) for v in present)
+            or all(isinstance(v, _dt.date) for v in present))
 
 
 # A single canonical marker for a missing cell, so that two rows missing the
@@ -962,14 +1037,15 @@ def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any]) -> str:
 
 def _distribution_strip(values: list[Any], present: list[Any],
                         color: str, opts: dict[str, Any]) -> str:
-    """A column's distribution strip: a pavement spark when every present
-    value is numeric, otherwise a proportion strip. Empty when the column has
-    no present values — the tally already shows it is all missing (or empty),
-    and there is no distribution to draw.
+    """A column's distribution strip: a pavement spark when its present values
+    are an ordered family a pavement can draw (numbers, ``Decimal``, or
+    ``date``/``datetime``), otherwise a proportion strip. Empty when the column
+    has no present values — the tally already shows it is all missing (or
+    empty), and there is no distribution to draw.
     """
     if not present:
         return ''
-    if _numeric_column(present):
+    if _pavement_column(present):
         return spark(present, bins=_choose_bins(len(set(present))),
                      color=color, **opts)
     return proportion(values, **opts)
@@ -1011,10 +1087,12 @@ def summary(
     the column-summary strips of this module into a borderless, headerless
     table — one row per column, each showing its `tally` (how much of it is
     distinct, repeated, or missing) beside its distribution. The distribution
-    is a pavement `spark` for a numeric column and a `proportion` strip for a
-    categorical one, so every column gets a distribution view where a pavement
-    alone would leave the categorical ones blank. Every box is hoverable for
-    its exact share, value, and count.
+    is a pavement `spark` for an ordered column — numbers, ``Decimal``, or
+    ``date``/``datetime`` (a temporal column is projected onto a time axis, see
+    `_project`) — and a `proportion` strip for a categorical one, so every
+    column gets a distribution view where a pavement alone would leave the
+    categorical ones blank. Every box is hoverable for its exact share, value,
+    and count.
 
     The return value renders itself in Jupyter (via ``_repr_html_``), so
     ``pavement.summary(df)`` as the last line of a cell shows the table inline.
@@ -1035,10 +1113,10 @@ def summary(
       (e.g. ``"1,234 entries"`` — "entries", not "values", since the count
       includes any missing ones).
 
-    A numeric column's pavement resolution adapts to how many *distinct*
-    values it has: a rug (every value shown, each hoverable) up to 24, then
-    equal-mass bins — 4, then 8 past 96 distinct, then 16 past 384 — so a
-    small column reads value-by-value and a large one as a smooth shape.
+    A pavement column's resolution adapts to how many *distinct* values it has:
+    a rug (every value shown, each hoverable) up to 24, then equal-mass bins —
+    4, then 8 past 96 distinct, then 16 past 384 — so a small column reads
+    value-by-value and a large one as a smooth shape.
 
     Parameters
     ----------

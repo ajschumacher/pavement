@@ -70,7 +70,10 @@ in Jupyter), not a string.
 ### `spark(data, weights=None, bins=4, orientation="horizontal", width=0.6, whisker_extent=0.1, show_whiskers=True, show_box=None, color=None, fill_alpha=0.3, line_color=None, line_width=1.2, height="1em", inline=True, hover=True, value_format=None, tick_hover_limit=24, highlight=True, class_="pavement-spark", path=None)`
 Numeric sparkline. Defaults to `currentColor`, scales with text. `value_format` formats
 tooltip values (same callable as the interactive backends). `bins=None` makes a rug where
-each value is hoverable when few, or a single summary when many (`tick_hover_limit`).
+each value is hoverable when few, or a single summary when many (`tick_hover_limit`). Also
+accepts an ordered non-float family — `Decimal`, and `date`/`datetime` (incl. pandas
+`Timestamp` / polars temporals) — projecting it onto a numeric axis and rendering the
+tooltips as dates by default.
 
 ### `tally(data, orientation="horizontal", distinct_color=..., repeated_color=..., missing_color=..., line_color=None, line_width=1.0, min_box=3.0, height="1em", inline=True, hover=True, highlight=True, class_="pavement-tally", path=None)`
 Categorical strip over raw values: distinct vs repeated vs missing. `data` is any iterable
@@ -86,8 +89,9 @@ for its whole-frame tally.
 
 ### `summary(data, color=..., height="1.6em", hover=True, highlight=True, class_="pavement-summary", path=None)`
 A whole-dataframe / Series / sequence summary as one HTML `<table>`: a row per column
-pairing its `tally` with its distribution — a `spark` for numeric columns, a `proportion`
-for categorical. A dataframe adds a top row for the frame itself (its row count and a tally
+pairing its `tally` with its distribution — a `spark` for an ordered column (numbers,
+`Decimal`, or `date`/`datetime`, the temporal ones projected onto a time axis), a
+`proportion` for categorical. A dataframe adds a top row for the frame itself (its row count and a tally
 over *whole rows*, where "missing" is an all-blank row). `data` may be a pandas
 `DataFrame`/`Series`, a `dict` of column name → values, or a 1D sequence. Returns a
 `Summary` that renders inline in Jupyter (`_repr_html_`); `str()` gives the HTML fragment,
@@ -108,7 +112,7 @@ namespaced). Activates on its own import only, never on a bare `import pavement`
 read identically (and `pavement.summary(df)` already accepts a frame from either directly).
 
 - `df.pave(**kw)` and `df.pave.summary(**kw)` → `pavement.summary(df, **kw)` (a `Summary`).
-- `df.pave.spark(col, **kw)` → a numeric column's `spark` (missing values dropped first).
+- `df.pave.spark(col, **kw)` → a column's `spark` (numbers, `Decimal`, or dates; missing dropped first).
 - `df.pave.tally(col, **kw)` → a column's `tally`. `df.pave.proportion(col, **kw)` → its `proportion`.
 - On a Series the helpers take no column: `s.pave()`, `s.pave.spark()`, `s.pave.tally()`, `s.pave.proportion()`.
 

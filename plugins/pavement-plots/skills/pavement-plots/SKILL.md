@@ -121,8 +121,9 @@ pavement.summary(df)                          # whole-dataframe summary table
 
 `summary(data)` is the headline data-summary call (also re-exported as top-level
 `pavement.summary`): it returns a one-row-per-column HTML table pairing each column's
-`tally` with its distribution (a `spark` for numeric columns, a `proportion` for
-categorical), plus a top row summarizing the whole frame (row count + a whole-row tally).
+`tally` with its distribution (a `spark` for ordered columns — numbers, `Decimal`, or
+`date`/`datetime` — a `proportion` for categorical), plus a top row summarizing the whole
+frame (row count + a whole-row tally).
 It accepts a pandas `DataFrame`/`Series`, a `dict` of columns, or a 1D sequence, and
 renders inline in Jupyter (it returns a `Summary` with `_repr_html_`; `str()` is the HTML).
 
