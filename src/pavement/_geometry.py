@@ -40,6 +40,21 @@ def fmt(value: float) -> str:
     return f"{float(value):.3g}"
 
 
+def pct(count: int, total: int) -> str:
+    """Format a share as a whole-percent string for a hover line.
+
+    A nonzero share that would round down to ``0%`` shows ``<1%`` instead,
+    so a real-but-tiny slice (a stray value among thousands) never reads as
+    nothing. Shared by every hover that reports a count's share — the
+    pavement bins/ticks here and the tally/proportion strips in
+    `pavement.svg` — so they round and render percentages identically.
+    """
+    frac = count / total
+    if 0 < frac < 0.005:
+        return "<1%"
+    return f"{frac:.0%}"
+
+
 # A caller-supplied value formatter: maps one numeric value to its hover
 # display string. The package threads one of these from each backend's
 # public functions down into `row_spec`, defaulting to `fmt`. It formats
@@ -57,10 +72,11 @@ class Bin:
     """One equal-mass bin: a value-axis span plus its hover strings."""
     low: float            # value-axis low edge
     high: float           # value-axis high edge
-    band: str             # quantile-band hover string, e.g. "0% to 25%"
+    band: str             # percentile-band hover string, e.g. "p0 to p25"
     value_range: str      # value-range hover string, e.g. "1 to 2"
-    count: str = ""       # count hover string, e.g. "3 of 20 values" (the
-                          # data strictly inside the bin); "" if not computed
+    count: str = ""       # count hover string, e.g. "15% (3 of 20 values)"
+                          # (the data strictly inside the bin, and its share);
+                          # "" if not computed
 
 
 @dataclass
@@ -69,10 +85,11 @@ class Tick:
     value: float          # value-axis position of the tick
     reach: float          # half-extent on the perpendicular axis (a whisker
                           # when it exceeds the row half-width)
-    quantile: str         # quantile hover string ("25%" or "25% to 50%")
+    quantile: str         # percentile hover string ("p25" or "p25 to p50")
     value_str: str        # value hover string
-    count: str = ""       # count hover string, e.g. "5 of 20 values" (the
-                          # data exactly at this value); "" if not computed
+    count: str = ""       # count hover string, e.g. "25% (5 of 20 values)"
+                          # (the data exactly at this value, and its share);
+                          # "" if not computed
 
 
 @dataclass
@@ -112,13 +129,17 @@ def row_spec(
 
     *data*, if given, is the raw values the plot is drawn from — the
     non-missing values, of which there are ``len(data)``. When present, each
-    bin and tick gets a ``count`` hover string, ``"X of Y values"``, where Y
-    is ``len(data)`` and X is how many data points fall *strictly inside* the
-    bin (low < d < high) or fall *exactly* at the tick's value. Every data
-    point lands in exactly one bin or tick — a point on a bin edge is the
-    edge's tick, never either neighbouring bin — so the counts partition the
-    data. Counts are unweighted, even when *values* came from weighted
-    quantiles.
+    bin and tick gets a ``count`` hover string, ``"P% (X of Y values)"``,
+    where Y is ``len(data)``, X is how many data points fall *strictly
+    inside* the bin (low < d < high) or fall *exactly* at the tick's value,
+    and P is that share. Every data point lands in exactly one bin or tick —
+    a point on a bin edge is the edge's tick, never either neighbouring bin —
+    so the counts (and shares) partition the data. Counts are unweighted,
+    even when *values* came from weighted quantiles.
+
+    Percentile cut points are rendered ``"pNN"`` (a bin spans ``"p0 to
+    p25"``, a tick sits at ``"p25"``, a repeated tick spans ``"p25 to
+    p50"``), distinct from the count's ``"P%"`` share.
     """
     show = value_format or fmt
     n_bins = len(values) - 1
@@ -127,8 +148,12 @@ def row_spec(
     ordered = sorted(data) if data is not None else None
     total = len(ordered) if ordered is not None else 0
 
+    def pctl(frac: float) -> str:
+        """A percentile cut point, e.g. 0.25 -> ``"p25"``."""
+        return f"p{frac * 100:.0f}"
+
     def count(lo: float | None, hi: float | None, value: float | None) -> str:
-        """The ``"X of Y values"`` line: a strict ``lo``..``hi`` interior
+        """The ``"P% (X of Y values)"`` line: a strict ``lo``..``hi`` interior
         (a bin) or an exact ``value`` match (a tick). Empty without *data*."""
         if ordered is None:
             return ""
@@ -139,11 +164,12 @@ def row_spec(
             # repeated quantile value) has no strict interior, so clamp the
             # otherwise-negative difference to 0.
             x = max(0, bisect_left(ordered, hi) - bisect_right(ordered, lo))
-        return f"{x:,} of {total:,} {'value' if total == 1 else 'values'}"
+        noun = 'value' if total == 1 else 'values'
+        return f"{pct(x, total)} ({x:,} of {total:,} {noun})"
 
     bins: list[Bin] = []
     for i, (low, high) in enumerate(zip(values, values[1:])):
-        band = f"{i/n_bins:.0%} to {(i+1)/n_bins:.0%}" if n_bins else ""
+        band = f"{pctl(i/n_bins)} to {pctl((i+1)/n_bins)}" if n_bins else ""
         bins.append(Bin(low, high, band, f"{show(low)} to {show(high)}",
                         count(low, high, None)))
 
@@ -158,9 +184,9 @@ def row_spec(
         if not n_bins:
             quantile = ""
         elif repeated:
-            quantile = f"{i/n_bins:.0%} to {j/n_bins:.0%}"
+            quantile = f"{pctl(i/n_bins)} to {pctl(j/n_bins)}"
         else:
-            quantile = f"{i/n_bins:.0%}"
+            quantile = pctl(i/n_bins)
         ticks.append(Tick(values[i], reach, quantile, show(values[i]),
                           count(None, None, values[i])))
         i = j + 1
@@ -314,8 +340,8 @@ def resolve_colors(color: str | Sequence[str] | None, n: int,
 # ---------------------------------------------------------------------------
 
 def hover_fields(has_group: bool) -> list[str]:
-    """The hover field order every backend renders: group?, quantile, value, count."""
-    return (["group"] if has_group else []) + ["quantiles", "values", "counts"]
+    """The hover field order every backend renders: group?, value, percentile, count."""
+    return (["group"] if has_group else []) + ["values", "quantiles", "counts"]
 
 
 def complete_color_map(

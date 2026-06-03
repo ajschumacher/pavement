@@ -70,11 +70,11 @@ def test_fill_hover_is_band_and_range():
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], bins=4)
     data = rends["fills"].data_source.data
-    # Each box carries its quantile band and value range, the same layout as
-    # the other backends.
-    assert data["quantiles"][0] == "0% to 25%"
+    # Each box carries its value range and percentile band, the same layout
+    # as the other backends.
+    assert data["quantiles"][0] == "p0 to p25"
     assert data["values"][0] == "1 to 2"
-    assert data["quantiles"][-1] == "75% to 100%"
+    assert data["quantiles"][-1] == "p75 to p100"
     assert data["values"][-1] == "4 to 5"
 
 
@@ -82,19 +82,19 @@ def test_tick_hover_is_single_quantile_and_value():
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], bins=4)
     data = rends["ticks"].data_source.data
-    assert list(data["quantiles"]) == ["0%", "25%", "50%", "75%", "100%"]
+    assert list(data["quantiles"]) == ["p0", "p25", "p50", "p75", "p100"]
     assert list(data["values"]) == ["1", "2", "3", "4", "5"]
 
 
 def test_value_format_customizes_value_strings():
     # A custom value_format reformats the value strings on both hover
-    # sources (bin ranges and tick values); the quantiles are unchanged.
+    # sources (bin ranges and tick values); the percentiles are unchanged.
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], bins=4,
                             value_format=lambda v: f"${v:.2f}")
     assert rends["fills"].data_source.data["values"][0] == "$1.00 to $2.00"
     assert list(rends["ticks"].data_source.data["values"])[0] == "$1.00"
-    assert rends["fills"].data_source.data["quantiles"][0] == "0% to 25%"
+    assert rends["fills"].data_source.data["quantiles"][0] == "p0 to p25"
 
 
 def test_value_format_threads_through_plot():
@@ -155,7 +155,7 @@ def test_pavement_has_hover_by_default():
     fig = plot([1, 2, 3, 4, 5])
     hovers = fig.select(HoverTool)
     assert len(hovers) == 1
-    assert hovers[0].tooltips == "@quantiles<br>@values<br>@counts"
+    assert hovers[0].tooltips == "@values<br>@quantiles<br>@counts"
 
 
 def test_pavement_hover_can_be_disabled():
@@ -181,7 +181,7 @@ def test_pavement_legend_toggles_whole_row():
 def test_pavement_named_hover_leads_with_group():
     fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     assert fig.select(HoverTool)[0].tooltips == \
-        "@group<br>@quantiles<br>@values<br>@counts"
+        "@group<br>@values<br>@quantiles<br>@counts"
 
 
 def test_pavement_tidy_splits_by_category():

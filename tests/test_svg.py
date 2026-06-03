@@ -92,25 +92,26 @@ def test_spark_colored_rug_draws_single_fill():
 def test_spark_hover_adds_band_tooltip():
     out = spark([1, 2, 3, 4, 5], bins=4)
     assert "<title>" in out
-    assert "0% to 25%" in out                # a quantile band
+    assert "p0 to p25" in out                # a percentile band
 
 
 def test_spark_hover_adds_value_count_line():
-    # Each bin tooltip ends with how many values fall strictly inside it,
-    # and each tick tooltip with how many fall exactly on it — every value
+    # Each bin tooltip ends with the share of values strictly inside it, and
+    # each tick tooltip with the share falling exactly on it — every value
     # counted once across the eight. The quantile edges land between points,
     # so the interior bins hold two values and the extremes sit on ticks.
+    # Layout is value range, then percentile band, then share-and-count.
     out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=4)
-    assert "0% to 25%\n1 to 2.5\n1 of 8 values" in out   # a bin tooltip
-    assert "2 of 8 values" in out                        # a fuller interior bin
-    assert "0%\n1\n1 of 8 values" in out                 # the min, on its tick
+    assert "1 to 2.5\np0 to p25\n12% (1 of 8 values)" in out  # a bin tooltip
+    assert "25% (2 of 8 values)" in out                  # a fuller interior bin
+    assert "1\np0\n12% (1 of 8 values)" in out           # the min, on its tick
 
 
 def test_spark_rug_tick_hover_includes_count():
     # A small rug is hoverable value-by-value; each tooltip ends with the
-    # value's own count (one each, here).
+    # value's own share and count (one each, 20%, here).
     out = spark([10, 20, 30, 40, 50], bins=None)
-    assert "50%\n30\n1 of 5 values" in out   # the median value, on its tick
+    assert "30\np50\n20% (1 of 5 values)" in out   # the median value, on its tick
 
 
 def test_spark_hover_false_omits_titles():
@@ -119,10 +120,10 @@ def test_spark_hover_false_omits_titles():
 
 def test_spark_value_format_customizes_bin_tooltips():
     # A custom value_format reformats the value range in each bin's
-    # tooltip; the quantile band is unchanged.
+    # tooltip; the percentile band is unchanged.
     out = spark([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
     assert "$1.00 to $2.00" in out
-    assert "0% to 25%" in out
+    assert "p0 to p25" in out
 
 
 def test_spark_value_format_customizes_per_value_and_summary():
@@ -140,7 +141,7 @@ def test_spark_small_rug_has_per_value_tooltips():
     # is read value-by-value or summarised, never both.
     out = spark([10, 20, 30, 40, 50], bins=None)
     assert out.count("<title>") == 5           # 5 values, no summary
-    assert "50%\n30" in out                    # the median value at 50%
+    assert "30\np50" in out                    # the median value at p50
     assert "values," not in out                # no summary tooltip
 
 

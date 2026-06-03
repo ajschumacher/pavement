@@ -111,7 +111,7 @@ pavement.spark(values, path="spark.png")    # word-sized borderless raster image
 ```python
 import pavement.svg as pavement
 html = pavement.spark([1, 2, 3, 4, 5])      # returns an "<svg>...</svg>" string
-html = pavement.tally(["a", "a", "b", None]) # distinct/repeated/missing strip
+html = pavement.tally(["a", "a", "b", None]) # distinct/duplicate/missing strip
 html = pavement.proportion(category_labels)  # value-counts strip (à la value_counts)
 pavement.summary(df)                          # whole-dataframe summary table
 ```

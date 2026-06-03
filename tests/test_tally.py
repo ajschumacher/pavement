@@ -239,11 +239,13 @@ def test_tally_horizontal_viewbox():
 
 
 def test_tally_hover_text_has_share_and_count():
-    out = tally([1, 1, 2, 2, None])   # distinct 2/5, repeated 2/5, missing 1/5
-    assert "40% distinct" in out
-    assert "2 of 5 entries" in out
-    assert "20% missing" in out
-    assert "1 of 5 entries" in out
+    out = tally([1, 1, 2, 2, None])   # distinct 2/5, duplicate 2/5, missing 1/5
+    # label on its own line, then "P% (X of Y entries)". The middle box is
+    # labelled "duplicate" (not "repeated").
+    assert "distinct\n40% (2 of 5 entries)" in out
+    assert "duplicate\n40% (2 of 5 entries)" in out
+    assert "missing\n20% (1 of 5 entries)" in out
+    assert "repeated" not in out
 
 
 def test_tally_distinct_box_shows_appearing_once_line():
@@ -266,13 +268,14 @@ def test_tally_appearing_once_absent_when_hover_off():
 def test_tally_tiny_share_reads_as_lt_one_percent():
     data = list(range(1000)) + [None]   # 1 missing of 1001 ~ 0.1%
     out = tally(data)
-    assert "&lt;1% missing" in out      # "<" escaped in markup, shows as "<1%"
-    assert "1 of 1,001 entries" in out  # exact count still shown
+    # "<" escaped in markup, shows as "<1%"; exact count still in parens.
+    assert "missing\n&lt;1% (1 of 1,001 entries)" in out
 
 
 def test_tally_singular_entry_noun():
     out = tally([42])                 # one entry, all distinct
-    assert "1 of 1 entry\n" in out    # singular noun, no trailing "s"
+    assert "1 of 1 entry)" in out     # singular noun, no trailing "s"
+    assert "entries" not in out
 
 
 def test_tally_noun_override():
@@ -362,4 +365,4 @@ def test_tally_all_missing_is_single_full_box():
     assert out.count('class="tvbox"') == 1
     width = float(re.search(r'width="([-\d.]+)"', out).group(1))
     assert width == pytest.approx(140.0)
-    assert "100% missing" in out
+    assert "missing\n100% (3 of 3 entries)" in out

@@ -11,11 +11,11 @@ In a Jupyter notebook this is the whole story::
 it automatically. Outside a notebook (as here) ``str(summary(...))`` gives the
 same self-contained HTML fragment, which this script drops into a page.
 
-Each row pairs a column's **tally** (how much is distinct / repeated /
+Each row pairs a column's **tally** (how much is distinct / duplicate /
 missing) with its **distribution** — a pavement **spark** for a numeric
 column, a **proportion** strip for a categorical one. A dataframe gets a top
 row summarizing the frame itself: the row count, and a tally that treats each
-*whole row* as the entity (so "repeated" means a duplicated row and "missing"
+*whole row* as the entity (so "duplicate" means a duplicated row and "missing"
 a row that is entirely blank).
 
 Run it with no dependencies beyond the base install::
@@ -150,7 +150,7 @@ JavaScript. Hover any strip for its share, value, and count.</p>
 
 <p class="legend">tally:
   <span class="swatch" style="background:#2166ac"></span>distinct &nbsp;
-  <span class="swatch" style="background:#92c5de"></span>repeated &nbsp;
+  <span class="swatch" style="background:#92c5de"></span>duplicate &nbsp;
   <span class="swatch" style="background:#b2182b"></span>missing</p>
 
 <h2>A dataframe</h2>
