@@ -183,7 +183,7 @@ def spark(
     orientation: Literal['vertical', 'horizontal'] = 'horizontal',
     width: float = 0.6,
     whisker_extent: float = 0.1,
-    show_whiskers: bool = True,
+    show_whiskers: bool = False,
     show_box: bool | None = None,
     color: str | None = None,
     fill_alpha: float = 0.3,
@@ -229,7 +229,7 @@ def spark(
         stretched to fill the SVG.
     whisker_extent : float, default: 0.1
         How far whisker marks reach beyond the box at repeated values.
-    show_whiskers : bool, default: True
+    show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw the two long box edges (the borders parallel to

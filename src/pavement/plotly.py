@@ -167,7 +167,7 @@ def pavement_traces(
     position: float = 1,
     width: float = 0.6,
     whisker_extent: float = 0.1,
-    show_whiskers: bool = True,
+    show_whiskers: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     color: str | None = None,
@@ -202,7 +202,7 @@ def pavement_traces(
         Thickness of the row.
     whisker_extent : float, default: 0.1
         How far whisker marks extend beyond the box at repeated values.
-    show_whiskers : bool, default: True
+    show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw the two long box edges. None (the default) draws
@@ -316,7 +316,7 @@ def add_pavement(
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
-    show_whiskers: bool = True,
+    show_whiskers: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     color: str | Sequence[str] | None = None,
@@ -362,7 +362,7 @@ def add_pavement(
         Thickness of each row.
     whisker_extent : float, default: 0.1
         How far whisker marks extend beyond the box.
-    show_whiskers : bool, default: True
+    show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw each row's two long box edges. None (the default)
@@ -468,7 +468,7 @@ def plot(
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
     whisker_extent: float = 0.1,
-    show_whiskers: bool = True,
+    show_whiskers: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
@@ -513,7 +513,7 @@ def plot(
         Thickness of each row.
     whisker_extent : float, default: 0.1
         How far whisker marks extend beyond the box.
-    show_whiskers : bool, default: True
+    show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw each row's two long box edges. None (the default)
