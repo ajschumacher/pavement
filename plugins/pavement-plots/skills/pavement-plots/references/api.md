@@ -78,9 +78,10 @@ of values (strings, etc.).
 ### `proportion(data, orientation="horizontal", colors=..., other_color=..., max_boxes=12, min_box=3.0, catchall_tolerance=0.1, value_crop=128, line_color=None, line_width=1.0, height="1em", inline=True, hover=True, highlight=True, class_="pavement-proportion", path=None)`
 Proportion-of-each-category strip; the top `max_boxes` categories plus an "other" catch-all.
 
-`tally` also takes `noun="value"` — the singular noun for its tooltips/aria-label
-(pluralized for display, e.g. `entry`→`entries`); `summary` passes `"row"` for its
-whole-frame tally and `"entry"` for each column (a count that includes any missing).
+`tally` also takes `noun="entry"` — the singular noun for its tooltips/aria-label
+(pluralized for display, e.g. `entry`→`entries`). It defaults to `"entry"`, not `"value"`,
+because the count includes missing entries (which aren't values); `summary` passes `"row"`
+for its whole-frame tally.
 
 ### `summary(data, color=..., height="1.6em", hover=True, highlight=True, class_="pavement-summary", path=None)`
 A whole-dataframe / Series / sequence summary as one HTML `<table>`: a row per column

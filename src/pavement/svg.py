@@ -650,7 +650,7 @@ def tally(
     inline: bool = True,
     hover: bool = True,
     highlight: bool = True,
-    noun: str = 'value',
+    noun: str = 'entry',
     class_: str = 'pavement-tally',
     path: str | None = None,
 ) -> str:
@@ -708,17 +708,19 @@ def tally(
         the strip drops into running text and sits on the baseline.
     hover : bool, default: True
         If True, give each box a ``<title>`` tooltip — its share and count,
-        e.g. ``"60% distinct\\n3 of 5 values"``. The distinct box adds a
-        line for how many of those values appear exactly once, e.g.
+        e.g. ``"60% distinct\\n3 of 5 entries"``. The distinct box adds a
+        line for how many of those entries appear exactly once, e.g.
         ``"(2 appearing once)"``. False turns tooltips off.
     highlight : bool, default: True
         If True, add a scoped ``<style>`` that brightens the box under the
         cursor — a cue that the strip is interactive.
-    noun : str, default: 'value'
+    noun : str, default: 'entry'
         Singular noun for what each entry is, used in the tooltips and the
-        ``aria-label`` (e.g. ``"3 of 5 values"``); pluralized for display
-        (``entry`` -> ``entries``). `summary` passes ``'row'`` for the
-        whole-frame tally (entries are rows) and ``'entry'`` for a column.
+        ``aria-label`` (e.g. ``"3 of 5 entries"``); pluralized for display
+        (``entry`` -> ``entries``). The default is ``'entry'`` rather than
+        ``'value'`` because the count includes missing entries, which aren't
+        values. `summary` passes ``'row'`` for the whole-frame tally (entries
+        are rows).
     class_ : str, default: 'pavement-tally'
         CSS class on the root ``<svg>``, a hook for your own styling.
     path : str, optional
