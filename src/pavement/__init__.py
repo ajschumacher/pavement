@@ -21,10 +21,21 @@ Backends:
 
 Each plotting backend except `pavement.svg` is an optional dependency;
 install the ones you want with, e.g., ``pip install pavement[bokeh]``.
+
+One convenience is re-exported at the top level: `summary`, which renders a
+dataframe, Series, or sequence as an inline HTML summary table (tally plus
+distribution per column) that displays itself in Jupyter::
+
+    import pavement
+    pavement.summary(df)        # shows the table inline in a notebook cell
+
+It lives in `pavement.svg` (and so, like that backend, needs no extra), and
+is exposed here as the package's headline data-summary entry point.
 """
 
 from __future__ import annotations
 
 from .core import pavement_stats, pavement_stats2d, quantiles
+from .svg import summary
 
-__all__ = ["quantiles", "pavement_stats", "pavement_stats2d"]
+__all__ = ["quantiles", "pavement_stats", "pavement_stats2d", "summary"]

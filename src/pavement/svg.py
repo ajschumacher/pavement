@@ -41,14 +41,15 @@ Examples
 
 from __future__ import annotations
 
+import numbers
 from collections.abc import Iterable, Sequence
-from typing import Literal
+from typing import Any, Literal
 from xml.sax.saxutils import escape, quoteattr
 
 from ._geometry import fmt, resolve_show_box, row_spec, ValueFormat
-from .core import pavement_stats, proportion_stats, tally_stats
+from .core import _is_missing, pavement_stats, proportion_stats, tally_stats
 
-__all__ = ["spark", "tally", "proportion"]
+__all__ = ["spark", "tally", "proportion", "summary", "Summary"]
 
 # Internal coordinate box. The numbers only set coordinate resolution;
 # their ratio is the spark's default shape — a wide, word-like strip,
@@ -78,6 +79,15 @@ _PROP_OTHER = "#5995c5"
 def _num(value: float) -> str:
     """Format a coordinate compactly (no trailing zeros)."""
     return f"{value:.2f}".rstrip('0').rstrip('.')
+
+
+def _plural(noun: str) -> str:
+    """English plural of a count noun: a final consonant + ``y`` becomes
+    ``ies`` (``entry`` -> ``entries``), otherwise just add ``s`` (``row`` ->
+    ``rows``, ``value`` -> ``values``)."""
+    if noun.endswith('y') and noun[-2:-1] not in 'aeiou':
+        return noun[:-1] + 'ies'
+    return noun + 's'
 
 
 def _pct(count: int, total: int) -> str:
@@ -640,6 +650,7 @@ def tally(
     inline: bool = True,
     hover: bool = True,
     highlight: bool = True,
+    noun: str = 'entry',
     class_: str = 'pavement-tally',
     path: str | None = None,
 ) -> str:
@@ -697,12 +708,19 @@ def tally(
         the strip drops into running text and sits on the baseline.
     hover : bool, default: True
         If True, give each box a ``<title>`` tooltip — its share and count,
-        e.g. ``"60% distinct\\n3 of 5 values"``. The distinct box adds a
-        line for how many of those values appear exactly once, e.g.
+        e.g. ``"60% distinct\\n3 of 5 entries"``. The distinct box adds a
+        line for how many of those entries appear exactly once, e.g.
         ``"(2 appearing once)"``. False turns tooltips off.
     highlight : bool, default: True
         If True, add a scoped ``<style>`` that brightens the box under the
         cursor — a cue that the strip is interactive.
+    noun : str, default: 'entry'
+        Singular noun for what each entry is, used in the tooltips and the
+        ``aria-label`` (e.g. ``"3 of 5 entries"``); pluralized for display
+        (``entry`` -> ``entries``). The default is ``'entry'`` rather than
+        ``'value'`` because the count includes missing entries, which aren't
+        values. `summary` passes ``'row'`` for the whole-frame tally (entries
+        are rows).
     class_ : str, default: 'pavement-tally'
         CSS class on the root ``<svg>``, a hook for your own styling.
     path : str, optional
@@ -745,7 +763,7 @@ def tally(
         ('missing', missing_color, counts['missing']),
     ) if count > 0]  # a category with no values draws no box
     lengths = _box_lengths([count for _, _, count in segments], span, min_box)
-    noun = 'value' if total == 1 else 'values'
+    word = noun if total == 1 else _plural(noun)
 
     parts: list[str] = []
     offset = 0.0
@@ -756,7 +774,7 @@ def tally(
             x, y, w, h = 0.0, offset, view_w, length
         title = ''
         if hover:
-            text = f"{_pct(count, total)} {label}\n{count:,} of {total:,} {noun}"
+            text = f"{_pct(count, total)} {label}\n{count:,} of {total:,} {word}"
             if label == 'distinct':  # how many of the distinct values are singletons
                 text += f"\n({counts['once']:,} appearing once)"
             title = f'<title>{escape(text)}</title>'
@@ -783,7 +801,7 @@ def tally(
         root_style += f'height:{height};width:auto;vertical-align:-0.15em;'
     label = (f"column tally: {counts['distinct']} distinct, "
              f"{counts['repeated']} repeated, {counts['missing']} missing "
-             f"of {total} {noun}")
+             f"of {total} {word}")
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {_num(view_w)} {_num(view_h)}" '
@@ -801,3 +819,287 @@ def tally(
         with open(path, 'w', encoding='utf-8') as f:
             f.write(document)
     return svg
+
+
+# ---------------------------------------------------------------------------
+# Dataframe / series summary
+#
+# One inline HTML table that puts the three strips above to work together: a
+# row per column showing its `tally` (make-up) beside its distribution — a
+# pavement `spark` for a numeric column, a `proportion` strip for a
+# categorical one — topped, for a whole dataframe, by a row summarizing the
+# frame itself. It is the natural thing to glance at when a dataframe first
+# lands, and it renders inline in Jupyter through `Summary._repr_html_`.
+# ---------------------------------------------------------------------------
+
+# Choosing a numeric column's pavement resolution from how many *distinct*
+# values it holds. While they stay few enough to read one at a time a rug
+# shows them all — the limit matches `spark`'s tick_hover_limit, so every tick
+# is individually hoverable — and past that an equal-mass binned pavement,
+# doubling the bin count each time the distinct count quadruples, capped at 16
+# (finer bins don't read at a sparkline's size).
+_RUG_LIMIT = 24
+_BIN_THRESHOLDS = ((96, 4), (384, 8))  # distinct < cut -> that many bins
+_MAX_BINS = 16
+
+
+def _choose_bins(distinct: int) -> int | None:
+    """Bins for a numeric column's spark, from its distinct-value count.
+
+    None (a rug) up to ``_RUG_LIMIT``, then 4, 8, and a 16-bin cap — see the
+    reasoning on the module constants above.
+    """
+    if distinct <= _RUG_LIMIT:
+        return None
+    for cut, bins in _BIN_THRESHOLDS:
+        if distinct < cut:
+            return bins
+    return _MAX_BINS
+
+
+def _is_numeric(value: Any) -> bool:
+    """Whether one value is numeric enough for a pavement plot.
+
+    Real numbers only — ints, floats, ``Fraction``, and numpy's int/float
+    scalars (which register as ``numbers.Real``) — and explicitly *not*
+    booleans, which are technically ints but read as a two-level category,
+    better shown as a proportion. Strings, complex numbers, datetimes, and the
+    like are not numeric here and fall to a proportion plot.
+    """
+    return not isinstance(value, bool) and isinstance(value, numbers.Real)
+
+
+def _numeric_column(present: list[Any]) -> bool:
+    """Whether a column's *present* (non-missing) values are all numeric — and
+    there is at least one — so it gets a pavement spark, not a proportion."""
+    return bool(present) and all(_is_numeric(v) for v in present)
+
+
+# A single canonical marker for a missing cell, so that two rows missing the
+# *same* cells still compare equal (raw ``NaN`` never does), letting the
+# whole-row tally count them as repeats. Identity-based equality/hashing makes
+# it behave inside a row tuple.
+_ROW_MISSING = object()
+
+
+def _row_key(row: Iterable[Any]) -> Any:
+    """A hashable key for one dataframe row, for the whole-row tally.
+
+    Each missing cell collapses to one canonical marker, so two rows that
+    match — including in *where* they are missing — count as repeats rather
+    than distinct. A row whose cells are all missing returns ``None``, which
+    the tally counts as a missing entity (an all-blank row).
+    """
+    cells = [_ROW_MISSING if _is_missing(v) else v for v in row]
+    if all(c is _ROW_MISSING for c in cells):
+        return None
+    return tuple(cells)
+
+
+def _as_columns(data: Any) -> tuple[list[Any], list[list[Any]]] | None:
+    """Pull ``(names, columns)`` out of a dataframe-like input, else ``None``.
+
+    Handles a plain ``dict`` of column name -> values and a pandas-style
+    DataFrame (anything exposing both ``.columns`` and an ``.items()`` that
+    yields name/column pairs). Returns ``None`` for everything else — a
+    Series, list, array, or other 1D sequence — which `summary` treats as a
+    single column. Each column is materialized as a list of its values.
+    """
+    if isinstance(data, dict):
+        return list(data.keys()), [list(values) for values in data.values()]
+    if hasattr(data, 'columns') and hasattr(data, 'items'):  # e.g. a DataFrame
+        names: list[Any] = []
+        columns: list[list[Any]] = []
+        for name, column in data.items():
+            names.append(name)
+            columns.append(list(column))
+        return names, columns
+    return None
+
+
+# Inline styles, so the table is self-contained: it leans on none of the host
+# page's CSS and — unlike a <style> block — injects nothing global, which
+# matters for a fragment dropped into a notebook cell (and rendered again and
+# again). Each strip still carries its own scoped hover style inside its
+# <svg>. The grays are mid-tone, legible on light and dark themes alike.
+_TD = ('border:none;padding:.18em .8em .18em 0;text-align:left;'
+       'vertical-align:middle;white-space:nowrap;')
+_TD_TOTAL = _TD + 'border-bottom:1px solid rgba(128,128,128,.35);'
+_COUNT_STYLE = 'color:#888;'  # muted, for a "1,234 rows" / "1,234 values" cell
+_NAME_STYLE = ('font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
+               'monospace;font-size:.92em;')
+
+
+def _count_label(n: int, noun: str) -> str:
+    """A muted ``"1,234 rows"`` style count for a summary's label cell."""
+    return f'<span style="{_COUNT_STYLE}">{n:,} {noun if n == 1 else _plural(noun)}</span>'
+
+
+def _summary_row(label: str, tally_html: str, dist_html: str,
+                 *, total: bool = False) -> str:
+    """One table row: label cell, tally cell, distribution cell."""
+    td = _TD_TOTAL if total else _TD
+    return (f'<tr><td style="{td}">{label}</td>'
+            f'<td style="{td}">{tally_html}</td>'
+            f'<td style="{td}">{dist_html}</td></tr>')
+
+
+def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any]) -> str:
+    """A column's (or the whole frame's) tally strip — empty if there is
+    nothing to count (a zero-length column)."""
+    if not values:
+        return ''
+    return tally(values, noun=noun, **opts)
+
+
+def _distribution_strip(values: list[Any], present: list[Any],
+                        color: str, opts: dict[str, Any]) -> str:
+    """A column's distribution strip: a pavement spark when every present
+    value is numeric, otherwise a proportion strip. Empty when the column has
+    no present values — the tally already shows it is all missing (or empty),
+    and there is no distribution to draw.
+    """
+    if not present:
+        return ''
+    if _numeric_column(present):
+        return spark(present, bins=_choose_bins(len(set(present))),
+                     color=color, **opts)
+    return proportion(values, **opts)
+
+
+class Summary:
+    """The result of `summary`: an HTML table that renders inline in Jupyter.
+
+    Showing it in a notebook — or any tool honoring ``_repr_html_`` — displays
+    the table; ``str()`` returns the same HTML fragment, for embedding
+    elsewhere. (`summary`'s ``path=`` writes a standalone document to disk.)
+    """
+
+    def __init__(self, html: str) -> None:
+        self.html = html
+
+    def _repr_html_(self) -> str:
+        return self.html
+
+    def __str__(self) -> str:
+        return self.html
+
+    __repr__ = __str__
+
+
+def summary(
+    data: Any,
+    color: str = _TALLY_DISTINCT,
+    height: str = '1.6em',
+    hover: bool = True,
+    highlight: bool = True,
+    class_: str = 'pavement-summary',
+    path: str | None = None,
+) -> Summary:
+    """
+    Summarize a dataframe, Series, or sequence as one inline HTML table.
+
+    The compact, at-a-glance view to reach for when data first lands. It pairs
+    the column-summary strips of this module into a borderless, headerless
+    table — one row per column, each showing its `tally` (how much of it is
+    distinct, repeated, or missing) beside its distribution. The distribution
+    is a pavement `spark` for a numeric column and a `proportion` strip for a
+    categorical one, so every column gets a distribution view where a pavement
+    alone would leave the categorical ones blank. Every box is hoverable for
+    its exact share, value, and count.
+
+    The return value renders itself in Jupyter (via ``_repr_html_``), so
+    ``pavement.summary(df)`` as the last line of a cell shows the table inline.
+
+    What *data* may be:
+
+    - **A dataframe** — a pandas ``DataFrame``, or a plain ``dict`` mapping
+      column name to a sequence of values (handy with no pandas installed).
+      Renders one row per column, under a top row summarizing the frame as a
+      whole: its label is the row count, and its tally treats each *whole row*
+      as the entity, so "repeated" means a duplicated row and "missing" a row
+      that is entirely blank. That row's distribution cell is left empty (a
+      frame has no single distribution).
+    - **A Series or 1D sequence** — a pandas ``Series``, a list, a numpy
+      array, etc. Renders a single row. A bare sequence has no accessible
+      name, so where a column name would go it shows the entry count instead
+      (e.g. ``"1,234 entries"`` — "entries", not "values", since the count
+      includes any missing ones).
+
+    A numeric column's pavement resolution adapts to how many *distinct*
+    values it has: a rug (every value shown, each hoverable) up to 24, then
+    equal-mass bins — 4, then 8 past 96 distinct, then 16 past 384 — so a
+    small column reads value-by-value and a large one as a smooth shape.
+
+    Parameters
+    ----------
+    data : DataFrame, dict, Series, or sequence
+        The thing to summarize (see above).
+    color : str, default: the tally's dark blue
+        CSS color tinting the numeric distribution sparks, so they match the
+        tally's "distinct" box. The categorical proportion strips keep their
+        own alternating palette.
+    height : str, default: '1.6em'
+        CSS height of every strip. They share one aspect ratio, so a common
+        height makes the tally and distribution columns line up.
+    hover : bool, default: True
+        Whether the strips carry their native ``<title>`` tooltips.
+    highlight : bool, default: True
+        Whether the strips brighten the box under the cursor (scoped CSS).
+    class_ : str, default: 'pavement-summary'
+        CSS class on the ``<table>``, a hook for your own styling.
+    path : str, optional
+        If given, also write the markup here. A ``.html``/``.htm`` path is
+        wrapped in a minimal standalone document; any other suffix is written
+        as-is (the bare ``<table>`` fragment).
+
+    Returns
+    -------
+    Summary
+        An object that renders the table inline in Jupyter and whose ``str()``
+        is the HTML fragment.
+
+    See Also
+    --------
+    tally : The distinct/repeated/missing strip in each row.
+    proportion : The categorical distribution strip.
+    spark : The numeric distribution sparkline.
+    """
+    opts = {'height': height, 'hover': hover, 'highlight': highlight}
+    columns_data = _as_columns(data)
+    rows: list[str] = []
+
+    if columns_data is not None:
+        names, columns = columns_data
+        n_rows = len(columns[0]) if columns else 0
+        # The frame as a whole: the row count, and a tally over whole rows.
+        keys = [_row_key(row) for row in zip(*columns)] if columns else []
+        rows.append(_summary_row(
+            _count_label(n_rows, 'row'),
+            _tally_strip(keys, 'row', opts), '', total=True))
+        for name, values in zip(names, columns):
+            present = [v for v in values if not _is_missing(v)]
+            rows.append(_summary_row(
+                f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
+                _tally_strip(values, 'entry', opts),
+                _distribution_strip(values, present, color, opts)))
+    else:
+        values = list(data)
+        present = [v for v in values if not _is_missing(v)]
+        rows.append(_summary_row(
+            _count_label(len(values), 'entry'),
+            _tally_strip(values, 'entry', opts),
+            _distribution_strip(values, present, color, opts)))
+
+    table = (f'<table class={quoteattr(class_)} '
+             f'style="border-collapse:collapse;font-family:inherit;">'
+             f'{"".join(rows)}</table>')
+
+    if path is not None:
+        document = table
+        if path.endswith(('.html', '.htm')):
+            document = ('<!doctype html><meta charset="utf-8">'
+                        f'<body>{table}</body>')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(document)
+    return Summary(table)

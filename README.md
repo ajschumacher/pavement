@@ -106,6 +106,38 @@ or `path="spark.svg"` / `path="spark.html"` to save.
 This is the web counterpart of `pavement.matplotlib.spark`, which renders
 the same idea to a raster image for print.
 
+Alongside `spark`, `pavement.svg` has two column-summary strips in the same
+borderless form factor: `tally`, which shows how much of a column is
+distinct, repeated, or missing, and `proportion`, which shows its value
+counts (à la pandas `value_counts`) with a catch-all for a long tail. Both
+take a column of any type and return an `<svg>` string like `spark` does.
+
+
+## Dataframe summaries (`pavement.summary`)
+
+`pavement.summary` turns a whole dataframe, Series, or sequence into one
+inline HTML table — the thing to glance at when data first lands. Each
+column becomes a row pairing its **tally** (how much is distinct, repeated, or
+missing) with its **distribution**: a pavement spark for numeric columns and a
+proportion strip for categorical ones, so every column gets a distribution
+view where a pavement alone would leave the categorical rows blank. A
+dataframe is topped by a row summarizing the frame itself — its row count and
+a tally that treats each *whole row* as the entity, so "repeated" means a
+duplicated row and "missing" a row that is entirely blank.
+
+    import pavement
+    pavement.summary(df)        # renders inline in a Jupyter cell
+
+The result renders itself in Jupyter (via `_repr_html_`), so it appears on its
+own when it's the last line of a cell. `summary` accepts a pandas `DataFrame`
+or `Series`, a plain `dict` of columns (no pandas required), or any 1D
+sequence. A numeric column's resolution adapts to its number of distinct
+values — a rug when few, then 4, 8, or 16 equal-mass bins as it grows — so a
+small column reads value-by-value and a large one as a smooth shape. Like the
+rest of `pavement.svg` it is pure SVG with no dependencies and no JavaScript;
+`str()` gives the HTML fragment and `path="summary.html"` saves a standalone
+page. See `examples/summary_demo.py`.
+
 
 ## Interactive plots (Plotly)
 

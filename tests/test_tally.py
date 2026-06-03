@@ -241,9 +241,9 @@ def test_tally_horizontal_viewbox():
 def test_tally_hover_text_has_share_and_count():
     out = tally([1, 1, 2, 2, None])   # distinct 2/5, repeated 2/5, missing 1/5
     assert "40% distinct" in out
-    assert "2 of 5 values" in out
+    assert "2 of 5 entries" in out
     assert "20% missing" in out
-    assert "1 of 5 values" in out
+    assert "1 of 5 entries" in out
 
 
 def test_tally_distinct_box_shows_appearing_once_line():
@@ -267,12 +267,19 @@ def test_tally_tiny_share_reads_as_lt_one_percent():
     data = list(range(1000)) + [None]   # 1 missing of 1001 ~ 0.1%
     out = tally(data)
     assert "&lt;1% missing" in out      # "<" escaped in markup, shows as "<1%"
-    assert "1 of 1,001 values" in out   # exact count still shown
+    assert "1 of 1,001 entries" in out  # exact count still shown
 
 
-def test_tally_singular_value_noun():
-    out = tally([42])                # one value, all distinct
-    assert "1 of 1 value\n" in out   # singular noun, no trailing "s"
+def test_tally_singular_entry_noun():
+    out = tally([42])                 # one entry, all distinct
+    assert "1 of 1 entry\n" in out    # singular noun, no trailing "s"
+
+
+def test_tally_noun_override():
+    # The noun is configurable and pluralizes correctly (row -> rows).
+    out = tally([1, 2, 3], noun="row")
+    assert "3 of 3 rows" in out
+    assert "rows" in out and "entries" not in out
 
 
 def test_tally_hover_false_omits_titles():

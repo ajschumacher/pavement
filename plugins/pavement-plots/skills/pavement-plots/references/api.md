@@ -6,7 +6,7 @@ function you're calling; the common `plot` parameters are shared across backends
 ## Table of contents
 - [`plot` (all backends)](#plot-all-backends)
 - [matplotlib-only: `plot2d`, `margin`, `spark`](#matplotlib-only)
-- [`pavement.svg`: `spark`, `tally`, `proportion`](#pavementsvg)
+- [`pavement.svg`: `spark`, `tally`, `proportion`, `summary`](#pavementsvg)
 - [Interactive builders: `with_marginals`, `pavement_traces`/`glyphs`/`elements`, `add_pavement`](#interactive-builders)
 - [Statistics (top level)](#statistics-top-level)
 
@@ -60,9 +60,11 @@ returns the matplotlib `Figure`. (Web counterpart: `pavement.svg.spark`.)
 ```python
 import pavement.svg as pavement
 ```
-All three return a self-contained `<svg>...</svg>` **string** (no dependencies, no JS).
-Common kwargs: `orientation="horizontal"`, `height="1em"`, `inline=True`, `hover=True`,
-`highlight=True`, `class_=...`, `path=None` (save to `.svg`/`.html`).
+`spark`, `tally`, and `proportion` each return a self-contained `<svg>...</svg>` **string**
+(no dependencies, no JS). Common kwargs: `orientation="horizontal"`, `height="1em"`,
+`inline=True`, `hover=True`, `highlight=True`, `class_=...`, `path=None` (save to
+`.svg`/`.html`). `summary` returns a `Summary` object (an HTML table that renders inline
+in Jupyter), not a string.
 
 ### `spark(data, weights=None, bins=4, orientation="horizontal", width=0.6, whisker_extent=0.1, show_whiskers=True, show_box=None, color=None, fill_alpha=0.3, line_color=None, line_width=1.2, height="1em", inline=True, hover=True, value_format=None, tick_hover_limit=24, highlight=True, class_="pavement-spark", path=None)`
 Numeric sparkline. Defaults to `currentColor`, scales with text. `value_format` formats
@@ -75,6 +77,22 @@ of values (strings, etc.).
 
 ### `proportion(data, orientation="horizontal", colors=..., other_color=..., max_boxes=12, min_box=3.0, catchall_tolerance=0.1, value_crop=128, line_color=None, line_width=1.0, height="1em", inline=True, hover=True, highlight=True, class_="pavement-proportion", path=None)`
 Proportion-of-each-category strip; the top `max_boxes` categories plus an "other" catch-all.
+
+`tally` also takes `noun="entry"` — the singular noun for its tooltips/aria-label
+(pluralized for display, e.g. `entry`→`entries`). It defaults to `"entry"`, not `"value"`,
+because the count includes missing entries (which aren't values); `summary` passes `"row"`
+for its whole-frame tally.
+
+### `summary(data, color=..., height="1.6em", hover=True, highlight=True, class_="pavement-summary", path=None)`
+A whole-dataframe / Series / sequence summary as one HTML `<table>`: a row per column
+pairing its `tally` with its distribution — a `spark` for numeric columns, a `proportion`
+for categorical. A dataframe adds a top row for the frame itself (its row count and a tally
+over *whole rows*, where "missing" is an all-blank row). `data` may be a pandas
+`DataFrame`/`Series`, a `dict` of column name → values, or a 1D sequence. Returns a
+`Summary` that renders inline in Jupyter (`_repr_html_`); `str()` gives the HTML fragment,
+`path="summary.html"` saves a standalone page. Also re-exported as top-level
+`pavement.summary`. A numeric column's resolution auto-scales by distinct-value count: a
+rug (≤24), then 4, 8 (>96), and 16 (>384) equal-mass bins. `color` tints the numeric sparks.
 
 ## Interactive builders
 
