@@ -20,18 +20,18 @@ Each pavement row is drawn with plain Bokeh glyphs, so it carries its own
 hover and drops onto any figure:
 
 - one borderless filled `quad <bokeh.plotting.figure.quad>` per equal-mass bin,
-  hovering its quantile band, value range, and how many values fall inside it;
+  hovering its value range, percentile band, and the share of values inside it;
 - a `segment <bokeh.plotting.figure.segment>` of quantile ticks (reaching past
   the box into a whisker where a value repeats, so every line is drawn once),
-  each hovering its single quantile, value, and how many values fall on it —
+  each hovering its value, percentile, and the share of values on it —
   the rug-style read; and
 - a `segment <bokeh.plotting.figure.segment>` of the two box edges, purely
   visual, sharing the ticks' style.
 
-Hover reads the same as the other backends: the box hover is a quantile band,
-value range, and value count; the tick hover a single quantile, value, and
-count (both led by the row's name when it has one). Every value is counted in
-exactly one bin (strictly inside) or tick (exactly on it). Unlike Plotly's
+Hover reads the same as the other backends: the box hover is a value range,
+percentile band, and value share; the tick hover a single value, percentile,
+and share (both led by the row's name when it has one). Every value is counted
+in exactly one bin (strictly inside) or tick (exactly on it). Unlike Plotly's
 figure-level shapes, Bokeh glyphs hover directly, so no invisible marker layer
 is needed.
 
@@ -117,12 +117,12 @@ def _row_geometry(
     Returns a dict with:
 
     - ``bins``: one ``(left, right, bottom, top, band, value_range, count)``
-      per equal-mass bin — a `quad`'s extents plus its hover strings ("X% to
-      Y%", "X to Y", "N of M values").
+      per equal-mass bin — a `quad`'s extents plus its hover strings ("p0 to
+      p25", "X to Y", "P% (N of M values)").
     - ``ticks``: one ``(x0, y0, x1, y1, quantile, value, count)`` per distinct
       quantile value — a segment crossing the value axis, plus its rug-style
       hover strings. A repeated value reaches past the box as a whisker and
-      reads as a span ("X% to Y%"), so every line is drawn exactly once.
+      reads as a span ("p25 to p50"), so every line is drawn exactly once.
     - ``box``: the two long box edges as ``(x0, y0, x1, y1)`` segments,
       spanning the full value range — empty when *show_box* is False.
 
@@ -134,7 +134,7 @@ def _row_geometry(
                     whisker_extent, show_whiskers, value_format, data=data)
 
     # Bins: one borderless quad per equal-mass bin (left, right, bottom,
-    # top), carrying its quantile band, value range, and count for hover.
+    # top), carrying its value range, percentile band, and count for hover.
     bins: list[tuple[float, float, float, float, str, str, str]] = []
     for b in spec.bins:
         (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
@@ -430,12 +430,12 @@ def add_pavement(
 
     if hover:
         # One hover tool over every bin and tick. The bins and ticks share
-        # the column names 'quantiles', 'values', and 'counts' (and 'group'
+        # the column names 'values', 'quantiles', and 'counts' (and 'group'
         # when named), so a single tooltip template reads correctly off
-        # either: a hovered bin shows its band, value range, and how many
-        # values fall inside it; a hovered tick its single quantile, value,
-        # and how many values fall on it — the same layout and order as the
-        # other backends, led by the name when present.
+        # either: a hovered bin shows its value range, percentile band, and
+        # the share of values inside it; a hovered tick its value,
+        # percentile, and the share of values on it — the same layout and
+        # order as the other backends, led by the name when present.
         has_group = n > 1
         rows = ["@" + f for f in hover_fields(has_group)]
         fig.add_tools(HoverTool(

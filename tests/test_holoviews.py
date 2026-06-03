@@ -58,30 +58,30 @@ def test_elements_one_tick_per_distinct_value_with_whisker():
 
 def test_elements_box_hover_strings():
     els = pavement_elements([1, 2, 3, 4, 5], bins=4)
-    # A box reads as a quantile band and a value range, "X to Y" (no dash).
+    # A box reads as a value range "X to Y" (no dash) and a percentile band.
     assert list(els["fill"].dimension_values("quantiles")) == [
-        "0% to 25%", "25% to 50%", "50% to 75%", "75% to 100%"]
+        "p0 to p25", "p25 to p50", "p50 to p75", "p75 to p100"]
     assert list(els["fill"].dimension_values("values")) == [
         "1 to 2", "2 to 3", "3 to 4", "4 to 5"]
 
 
 def test_elements_line_hover_strings():
     els = pavement_elements([1, 2, 3, 4, 5], bins=4)
-    # A line (tick) reads as a single quantile and a single value.
+    # A line (tick) reads as a single value and a single percentile.
     assert list(els["ticks"].dimension_values("quantiles")) == [
-        "0%", "25%", "50%", "75%", "100%"]
+        "p0", "p25", "p50", "p75", "p100"]
     assert list(els["ticks"].dimension_values("values")) == [
         "1", "2", "3", "4", "5"]
 
 
 def test_value_format_customizes_value_strings():
     # A custom value_format reformats the value strings on both the fill
-    # and tick elements; the quantile strings are unchanged.
+    # and tick elements; the percentile strings are unchanged.
     els = pavement_elements([1, 2, 3, 4, 5], bins=4,
                             value_format=lambda v: f"${v:.2f}")
     assert list(els["fill"].dimension_values("values"))[0] == "$1.00 to $2.00"
     assert list(els["ticks"].dimension_values("values"))[0] == "$1.00"
-    assert list(els["fill"].dimension_values("quantiles"))[0] == "0% to 25%"
+    assert list(els["fill"].dimension_values("quantiles"))[0] == "p0 to p25"
 
 
 def test_value_format_threads_through_plot():
@@ -145,10 +145,10 @@ def test_pavement_bokeh_hover_is_clean_quantile_value_template():
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
     templates = {h.tooltips for h in hovers}
-    # Both fills and ticks hover the same quantile/value layout, stacked
-    # by line break, with no raw x0/y0/x1/y1 corners. (bokeh normalizes
-    # @field to @{field}.)
-    assert templates == {"@{quantiles}<br>@{values}<br>@{counts}"}
+    # Both fills and ticks hover the same value/percentile/count layout,
+    # stacked by line break, with no raw x0/y0/x1/y1 corners. (bokeh
+    # normalizes @field to @{field}.)
+    assert templates == {"@{values}<br>@{quantiles}<br>@{counts}"}
 
 
 def test_pavement_bokeh_group_hover_leads_with_group():
@@ -156,7 +156,7 @@ def test_pavement_bokeh_group_hover_leads_with_group():
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
     # With a group, it is the first hover line.
-    assert all(h.tooltips == "@{group}<br>@{quantiles}<br>@{values}<br>@{counts}"
+    assert all(h.tooltips == "@{group}<br>@{values}<br>@{quantiles}<br>@{counts}"
                for h in hovers)
 
 
@@ -356,14 +356,15 @@ def test_pavement_plotly_adds_invisible_hover_layer():
     hover = [t for t in fig["data"] if t.get("hovertemplate")]
     assert len(hover) == 1
     assert (hover[0].get("marker") or {}).get("opacity") == 0
-    # Same three-line quantile/value/count layout as bokeh, via customdata.
+    # Same three-line value/percentile/count layout as bokeh, via customdata.
     assert hover[0]["hovertemplate"] == (
         "%{customdata[0]}<br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>")
-    # The customdata carries the same display strings bokeh shows: the
-    # first sample falls in the first bin (0% to 25%, a value range, a count).
-    assert hover[0]["customdata"][0][0] == "0% to 25%"
-    assert " to " in hover[0]["customdata"][0][1]
-    assert hover[0]["customdata"][0][2].endswith(" values")
+    # The customdata carries the same display strings bokeh shows: the first
+    # sample falls in the first bin (a value range, the p0-to-p25 band, a
+    # share-and-count).
+    assert " to " in hover[0]["customdata"][0][0]
+    assert hover[0]["customdata"][0][1] == "p0 to p25"
+    assert hover[0]["customdata"][0][2].endswith(" values)")
     # A dense line of points (not one per bin) so hovering anywhere along
     # a bin works, each labelled by the bin it falls in.
     assert len(hover[0]["customdata"]) > 8

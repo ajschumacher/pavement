@@ -113,8 +113,8 @@ def test_proportion_most_common_is_leftmost_and_widest():
 
 def test_proportion_hover_text_mirrors_tally():
     out = proportion(['dog'] * 10 + ['x'] * 90)   # dog 10 of 100
-    assert '10% "dog"' in out
-    assert "10 of 100 values" in out
+    # value alone on the first line, then "P% (X of Y values)".
+    assert "dog\n10% (10 of 100 values)" in out
 
 
 def test_proportion_is_borderless_by_default():
@@ -265,5 +265,5 @@ def test_proportion_all_missing_raises():
 
 def test_proportion_singular_value_noun():
     out = proportion(['only'])
-    assert "1 of 1 value<" in out            # singular noun, no trailing "s"
-    assert '100% "only"' in out
+    assert "only\n100% (1 of 1 value)" in out   # singular noun, no trailing "s"
+    assert "values" not in out
