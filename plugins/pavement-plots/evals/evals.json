@@ -29,7 +29,15 @@
       "id": 3,
       "name": "inline-dataframe-summary",
       "prompt": "I just loaded a pandas DataFrame `df` in a Jupyter notebook and want a quick at-a-glance overview of every column inline in the cell — how much of each column is missing or repeated, and the shape of its distribution. What's the one-liner?",
-      "expected_output": "Code that calls pavement.summary(df) (either `import pavement; pavement.summary(df)` or `import pavement.svg as pavement; pavement.summary(df)`) as the last line of the cell so its _repr_html_ renders the table inline. Should know summary takes the whole DataFrame directly (not a per-column loop), and should NOT wrap it in print()/str() or invent a non-existent API like df.pavement() or pavement.plot for this.",
+      "expected_output": "Code that renders pavement.summary inline as the last line of the cell — either `import pavement; pavement.summary(df)` (equivalently via `pavement.svg`) or, using the pandas integration, `import pavement.pandas` then `df.pave()`. Should know it takes the whole DataFrame directly (not a per-column loop), and should NOT wrap it in print()/str() or invent a non-existent API like `df.pavement()` or `pavement.plot` for this. (`.pave` is correct only with `import pavement.pandas`.)",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 4,
+      "name": "pandas-pave-accessor",
+      "prompt": "Working with pandas in a notebook, I'd like pavement's strips to be available right off my DataFrames as a method — like `df.something.spark('price')` for one column — and ideally also have a whole-frame overview. How do I set that up?",
+      "expected_output": "Code that does `import pavement.pandas` to register the `.pave` accessor, then uses it: `df.pave.spark('price')` for a column sparkline, `df.pave.tally('col')` / `df.pave.proportion('col')` for the categorical strips, and `df.pave()` (or `df.pave.summary()`) for the whole-frame summary. Bonus if it mentions `pavement.pandas.enable_repr()` to make the summary the default DataFrame display. Should NOT monkeypatch pandas manually or claim a bare `import pavement` adds the accessor.",
       "files": [],
       "assertions": []
     }

@@ -7,6 +7,7 @@ function you're calling; the common `plot` parameters are shared across backends
 - [`plot` (all backends)](#plot-all-backends)
 - [matplotlib-only: `plot2d`, `margin`, `spark`](#matplotlib-only)
 - [`pavement.svg`: `spark`, `tally`, `proportion`, `summary`](#pavementsvg)
+- [`pavement.pandas`: the `.pave` accessor + `enable_repr`](#pavementpandas)
 - [Interactive builders: `with_marginals`, `pavement_traces`/`glyphs`/`elements`, `add_pavement`](#interactive-builders)
 - [Statistics (top level)](#statistics-top-level)
 
@@ -93,6 +94,30 @@ over *whole rows*, where "missing" is an all-blank row). `data` may be a pandas
 `path="summary.html"` saves a standalone page. Also re-exported as top-level
 `pavement.summary`. A numeric column's resolution auto-scales by distinct-value count: a
 rug (≤24), then 4, 8 (>96), and 16 (>384) equal-mass bins. `color` tints the numeric sparks.
+
+## `pavement.pandas`
+
+```python
+import pavement.pandas    # needs pandas; registers the .pave accessor on import
+```
+
+Importing the module registers a `.pave` accessor on pandas `DataFrame` and `Series` (via
+pandas' `register_*_accessor`, so it's namespaced). Activates on this import only, never on
+a bare `import pavement`.
+
+- `df.pave(**kw)` and `df.pave.summary(**kw)` → `pavement.summary(df, **kw)` (a `Summary`).
+- `df.pave.spark(col, **kw)` → a numeric column's `spark` (missing values dropped first).
+- `df.pave.tally(col, **kw)` → a column's `tally`. `df.pave.proportion(col, **kw)` → its `proportion`.
+- On a Series the helpers take no column: `s.pave()`, `s.pave.spark()`, `s.pave.tally()`, `s.pave.proportion()`.
+
+The single-column helpers return the glyph's `<svg>` string wrapped in a `str` subclass, so
+it renders inline in Jupyter yet still behaves as the plain string (embed/save) elsewhere.
+
+### `enable_repr(series=True, **summary_kwargs)` / `disable_repr()`
+Register/unregister an IPython HTML formatter so every `DataFrame` (and, unless
+`series=False`, every `Series`) displays as its `pavement.summary` in the notebook —
+**replacing** the normal data-table preview (opt-in). `summary_kwargs` (e.g. `height`,
+`color`) are forwarded. Raises `RuntimeError` outside a running IPython/Jupyter session.
 
 ## Interactive builders
 
