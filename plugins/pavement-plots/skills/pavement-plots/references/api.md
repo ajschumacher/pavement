@@ -73,7 +73,7 @@ tooltip values (same callable as the interactive backends). `bins=None` makes a 
 each value is hoverable when few, or a single summary when many (`tick_hover_limit`).
 
 ### `tally(data, orientation="horizontal", distinct_color=..., repeated_color=..., missing_color=..., line_color=None, line_width=1.0, min_box=3.0, height="1em", inline=True, hover=True, highlight=True, class_="pavement-tally", path=None)`
-Categorical strip over raw values: distinct vs repeated vs missing. `data` is any iterable
+Categorical strip over raw values: distinct vs duplicate vs missing (`repeated_color` tints the duplicate box). `data` is any iterable
 of values (strings, etc.).
 
 ### `proportion(data, orientation="horizontal", colors=..., other_color=..., max_boxes=12, min_box=3.0, catchall_tolerance=0.1, value_crop=128, line_color=None, line_width=1.0, height="1em", inline=True, hover=True, highlight=True, class_="pavement-proportion", path=None)`

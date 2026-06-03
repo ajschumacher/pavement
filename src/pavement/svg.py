@@ -1020,7 +1020,7 @@ def summary(
       installed). Renders one row per column, under a top row summarizing the
       frame as a whole: its label is the row count, and its tally treats each
       *whole row*
-      as the entity, so "repeated" means a duplicated row and "missing" a row
+      as the entity, so "duplicate" means a duplicated row and "missing" a row
       that is entirely blank. That row's distribution cell is left empty (a
       frame has no single distribution).
     - **A Series or 1D sequence** — a pandas ``Series``, a list, a numpy
