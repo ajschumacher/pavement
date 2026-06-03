@@ -199,6 +199,21 @@ def test_project_timedelta_sub_day():
     assert fmt(25 * 3600 + 5 * 60) == "1d 01:05"
 
 
+def test_project_timedelta_with_seconds():
+    # When any value has a non-zero second component, format includes :SS.
+    data, fmt = _project([dt.timedelta(seconds=45),
+                          dt.timedelta(hours=1, minutes=2, seconds=3)])
+    assert fmt(45.0) == "00:00:45"
+    assert fmt(3600 + 120 + 3) == "01:02:03"
+
+
+def test_project_timedelta_with_seconds_multi_day():
+    _, fmt = _project([dt.timedelta(days=1, seconds=30),
+                       dt.timedelta(hours=2)])
+    assert fmt(86400 + 30) == "1d 00:00:30"
+    assert fmt(7200.0) == "02:00:00"   # whole-minute value rendered with :SS
+
+
 def test_project_timedelta_negative_whole_days():
     _, fmt = _project([dt.timedelta(days=-2), dt.timedelta(days=-1)])
     assert fmt(-2 * 86400.0) == "-2 days"
