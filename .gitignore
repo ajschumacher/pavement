@@ -25,3 +25,6 @@ column_summary_demo.html
 
 # Output of examples/summary_demo.py
 summary_demo.html
+
+# Output of examples/box_edges_demo.py
+box_edges_demo.html
