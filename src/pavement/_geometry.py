@@ -77,6 +77,10 @@ class Bin:
     count: str = ""       # count hover string, e.g. "15% (3 of 20 values)"
                           # (the data strictly inside the bin, and its share);
                           # "" if not computed
+    inside: int = 0       # number of data points strictly inside the bin
+                          # (low < d < high); 0 when no *data* was given. The
+                          # numeric form of *count*, for backends that draw a
+                          # bin's box edge only when it holds interior points.
 
 
 @dataclass
@@ -152,11 +156,13 @@ def row_spec(
         """A percentile cut point, e.g. 0.25 -> ``"p25"``."""
         return f"p{frac * 100:.0f}"
 
-    def count(lo: float | None, hi: float | None, value: float | None) -> str:
-        """The ``"P% (X of Y values)"`` line: a strict ``lo``..``hi`` interior
-        (a bin) or an exact ``value`` match (a tick). Empty without *data*."""
+    def count(lo: float | None, hi: float | None,
+              value: float | None) -> tuple[int, str]:
+        """The interior point count and its ``"P% (X of Y values)"`` line: a
+        strict ``lo``..``hi`` interior (a bin) or an exact ``value`` match (a
+        tick). ``(0, "")`` without *data*."""
         if ordered is None:
-            return ""
+            return 0, ""
         if value is not None:
             x = bisect_right(ordered, value) - bisect_left(ordered, value)
         else:
@@ -165,13 +171,14 @@ def row_spec(
             # otherwise-negative difference to 0.
             x = max(0, bisect_left(ordered, hi) - bisect_right(ordered, lo))
         noun = 'value' if total == 1 else 'values'
-        return f"{pct(x, total)} ({x:,} of {total:,} {noun})"
+        return x, f"{pct(x, total)} ({x:,} of {total:,} {noun})"
 
     bins: list[Bin] = []
     for i, (low, high) in enumerate(zip(values, values[1:])):
         band = f"{pctl(i/n_bins)} to {pctl((i+1)/n_bins)}" if n_bins else ""
+        inside, count_str = count(low, high, None)
         bins.append(Bin(low, high, band, f"{show(low)} to {show(high)}",
-                        count(low, high, None)))
+                        count_str, inside))
 
     ticks: list[Tick] = []
     i = 0
@@ -188,7 +195,7 @@ def row_spec(
         else:
             quantile = pctl(i/n_bins)
         ticks.append(Tick(values[i], reach, quantile, show(values[i]),
-                          count(None, None, values[i])))
+                          count(None, None, values[i])[1]))
         i = j + 1
 
     return RowSpec(bins=bins, ticks=ticks, position=position, half=half,

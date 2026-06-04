@@ -31,6 +31,7 @@ import math
 import random
 
 import pavement
+import pavement.svg as psvg
 
 rng = random.Random(7)
 NA = float("nan")  # stand-in for a missing value
@@ -100,6 +101,60 @@ daily_signups = [max(0, round(rng.gauss(120, 35))) for _ in range(N)]
 # A single categorical Series-like.
 survey = (["strongly agree"] * 30 + ["agree"] * 55 + ["neutral"] * 22
           + ["disagree"] * 12 + ["strongly disagree"] * 6)
+
+
+# ---------------------------------------------------------------------------
+# Three distributions to show off the expressive box edges. A bin draws its
+# long top/bottom edge only where data falls *strictly inside* it, so the
+# outline closes around bins whose mass is spread out and opens into a gap
+# where the mass clumps onto a value line. The three below span the range:
+# everywhere-spread (a fully closed box), a central clump (closed flanks
+# around an open gap), and all-on-a-few-values (no closed edge at all).
+# ---------------------------------------------------------------------------
+_r = random.Random(1)
+spread_values = [round(_r.uniform(0, 100), 1) for _ in range(400)]
+_r = random.Random(3)
+clumped_middle = ([round(_r.uniform(0, 30), 1) for _ in range(120)]
+                  + [50] * 160
+                  + [round(_r.uniform(70, 100), 1) for _ in range(120)])
+_r = random.Random(5)
+few_values = [_r.choice([10, 10, 10, 25, 25, 60, 90]) for _ in range(400)]
+
+# Bigger than the inline strips above, with whiskers on, so the closed edges
+# and the gaps (and the whisker at a clumped value) read clearly.
+_BOX_OPTS = dict(bins=8, show_whiskers=True, height="2.6em")
+
+
+def _box_figure(title: str, note: str, values: list) -> str:
+    """One labeled spark for the box-edge gallery."""
+    return (
+        '<figure style="margin:1.4rem 0;">'
+        f'<div style="color:#1a3a5a;">{psvg.spark(values, **_BOX_OPTS)}</div>'
+        f'<figcaption style="color:#555;font-size:0.95rem;margin-top:0.5rem;">'
+        f'<strong>{title}.</strong> {note}</figcaption></figure>')
+
+
+box_section = f"""
+<h2>Expressive box edges</h2>
+<p>Each bin draws its long top and bottom edges <em>only over itself, and only
+when one or more values fall strictly inside it</em>. So the box closes around
+the bins where values are spread out, and opens into a gap wherever the bin's
+mass sits on a value line instead — letting spread and clumping read straight
+off the outline. All three below are 8-bin pavements; hover any bin or line for
+its value range, percentile, and count.</p>
+{_box_figure("Spread throughout",
+             "Continuous values fill every bin, so the box stays fully closed "
+             "end to end.", spread_values)}
+{_box_figure("A clump in the middle",
+             "A heavy spike of one repeated value gives the central bins no "
+             "interior: the box opens into a gap there (with a whisker at the "
+             "repeated value) while the spread-out flanks stay closed.",
+             clumped_middle)}
+{_box_figure("Only a few values",
+             "When every value lands on a bin edge, no bin has an interior at "
+             "all — the box never closes, leaving just the value lines.",
+             few_values)}
+"""
 
 
 # Optionally show the real pandas path too, if pandas is installed — the call
@@ -207,7 +262,7 @@ label shows the value count instead. Numeric values give a spark:</p>
 {pavement.summary(daily_signups)}
 <p>…and categorical values give a proportion strip:</p>
 {pavement.summary(survey)}
-{pandas_section}{numpy_section}
+{pandas_section}{numpy_section}{box_section}
 <h2>In a notebook</h2>
 <p>Everything above is just <code>str(pavement.summary(...))</code> dropped
 into this page. In Jupyter you skip the <code>str()</code> — the last line of
