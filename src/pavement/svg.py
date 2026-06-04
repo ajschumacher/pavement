@@ -1065,7 +1065,7 @@ def _as_columns(data: Any) -> tuple[list[Any], list[list[Any]]] | None:
 # matters for a fragment dropped into a notebook cell (and rendered again and
 # again). Each strip still carries its own scoped hover style inside its
 # <svg>. The grays are mid-tone, legible on light and dark themes alike.
-_TD = ('border:none;padding:.18em .8em .18em 0;text-align:left;'
+_TD = ('border:none;padding:.18em 0;text-align:left;'
        'vertical-align:middle;white-space:nowrap;')
 _TD_TOTAL = _TD + 'border-bottom:1px solid rgba(128,128,128,.35);'
 # Distribution column: no side padding — the extent cells handle the gaps.
@@ -1081,8 +1081,30 @@ _TD_EXTR_TOTAL = _TD_EXTR + 'border-bottom:1px solid rgba(128,128,128,.35);'
 _COUNT_STYLE = 'color:#888;'  # muted, for a "1,234 rows" / "1,234 values" cell
 _NAME_STYLE = ('font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
                'monospace;font-size:.92em;')
+# Separate style for the name cell so it gets symmetric padding (0.4em each
+# side), matching the extent cells.  _TD (used for the tally cell) keeps its
+# original 0/0.8em padding so the tally SVG stays flush-left as before.
+_TD_NAME = ('border:none;padding:.18em .4em .18em .4em;text-align:left;'
+            'vertical-align:middle;white-space:nowrap;')
+_TD_NAME_TOTAL = _TD_NAME + 'border-bottom:1px solid rgba(128,128,128,.35);'
 _EXTENT_STYLE = ('color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,'
                  'Consolas,monospace;font-size:.85em;')
+
+# Responsive layout constants for the summary wrapper and column widths.
+# The wrapper caps the table at a comfortable "page of text" width and lets
+# the text columns (name, extents) contract gracefully on smaller screens via
+# clamp(), while always providing a horizontal-scroll fallback.
+_SVG_ASPECT = 140.0 / 30.0   # horizontal strip viewBox width:height ratio
+_TALLY_WIDTH_SCALE = 0.75    # tally strips: 75% of natural width (narrower)
+_DIST_WIDTH_SCALE = 1.30     # distribution strips: 130% of natural width (wider)
+_SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
+# Responsive width for all three text columns.  Using the same clamp() value
+# for name, ext-left, and ext-right guarantees they are always exactly equal
+# at any viewport width.  table-layout:fixed + calc() table width enforces this.
+_TEXT_COL_CLAMP = 'clamp(5em, 20vw, 12em)'
+# Scrollable wrapper inside each text cell. Width comes from the <col> element
+# (via table-layout:fixed), so no explicit width is needed on the div itself.
+_TEXT_WRAP = 'display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;'
 
 
 def _count_label(n: int, noun: str) -> str:
@@ -1093,29 +1115,47 @@ def _count_label(n: int, noun: str) -> str:
 def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
                  *, total: bool = False) -> str:
     """One table row: label, tally, min-extent, distribution, max-extent cells."""
-    td = _TD_TOTAL if total else _TD
+    td_name = _TD_NAME_TOTAL if total else _TD_NAME
+    td_tally = _TD_TOTAL if total else _TD
     td_dist = _TD_DIST_TOTAL if total else _TD_DIST
     td_extl = _TD_EXTL_TOTAL if total else _TD_EXTL
     td_extr = _TD_EXTR_TOTAL if total else _TD_EXTR
-    lo_html = f'<span style="{_EXTENT_STYLE}">{escape(lo)}</span>' if lo else ''
-    hi_html = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
-    return (f'<tr><td style="{td}">{label}</td>'
-            f'<td style="{td}">{tally_html}</td>'
+    lo_inner = f'<span style="{_EXTENT_STYLE}">{escape(lo)}</span>' if lo else ''
+    hi_inner = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
+    lo_html = f'<div style="{_TEXT_WRAP}">{lo_inner}</div>' if lo else ''
+    hi_html = f'<div style="{_TEXT_WRAP}">{hi_inner}</div>' if hi else ''
+    return (f'<tr><td style="{td_name}"><div style="{_TEXT_WRAP}">{label}</div></td>'
+            f'<td style="{td_tally}">{tally_html}</td>'
             f'<td style="{td_extl}">{lo_html}</td>'
             f'<td style="{td_dist}">{dist_html}</td>'
             f'<td style="{td_extr}">{hi_html}</td></tr>')
 
 
-def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any]) -> str:
+def _set_strip_width(svg: str, width: str) -> str:
+    """Patch an inline SVG strip's width from ``width:auto`` to *width*.
+
+    All summary strips are rendered with ``width:auto`` (so they size
+    naturally to their height × aspect ratio when used standalone). Inside
+    the summary table we override this to an explicit em value so the tally
+    and distribution columns can have different widths while keeping the same
+    height.
+    """
+    return svg.replace('width:auto;', f'width:{width};', 1)
+
+
+def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any],
+                 *, strip_width: str | None = None) -> str:
     """A column's (or the whole frame's) tally strip — empty if there is
     nothing to count (a zero-length column)."""
     if not values:
         return ''
-    return tally(values, noun=noun, **opts)
+    svg = tally(values, noun=noun, **opts)
+    return _set_strip_width(svg, strip_width) if strip_width else svg
 
 
 def _distribution_strip(values: list[Any], present: list[Any],
-                        color: str, opts: dict[str, Any]) -> str:
+                        color: str, opts: dict[str, Any],
+                        *, strip_width: str | None = None) -> str:
     """A column's distribution strip: a pavement spark when its present values
     are an ordered family a pavement can draw (numbers, ``Decimal``, or
     ``date``/``datetime``), otherwise a proportion strip. Empty when the column
@@ -1125,9 +1165,11 @@ def _distribution_strip(values: list[Any], present: list[Any],
     if not present:
         return ''
     if _pavement_column(present):
-        return spark(present, bins=_choose_bins(len(present)),
-                     color=color, **opts)
-    return proportion(values, **opts)
+        svg = spark(present, bins=_choose_bins(len(present)),
+                    color=color, **opts)
+    else:
+        svg = proportion(values, **opts)
+    return _set_strip_width(svg, strip_width) if strip_width else svg
 
 
 def _fmt_extent(value: float) -> str:
@@ -1156,7 +1198,7 @@ def _fmt_extent(value: float) -> str:
     return fmt(v)
 
 
-_EXTENT_CROP = 16   # max display length for a categorical extent label
+_EXTENT_CROP = 128  # max display length for a categorical extent label (cell scrolls)
 
 
 def _crop_value(v: Any) -> str:
@@ -1299,6 +1341,35 @@ def summary(
     proportion : The categorical distribution strip.
     spark : The numeric distribution sparkline.
     """
+    # Compute all column widths from the base height.  All strips keep the same
+    # height; tally is 75% as wide as the natural size, distribution 130%.
+    # The three text columns get one shared width so the layout is uniform.
+    # For non-em heights the widths fall back to width:auto on the SVGs.
+    h_em: float | None = None
+    if isinstance(height, str) and height.endswith('em'):
+        try:
+            h_em = float(height[:-2])
+        except ValueError:
+            pass
+    if h_em is not None:
+        natural_w = h_em * _SVG_ASPECT
+        w_tally_svg = natural_w * _TALLY_WIDTH_SCALE
+        w_dist_svg = natural_w * _DIST_WIDTH_SCALE
+        w_tally = f'{w_tally_svg:.2f}em'    # for _set_strip_width
+        w_dist = f'{w_dist_svg:.2f}em'      # for _set_strip_width
+        # <col> widths for the two strip columns.  Text columns all use
+        # _TEXT_COL_CLAMP — the same CSS value guarantees they are equal.
+        w_tally_col = f'{w_tally_svg:.2f}em'   # tally cell: no horiz. padding
+        w_dist_col = f'{w_dist_svg:.2f}em'    # dist cell: no horiz. padding
+        # Table width = exact sum of column widths, expressed in CSS so the
+        # browser never has leftover space to redistribute.  calc() lets us add
+        # the responsive clamp() text columns to the fixed-em strip columns.
+        w_total_css = (f'calc(3 * {_TEXT_COL_CLAMP} + {w_tally_col} + {w_dist_col})')
+        fixed_layout = True
+    else:
+        w_tally = w_dist = None
+        fixed_layout = False
+
     opts = {'height': height, 'hover': hover, 'highlight': highlight}
     columns_data = _as_columns(data)
     rows: list[str] = []
@@ -1314,15 +1385,17 @@ def summary(
                        f'{n_cols:,} by {n_rows:,}</span>')
         rows.append(_summary_row(
             shape_label,
-            _tally_strip(keys, 'row', opts), '', '', '', total=True))
+            _tally_strip(keys, 'row', opts, strip_width=w_tally),
+            '', '', '', total=True))
         for name, values in zip(names, columns):
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
-                _tally_strip(values, 'entry', opts),
+                _tally_strip(values, 'entry', opts, strip_width=w_tally),
                 lo,
-                _distribution_strip(values, present, color, opts),
+                _distribution_strip(values, present, color, opts,
+                                    strip_width=w_dist),
                 hi))
     else:
         values = list(data)
@@ -1330,14 +1403,37 @@ def summary(
         lo, hi = _column_extent(values, present)
         rows.append(_summary_row(
             _count_label(len(values), 'entry'),
-            _tally_strip(values, 'entry', opts),
+            _tally_strip(values, 'entry', opts, strip_width=w_tally),
             lo,
-            _distribution_strip(values, present, color, opts),
+            _distribution_strip(values, present, color, opts,
+                                strip_width=w_dist),
             hi))
 
-    table = (f'<table class={quoteattr(class_)} '
-             f'style="border-collapse:collapse;font-family:inherit;">'
-             f'{"".join(rows)}</table>')
+    if fixed_layout:
+        # table-layout:fixed + explicit width ignores cell content entirely.
+        # All three text <col> elements use the same clamp() value → guaranteed
+        # equal.  The table width is the exact CSS sum of all column widths via
+        # calc(), so the browser never has leftover space to redistribute.
+        colgroup = (
+            f'<colgroup>'
+            f'<col style="width:{_TEXT_COL_CLAMP};"/>'
+            f'<col style="width:{w_tally_col};"/>'
+            f'<col style="width:{_TEXT_COL_CLAMP};"/>'
+            f'<col style="width:{w_dist_col};"/>'
+            f'<col style="width:{_TEXT_COL_CLAMP};"/>'
+            f'</colgroup>'
+        )
+        table_style = (f'border-collapse:collapse;font-family:inherit;'
+                       f'table-layout:fixed;width:{w_total_css};')
+    else:
+        colgroup = ''
+        table_style = 'border-collapse:collapse;font-family:inherit;'
+
+    table = (
+        f'<div style="max-width:{_SUMMARY_MAX_WIDTH};overflow-x:auto;">'
+        f'<table class={quoteattr(class_)} style={quoteattr(table_style)}>'
+        f'{colgroup}{"".join(rows)}</table></div>'
+    )
 
     if path is not None:
         document = table

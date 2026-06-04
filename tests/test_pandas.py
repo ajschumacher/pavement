@@ -126,7 +126,7 @@ def test_enable_repr_renders_frames_as_summaries(ipython_shell):
     fmt = ipython_shell.display_formatter.formatters["text/html"]
     html = fmt.lookup_by_type(pd.DataFrame)(
         pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "x"]}))
-    assert "<table" in html and "height:2em" in html          # forwarded kwarg
+    assert "<table" in html and "height:2em" in html           # forwarded kwarg
     assert "<table" in fmt.lookup_by_type(pd.Series)(pd.Series([1, 2, 3]))
 
 
