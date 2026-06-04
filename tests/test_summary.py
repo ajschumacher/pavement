@@ -191,6 +191,24 @@ def test_crop_value_long_values_truncated():
     assert len(_crop_value("a" * 100)) == 16
 
 
+def test_crop_value_empty_string_gets_curly_quotes():
+    assert _crop_value("") == "“”"
+
+
+def test_crop_value_whitespace_only_gets_curly_quotes():
+    assert _crop_value("   ") == "“   ”"
+    assert _crop_value("\t") == "“\t”"
+
+
+def test_crop_value_non_printable_gets_curly_quotes():
+    assert _crop_value("\x00") == "“\x00”"
+
+
+def test_crop_value_normal_strings_no_quotes():
+    assert _crop_value("hello") == "hello"
+    assert _crop_value("  hello  ") == "  hello  "   # whitespace around printable: no quotes
+
+
 def test_column_extent_numeric():
     lo, hi = _column_extent([1, 5, 3], [1, 5, 3])
     assert lo == "1"
