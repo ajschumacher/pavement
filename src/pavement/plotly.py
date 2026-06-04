@@ -66,12 +66,11 @@ from plotly.subplots import make_subplots
 from .core import pavement_stats
 from ._geometry import (
     bin_polygon,
-    box_edges,
     broadcast,
     complete_color_map,
+    long_box_edges,
     normalize_rows,
     resolve_colors,
-    resolve_show_box,
     row_spec,
     tick_segment,
     ValueFormat,
@@ -103,7 +102,7 @@ def _row_geometry(
     orientation: Literal["vertical", "horizontal"],
     whisker_extent: float,
     show_whiskers: bool,
-    show_box: bool,
+    show_box: bool | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
 ) -> dict[str, Any]:
@@ -149,13 +148,13 @@ def _row_geometry(
             else (t.value, position)
         ticks.append((tx, ty, t.quantile, t.value_str, t.count))
 
-    # Box edges: the two long sides, spanning the full value range. Dropped
-    # for a rug (show_box False), leaving only the ticks — a plain rug.
-    if show_box:
-        for x0, y0, x1, y1 in box_edges(position, spec.half, spec.value_low,
-                                        spec.value_high, orientation):
-            line_x += [x0, x1, None]
-            line_y += [y0, y1, None]
+    # Box edges: each populated bin closes over itself and a gap opens where
+    # the mass clumps onto a value line; show_box True forces one unbroken
+    # span, False (and, by default, a rug) draws none. Shared with every
+    # backend via `box_edge_spans`.
+    for x0, y0, x1, y1 in long_box_edges(spec, show_box):
+        line_x += [x0, x1, None]
+        line_y += [y0, y1, None]
 
     return {"bins": bins, "line_x": line_x, "line_y": line_y, "ticks": ticks}
 
@@ -250,7 +249,7 @@ def pavement_traces(
     values = pavement_stats(data, bins=bins, weights=weights)
     geom = _row_geometry(values, position, width, orientation,
                          whisker_extent, show_whiskers,
-                         resolve_show_box(show_box, bins), value_format,
+                         show_box, value_format,
                          data=data)
     if color is None:
         color = _default_colors(1)[0]

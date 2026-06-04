@@ -74,13 +74,12 @@ from bokeh.plotting import figure
 from .core import pavement_stats
 from ._geometry import (
     bin_corners,
-    box_edges,
     broadcast,
     complete_color_map,
     hover_fields,
+    long_box_edges,
     normalize_rows,
     resolve_colors,
-    resolve_show_box,
     row_spec,
     tick_segment,
     ValueFormat,
@@ -108,7 +107,7 @@ def _row_geometry(
     orientation: Literal["vertical", "horizontal"],
     whisker_extent: float,
     show_whiskers: bool,
-    show_box: bool,
+    show_box: bool | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
 ) -> dict[str, Any]:
@@ -148,10 +147,11 @@ def _row_geometry(
         x0, y0, x1, y1 = tick_segment(position, t.reach, t.value, orientation)
         ticks.append((x0, y0, x1, y1, t.quantile, t.value_str, t.count))
 
-    # Box edges: the two long sides, spanning the full value range. Dropped
-    # for a rug (show_box False), leaving only the ticks — a plain rug.
-    box = list(box_edges(position, spec.half, spec.value_low,
-                         spec.value_high, orientation)) if show_box else []
+    # Box edges: each populated bin closes over itself and a gap opens where
+    # the mass clumps onto a value line; show_box True forces one unbroken
+    # span, False (and, by default, a rug) draws none. Shared with every
+    # backend via `box_edge_spans`.
+    box = long_box_edges(spec, show_box)
 
     return {"bins": bins, "ticks": ticks, "box": box}
 
@@ -247,7 +247,7 @@ def pavement_glyphs(
     values = pavement_stats(data, bins=bins, weights=weights)
     geom = _row_geometry(values, position, width, orientation,
                          whisker_extent, show_whiskers,
-                         resolve_show_box(show_box, bins), value_format,
+                         show_box, value_format,
                          data=data)
     if color is None:
         color = _default_colors(1)[0]

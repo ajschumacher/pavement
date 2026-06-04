@@ -4,16 +4,17 @@ from pavement.core import pavement_stats
 from pavement._geometry import (
     bin_corners,
     bin_polygon,
+    box_edge_spans,
     box_edges,
     broadcast,
     complete_color_map,
     fmt,
     hover_fields,
+    long_box_edges,
     normalize_rows,
     pct,
     place,
     resolve_colors,
-    resolve_show_box,
     row_spec,
     tick_segment,
 )
@@ -166,16 +167,40 @@ def test_box_edges_two_long_sides():
         (0.7, 0, 0.7, 10), (1.3, 0, 1.3, 10)]
 
 
-def test_resolve_show_box_default_off_for_rug():
-    # None (auto): box for a binned row, no box for a rug (bins is None).
-    assert resolve_show_box(None, 4) is True
-    assert resolve_show_box(None, None) is False
+def test_box_edge_spans_auto_gaps_over_empty_bins():
+    # None (auto): a span only for bins holding a data point strictly inside.
+    # range(9) into 4 bins puts one point inside each -> all four spans.
+    spec = row_spec(pavement_stats(list(range(9)), bins=4), data=list(range(9)))
+    assert box_edge_spans(spec, None) == [(b.low, b.high) for b in spec.bins]
+    # Evenly spaced data sitting on its own cut points has no interior -> none.
+    on_edges = row_spec(pavement_stats([0, 1, 2, 3, 4], bins=4),
+                        data=[0, 1, 2, 3, 4])
+    assert box_edge_spans(on_edges, None) == []
 
 
-def test_resolve_show_box_explicit_overrides_either_way():
-    # An explicit bool wins regardless of bins.
-    assert resolve_show_box(True, None) is True
-    assert resolve_show_box(False, 4) is False
+def test_box_edge_spans_true_is_one_full_span_false_is_none():
+    spec = row_spec(pavement_stats([0, 1, 2, 3, 4], bins=4), data=[0, 1, 2, 3, 4])
+    assert box_edge_spans(spec, True) == [(spec.value_low, spec.value_high)]
+    assert box_edge_spans(spec, False) == []
+
+
+def test_box_edge_spans_rug_has_no_interior():
+    # A rug's bins lie between consecutive data points, so none has a strict
+    # interior: the auto box is empty (it reads as a plain rug), while True
+    # still forces the complete span.
+    spec = row_spec(pavement_stats([1, 2, 2, 3, 5], bins=None),
+                    data=[1, 2, 2, 3, 5])
+    assert box_edge_spans(spec, None) == []
+    assert box_edge_spans(spec, True) == [(1, 5)]
+
+
+def test_long_box_edges_maps_spans_to_segments():
+    # One full span -> the two long sides, same as box_edges directly.
+    spec = row_spec(pavement_stats([0, 1, 2, 3, 4], bins=4), data=[0, 1, 2, 3, 4],
+                    position=1, width=0.6, orientation="vertical")
+    assert long_box_edges(spec, True) == box_edges(
+        1, 0.3, spec.value_low, spec.value_high, "vertical")
+    assert long_box_edges(spec, False) == []
 
 
 def test_bin_corners_orientation():

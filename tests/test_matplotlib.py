@@ -178,12 +178,24 @@ def test_draw_pavement_show_box_false_drops_box():
 
 
 def test_plot_rug_omits_box_by_default():
-    # A rug (bins=None) drops the box edges, so it reads like a plain rug;
-    # a binned row keeps them. Per-row, so a mixed bins sequence mixes too.
+    # A rug (bins=None) drops the box edges, so it reads like a plain rug; a
+    # binned row with spread data keeps them. Per-row, so a mixed bins
+    # sequence mixes too.
     plt.figure()
-    rug, binned = plot([[1, 2, 2, 3, 5], [1, 2, 2, 3, 5]], bins=[None, 4])
+    rug, binned = plot([[1, 2, 2, 3, 5], list(range(9))], bins=[None, 4])
     assert rug["box"] is None
     assert binned["box"] is not None
+    plt.close()
+
+
+def test_plot_box_gaps_over_bins_without_interior():
+    # Default (auto): a binned row draws each bin's edges only where it holds
+    # a data point strictly inside it. Data spread through every bin keeps the
+    # box; data sitting on its own bin edges leaves no box at all.
+    plt.figure()
+    spread, on_edges = plot([list(range(9)), [0, 1, 2, 3, 4]], bins=[4, 4])
+    assert spread["box"] is not None
+    assert on_edges["box"] is None
     plt.close()
 
 
@@ -263,8 +275,10 @@ def test_margin_invalid_axis():
 
 
 def test_margin_clip_on_default_false():
+    # show_box=True so there is a box artist to inspect (the default auto box
+    # gaps out for this on-the-edges data).
     plt.figure()
-    artists = margin([1, 2, 3, 4, 5])
+    artists = margin([1, 2, 3, 4, 5], show_box=True)
     assert artists["box"].get_clip_on() is False
     plt.close()
 
@@ -351,7 +365,8 @@ def test_margin_inside_top_leaves_title_alone():
 
 def test_margin_inside_stays_within_axes():
     fig, ax = plt.subplots()
-    art = margin([1, 2, 3, 4, 5], axis="x", where="inside bottom", ax=ax)
+    art = margin([1, 2, 3, 4, 5], axis="x", where="inside bottom",
+                 show_box=True, ax=ax)
     ys = [pt[1] for seg in art["box"].get_segments() for pt in seg]
     assert all(0 <= y <= 1 for y in ys)
     plt.close(fig)
@@ -381,8 +396,8 @@ def test_margin_outside_does_not_expand():
 
 def test_margin_x_and_y_same_physical_thickness():
     fig, ax = plt.subplots(figsize=(8, 4))  # wide: width != height
-    x_art = margin([1, 2, 3, 4, 5], axis="x", ax=ax)
-    y_art = margin([1, 2, 3, 4, 5], axis="y", ax=ax)
+    x_art = margin([1, 2, 3, 4, 5], axis="x", show_box=True, ax=ax)
+    y_art = margin([1, 2, 3, 4, 5], axis="y", show_box=True, ax=ax)
 
     def frac_thickness(box, index):
         pts = [pt[index] for seg in box.get_segments() for pt in seg]
@@ -492,8 +507,10 @@ def test_spark_ink_runs_flush_to_every_edge(tmp_path):
     out = tmp_path / "spark.png"
     # Distinct values -> no whiskers, so the box's four edges define the
     # bounding box; with default pad they reach all four image borders
-    # (and the half-stroke margin keeps them from being clipped).
-    fig = spark([0, 1, 2, 3, 4, 5], bins=5, path=str(out))
+    # (and the half-stroke margin keeps them from being clipped). show_box=True
+    # forces the complete box (these values all sit on bin edges, so the auto
+    # box would gap out).
+    fig = spark([0, 1, 2, 3, 4, 5], bins=5, show_box=True, path=str(out))
     ink = mpimg.imread(str(out))[..., 3] > 0.05
     assert ink[0, :].any() and ink[-1, :].any()    # top and bottom edges
     assert ink[:, 0].any() and ink[:, -1].any()    # left and right edges

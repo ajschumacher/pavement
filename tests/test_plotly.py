@@ -73,6 +73,15 @@ def test_traces_show_box_true_keeps_box_on_rug():
     assert _line_segment_count(forced) == 4 + 2  # ticks plus two box edges
 
 
+def test_traces_box_gaps_over_bins_without_interior():
+    # Default (auto): each populated bin adds its two long edges, so spread
+    # data closes every bin while data on its own bin edges adds none.
+    spread = _line_trace(pavement_traces(list(range(9)), bins=4))
+    assert _line_segment_count(spread) == 5 + 8   # 5 ticks + 4 bins x 2 edges
+    on_edges = _line_trace(pavement_traces([0, 1, 2, 3, 4], bins=4))
+    assert _line_segment_count(on_edges) == 5     # 5 ticks, no box edges
+
+
 def test_one_fill_trace_per_bin():
     # Four bins -> four fill traces, each a single closed rectangle.
     fills = [t for t in pavement_traces([1, 2, 3, 4, 5], bins=4)

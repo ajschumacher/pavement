@@ -44,19 +44,42 @@ def test_spark_rug_has_no_bin_rects():
 
 
 def test_spark_rug_drops_box_edges_by_default():
-    # A rug omits the two long box edges (plain, classless <line>s), so it
-    # reads like a plain rug; the per-value tick marks remain.
+    # A rug reads like a plain rug: no long box edges by default, just the
+    # per-value tick marks.
     rug = spark([1, 2, 2, 3, 5], bins=None)
     forced = spark([1, 2, 2, 3, 5], bins=None, show_box=True)
-    # show_box adds exactly the two box edges.
+    # show_box=True forces the complete box, adding exactly its two long edges
+    # even for a rug (whose bins have no strict interior of their own).
     assert forced.count("<line") == rug.count("<line") + 2
 
 
-def test_spark_binned_keeps_box_edges():
-    # A binned spark keeps its box; turning show_box off drops two lines.
-    binned = spark([1, 2, 3, 4, 5], bins=4)
-    no_box = spark([1, 2, 3, 4, 5], bins=4, show_box=False)
-    assert no_box.count("<line") == binned.count("<line") - 2
+def test_spark_show_box_true_forces_complete_box():
+    # An explicit show_box=True draws the two long edges unbroken across the
+    # whole value range, even where the default would leave a gap: data sitting
+    # entirely on bin boundaries gets no edges by default but two full edges
+    # when forced.
+    on_edges = spark([0, 1, 2, 3, 4], bins=4, hover=False)
+    forced = spark([0, 1, 2, 3, 4], bins=4, hover=False, show_box=True)
+    assert forced.count("<line") == on_edges.count("<line") + 2
+
+
+def test_spark_binned_box_edges_close_over_interior_bins():
+    # Each bin draws its two long edges only over itself, and only when data
+    # falls strictly inside it. With every bin populated (one interior point
+    # apiece) that is eight edge segments on top of the ticks; show_box=False
+    # drops all eight.
+    full = spark(list(range(9)), bins=4, hover=False)
+    no_box = spark(list(range(9)), bins=4, hover=False, show_box=False)
+    assert full.count("<line") == no_box.count("<line") + 8
+
+
+def test_spark_box_edges_gap_where_bin_has_no_interior():
+    # Evenly spaced data binned at its own cut points has every point sitting
+    # on a bin boundary, so no bin has an interior -> no box edges are drawn,
+    # leaving only the value ticks (the gaps reveal mass clumped on the lines).
+    on_edges = spark([0, 1, 2, 3, 4], bins=4, hover=False)
+    no_box = spark([0, 1, 2, 3, 4], bins=4, hover=False, show_box=False)
+    assert on_edges.count("<line") == no_box.count("<line")
 
 
 def test_spark_horizontal_viewbox():
@@ -224,9 +247,10 @@ def test_spark_is_accessible():
 
 
 def test_spark_geometry_runs_flush_to_value_edges():
-    # No whiskers -> the box spans the full viewBox. The stroke <g> should
-    # carry coordinates at both value-axis extremes (x = 0 and x = 140).
-    out = spark([0, 1, 2, 3, 4], bins=4)
+    # With every bin populated the box spans the full viewBox: its edges and
+    # ticks should carry coordinates at both value-axis extremes (x = 0 and
+    # x = 140). hover=False keeps every mark a plain <line> in the stroke <g>.
+    out = spark(list(range(9)), bins=4, hover=False)
     group = re.search(r'pointer-events="none">(.*?)</g>', out, re.S).group(1)
     xs = [float(v) for v in re.findall(r'x[12]="([-\d.]+)"', group)]
     assert min(xs) == pytest.approx(0)
