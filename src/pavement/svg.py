@@ -1092,13 +1092,18 @@ _SVG_ASPECT = 140.0 / 30.0   # horizontal strip viewBox width:height ratio
 _TALLY_WIDTH_SCALE = 0.75    # tally strips: 75% of natural width (narrower)
 _DIST_WIDTH_SCALE = 1.30     # distribution strips: 130% of natural width (wider)
 _SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
-# All three text columns (name, left extent, right extent) share one width so
-# the layout is visually uniform. The explicit CSS width — not max-width —
-# means the wrapper is always exactly this wide regardless of content.
-# clamp() contracts the cell gracefully on narrow viewports.
-_TEXT_COL_WIDTH = 'clamp(5em, 12vw, 8em)'
-_TEXT_WRAP = (f'display:block;width:{_TEXT_COL_WIDTH};overflow-x:auto;'
-              f'white-space:nowrap;scrollbar-width:thin;')
+# Text column width as a fraction of the natural SVG width (height × aspect).
+# All three text columns (name, left extent, right extent) use this same scale
+# so they get identical column widths, computed once from the base height.
+# The column width includes cell padding; see summary() for the math.
+_TEXT_COL_SCALE = 0.93
+# Total horizontal cell padding for all text/tally cells (uses _TD style).
+# Name and tally share _TD: right=0.8em, left=0em → total 0.8em.
+# Both extent cells use _TD_EXTL/R: 0.4em each side → total 0.8em. Consistent.
+_TD_HPAD = 0.8
+# Scrollable wrapper inside each text cell. Width comes from the <col> element
+# (via table-layout:fixed), so no explicit width is needed on the div itself.
+_TEXT_WRAP = 'display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;'
 
 
 def _count_label(n: int, noun: str) -> str:
@@ -1334,20 +1339,35 @@ def summary(
     proportion : The categorical distribution strip.
     spark : The numeric distribution sparkline.
     """
-    # Compute explicit strip widths from the base height and the SVG aspect
-    # ratio. All strips share the same height; tally is 75% as wide as its
-    # natural size, distribution 130% — patched onto the generated SVG string.
-    # For non-em heights the strip width is left as width:auto (unchanged).
+    # Compute all column widths from the base height.  All strips keep the same
+    # height; tally is 75% as wide as the natural size, distribution 130%.
+    # The three text columns get one shared width so the layout is uniform.
+    # For non-em heights the widths fall back to width:auto on the SVGs.
     h_em: float | None = None
     if isinstance(height, str) and height.endswith('em'):
         try:
             h_em = float(height[:-2])
         except ValueError:
             pass
-    w_tally = (f'{h_em * _SVG_ASPECT * _TALLY_WIDTH_SCALE:.2f}em'
-               if h_em is not None else None)
-    w_dist = (f'{h_em * _SVG_ASPECT * _DIST_WIDTH_SCALE:.2f}em'
-              if h_em is not None else None)
+    if h_em is not None:
+        natural_w = h_em * _SVG_ASPECT
+        w_tally_svg = natural_w * _TALLY_WIDTH_SCALE   # SVG content width
+        w_dist_svg = natural_w * _DIST_WIDTH_SCALE     # SVG content width
+        w_tally = f'{w_tally_svg:.2f}em'               # for _set_strip_width
+        w_dist = f'{w_dist_svg:.2f}em'                 # for _set_strip_width
+        # <col> widths = cell content area + cell padding (border-box in fixed layout).
+        # Tally/name/extent cells all share _TD/_TD_EXT* with _TD_HPAD total.
+        # Distribution cell has no horizontal padding (_TD_DIST: padding 0 sides).
+        w_text_col = f'{natural_w * _TEXT_COL_SCALE:.2f}em'
+        w_tally_col = f'{w_tally_svg + _TD_HPAD:.2f}em'
+        w_dist_col = f'{w_dist_svg:.2f}em'
+        w_total = (3 * natural_w * _TEXT_COL_SCALE
+                   + w_tally_svg + _TD_HPAD
+                   + w_dist_svg)
+        fixed_layout = True
+    else:
+        w_tally = w_dist = None
+        fixed_layout = False
 
     opts = {'height': height, 'hover': hover, 'highlight': highlight}
     columns_data = _as_columns(data)
@@ -1388,11 +1408,30 @@ def summary(
                                 strip_width=w_dist),
             hi))
 
+    if fixed_layout:
+        # table-layout:fixed with an explicit width forces the browser to use
+        # the <col> widths exactly, ignoring cell content entirely.  The three
+        # text columns get identical <col> widths so they are pixel-perfect
+        # equals regardless of what names or values happen to be in them.
+        colgroup = (
+            f'<colgroup>'
+            f'<col style="width:{w_text_col};"/>'
+            f'<col style="width:{w_tally_col};"/>'
+            f'<col style="width:{w_text_col};"/>'
+            f'<col style="width:{w_dist_col};"/>'
+            f'<col style="width:{w_text_col};"/>'
+            f'</colgroup>'
+        )
+        table_style = (f'border-collapse:collapse;font-family:inherit;'
+                       f'table-layout:fixed;width:{w_total:.2f}em;')
+    else:
+        colgroup = ''
+        table_style = 'border-collapse:collapse;font-family:inherit;'
+
     table = (
         f'<div style="max-width:{_SUMMARY_MAX_WIDTH};overflow-x:auto;">'
-        f'<table class={quoteattr(class_)} '
-        f'style="border-collapse:collapse;font-family:inherit;">'
-        f'{"".join(rows)}</table></div>'
+        f'<table class={quoteattr(class_)} style={quoteattr(table_style)}>'
+        f'{colgroup}{"".join(rows)}</table></div>'
     )
 
     if path is not None:
