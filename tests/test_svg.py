@@ -321,6 +321,21 @@ def test_spark_proportional_scales_lines_by_frequency():
     assert lengths[0] == pytest.approx(30 * 12 / 97, abs=0.02)  # value 1
 
 
+def test_spark_proportional_lines_sit_on_bottom_baseline():
+    # Frequency-rug lines are anchored on the bottom edge of a horizontal rug
+    # (y = 30, the largest y) and grow upward, so every visible mark shares its
+    # bottom endpoint regardless of length.
+    data = [1] * 12 + [2] * 40 + [3] * 94 + [4] * 97 + [5] * 60
+    out = spark(data, bins=None, proportional_representation=True, hover=False)
+    group = re.search(r'pointer-events="none">(.*?)</g>', out, re.S).group(1)
+    for line in re.findall(r"<line[^>]*?/>", group):
+        if "pvhit" in line:
+            continue
+        y1 = float(re.search(r'y1="([-\d.]+)"', line).group(1))
+        y2 = float(re.search(r'y2="([-\d.]+)"', line).group(1))
+        assert max(y1, y2) == pytest.approx(30)    # bottom endpoint on baseline
+
+
 def test_spark_proportional_enforces_minimum_length():
     # A value far rarer than min_representation still draws a visible line at
     # the floor (here 20% of the full 30 = 6), not a vanishing point.

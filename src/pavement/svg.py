@@ -286,8 +286,10 @@ def spark(
         Turn a rug into a *frequency rug*: scale each value line's length to
         how often that value occurs, so the most common value's line spans the
         full box and the rest reach proportionally less (a value seen half as
-        often draws a line half as long). The lines stay centered on the value
-        axis, shrinking symmetrically. Only meaningful for a rug, so it
+        often draws a line half as long). The lines sit on a shared baseline —
+        the bottom edge for a horizontal rug, the left edge for a vertical one —
+        and grow toward the far edge, like little bars. Only meaningful for a
+        rug, so it
         requires ``bins=None`` and ``show_whiskers=False`` (a whisker's reach
         and a frequency's reach would fight); a ``ValueError`` otherwise.
         Counts are unweighted — weights don't apply to a rug (see
@@ -401,10 +403,10 @@ def spark(
     # A frequency rug scales each value line's *drawn* length to how common
     # that value is — the most common reaches the full box, the rest less, but
     # never below `min_representation` of full so a rare value stays visible.
-    # The lines stay centered (reach shrinks symmetrically), and the box width
-    # `reach` is unchanged (every tick's geometric reach is still `half`), so
-    # the viewBox isn't distorted. Without the flag, each line is drawn at its
-    # full geometric reach, exactly as before.
+    # The lines are anchored on a baseline edge below (see the tick loop), and
+    # the box thickness `reach` is unchanged (every tick's geometric reach is
+    # still `half`), so the viewBox isn't distorted. Without the flag, each line
+    # is drawn at its full geometric reach, exactly as before.
     if proportional_representation:
         freq = Counter(data)
         top = max(freq.values())
@@ -502,12 +504,28 @@ def spark(
     for low, high in box_edge_spans(spec, show_box):
         marks += [stroke_line(*pt(side, low), *pt(side, high))
                   for side in (position - half, position + half)]
+    # A frequency rug anchors its lines on one box edge (the *baseline*) and
+    # grows them inward by their frequency-scaled length, so they read like
+    # little bars rising from a shared line rather than floating symmetrically
+    # across the value axis (which proved hard to read). The baseline is the
+    # bottom edge for a horizontal rug and the left edge for a vertical one, and
+    # a line grows the full box thickness (`2 * mark_reach`) toward the far
+    # edge. In perpendicular coordinates the bottom is `position + half` (it
+    # maps to the largest y) and the left is `position - half` (the smallest x),
+    # so the two orientations anchor at opposite perp ends and grow opposite
+    # ways. A plain rug or pavement keeps the symmetric, axis-centered marks.
+    base_perp = position + half if horizontal else position - half
+    grow = -1.0 if horizontal else 1.0
     for t, mark_reach in zip(spec.ticks, mark_reaches):
         # The visible mark uses the (possibly frequency-scaled) reach; the
         # transparent hit-area keeps the full reach so even a short line stays
         # easy to hover. They coincide unless proportional_representation is on.
-        a = pt(position - mark_reach, t.value)
-        b = pt(position + mark_reach, t.value)
+        if proportional_representation:
+            a = pt(base_perp, t.value)
+            b = pt(base_perp + grow * 2 * mark_reach, t.value)
+        else:
+            a = pt(position - mark_reach, t.value)
+            b = pt(position + mark_reach, t.value)
         if per_tick_hover:
             ha = pt(position - t.reach, t.value)
             hb = pt(position + t.reach, t.value)

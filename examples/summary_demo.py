@@ -146,8 +146,9 @@ Hover any line for its value, percentile, and count.</p>
                 "rarer values less — the distribution's shape without bins.",
                 proportional_representation=True)}
 <p>A floor (<code>min_representation</code>, default 5% of full) keeps a rare
-value's line visible rather than letting it collapse to a point; the lines stay
-centered on the value axis, so the rug keeps its symmetric look.</p>
+value's line visible rather than letting it collapse to a point; the lines sit
+on a shared baseline (the bottom, for a horizontal rug) and grow upward, so they
+read like little bars.</p>
 <p>This is what <code>summary</code> reaches for automatically: a numeric column
 with 16 or fewer distinct values (like <code>rating</code> in the dataframe
 above) is drawn as a frequency rug rather than smeared into equal-mass bins, so
