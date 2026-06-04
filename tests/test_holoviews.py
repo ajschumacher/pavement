@@ -69,37 +69,42 @@ def test_elements_one_tick_per_distinct_value_with_whisker():
 
 
 def test_elements_box_hover_strings():
-    els = pavement_elements([1, 2, 3, 4, 5], bins=4)
-    # A box reads as a value range "X to Y" (no dash) and a percentile band.
-    assert list(els["fill"].dimension_values("quantiles")) == [
-        "p0 to p25", "p25 to p50", "p50 to p75", "p75 to p100"]
-    assert list(els["fill"].dimension_values("values")) == [
-        "1 to 2", "2 to 3", "3 to 4", "4 to 5"]
+    # An interior box's composed hover reads as a value range "X to Y" (no
+    # dash), a percentile band, and a share. An empty box drops the band.
+    els = pavement_elements([1, 2, 3, 4, 5, 6, 7, 8], bins=4)
+    assert list(els["fill"].dimension_values("hover"))[1] == \
+        "2.5 to 4.5<br>p25 to p50<br>25% (2 of 8 values)"
+    empty = pavement_elements([1, 2, 3, 4, 5], bins=4)
+    assert list(empty["fill"].dimension_values("hover")) == [
+        "1 to 2<br>0% (0 of 5 values)", "2 to 3<br>0% (0 of 5 values)",
+        "3 to 4<br>0% (0 of 5 values)", "4 to 5<br>0% (0 of 5 values)"]
 
 
 def test_elements_line_hover_strings():
     els = pavement_elements([1, 2, 3, 4, 5], bins=4)
-    # A line (tick) reads as a single value and a single percentile.
-    assert list(els["ticks"].dimension_values("quantiles")) == [
-        "p0", "p25", "p50", "p75", "p100"]
-    assert list(els["ticks"].dimension_values("values")) == [
-        "1", "2", "3", "4", "5"]
+    # A line (tick) reads as a single value, a single percentile, and a share.
+    assert list(els["ticks"].dimension_values("hover")) == [
+        "1<br>p0<br>20% (1 of 5 values)", "2<br>p25<br>20% (1 of 5 values)",
+        "3<br>p50<br>20% (1 of 5 values)", "4<br>p75<br>20% (1 of 5 values)",
+        "5<br>p100<br>20% (1 of 5 values)"]
 
 
 def test_value_format_customizes_value_strings():
     # A custom value_format reformats the value strings on both the fill
     # and tick elements; the percentile strings are unchanged.
-    els = pavement_elements([1, 2, 3, 4, 5], bins=4,
+    els = pavement_elements([1, 2, 3, 4, 5, 6, 7, 8], bins=4,
                             value_format=lambda v: f"${v:.2f}")
-    assert list(els["fill"].dimension_values("values"))[0] == "$1.00 to $2.00"
-    assert list(els["ticks"].dimension_values("values"))[0] == "$1.00"
-    assert list(els["fill"].dimension_values("quantiles"))[0] == "p0 to p25"
+    assert list(els["fill"].dimension_values("hover"))[0] == \
+        "$1.00 to $2.50<br>p0 to p25<br>12% (1 of 8 values)"
+    assert list(els["ticks"].dimension_values("hover"))[0] == \
+        "$1.00<br>p0<br>12% (1 of 8 values)"
 
 
 def test_value_format_threads_through_plot():
-    el = plot([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
+    el = plot([1, 2, 3, 4, 5, 6, 7, 8], bins=4, value_format=lambda v: f"${v:.2f}")
     fill = el.Rectangles.I
-    assert list(fill.dimension_values("values"))[0] == "$1.00 to $2.00"
+    assert list(fill.dimension_values("hover"))[0] == \
+        "$1.00 to $2.50<br>p0 to p25<br>12% (1 of 8 values)"
 
 
 def test_elements_horizontal_swaps_axes():
@@ -152,24 +157,25 @@ def test_pavement_renders_across_backends():
         assert hv.render(obj, backend=backend) is not None
 
 
-def test_pavement_bokeh_hover_is_clean_quantile_value_template():
+def test_pavement_bokeh_hover_is_clean_composed_field():
     obj = plot([1, 2, 3, 4, 5])
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
     templates = {h.tooltips for h in hovers}
-    # Both fills and ticks hover the same value/percentile/count layout,
-    # stacked by line break, with no raw x0/y0/x1/y1 corners. (bokeh
+    # Both fills and ticks hover one composed field, rendered as raw HTML so
+    # its line breaks show and no raw x0/y0/x1/y1 corners leak in. (bokeh
     # normalizes @field to @{field}.)
-    assert templates == {"@{values}<br>@{quantiles}<br>@{counts}"}
+    assert templates == {"@{hover}{safe}"}
 
 
 def test_pavement_bokeh_group_hover_leads_with_group():
     obj = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
     fig = hv.render(obj, backend="bokeh")
     hovers = [t for t in fig.toolbar.tools if type(t).__name__ == "HoverTool"]
-    # With a group, it is the first hover line.
-    assert all(h.tooltips == "@{group}<br>@{values}<br>@{quantiles}<br>@{counts}"
-               for h in hovers)
+    assert all(h.tooltips == "@{hover}{safe}" for h in hovers)
+    # The group name leads each fill's composed hover string.
+    rects = pavement_elements([1, 2, 3, 4], group="a")["fill"]
+    assert list(rects.dimension_values("hover"))[0].startswith("a<br>")
 
 
 def test_pavement_bokeh_hover_covers_every_row_fill_and_ticks():
@@ -177,7 +183,7 @@ def test_pavement_bokeh_hover_covers_every_row_fill_and_ticks():
     # (Quad) and quantile ticks (Segment), not just one. HoloViews merges
     # the per-element hover tools into one bound to a single glyph; the
     # finalize hook rebinds it to all of them. The box edges (Segments
-    # with no 'values' column) stay non-hovering.
+    # with no 'hover' column) stay non-hovering.
     obj = plot([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]],
                labels=["a", "b", "c"])
     fig = hv.render(obj, backend="bokeh")
@@ -187,8 +193,8 @@ def test_pavement_bokeh_hover_covers_every_row_fill_and_ticks():
     # Three rows: each contributes one fill quad and one tick segment.
     assert glyphs.count("Quad") == 3
     assert glyphs.count("Segment") == 3
-    # Every hover target carries the value column (so box edges are out).
-    assert all("values" in r.data_source.data for r in hovers[0].renderers)
+    # Every hover target carries the hover column (so box edges are out).
+    assert all("hover" in r.data_source.data for r in hovers[0].renderers)
 
 
 def test_pavement_bokeh_single_row_hover_covers_fill_and_ticks():
@@ -368,18 +374,15 @@ def test_pavement_plotly_adds_invisible_hover_layer():
     hover = [t for t in fig["data"] if t.get("hovertemplate")]
     assert len(hover) == 1
     assert (hover[0].get("marker") or {}).get("opacity") == 0
-    # Same three-line value/percentile/count layout as bokeh, via customdata.
-    assert hover[0]["hovertemplate"] == (
-        "%{customdata[0]}<br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>")
-    # The customdata carries the same display strings bokeh shows: the first
-    # sample falls in the first bin (a value range, the p0-to-p25 band, a
-    # share-and-count).
-    assert " to " in hover[0]["customdata"][0][0]
-    assert hover[0]["customdata"][0][1] == "p0 to p25"
-    assert hover[0]["customdata"][0][2].endswith(" values)")
+    # Per-point text (the same composed string bokeh shows), so an empty box's
+    # dropped band leaves no blank line.
+    assert hover[0]["hovertemplate"] == "%{text}<extra></extra>"
+    # The first sample falls in the first (interior) bin: a value range, the
+    # p0-to-p25 band, and a share-and-count, line-break separated.
+    assert hover[0]["text"][0] == "1 to 2.5<br>p0 to p25<br>12% (1 of 8 values)"
     # A dense line of points (not one per bin) so hovering anywhere along
     # a bin works, each labelled by the bin it falls in.
-    assert len(hover[0]["customdata"]) > 8
+    assert len(hover[0]["text"]) > 8
 
 
 def test_with_marginals_plotly_hovers_marginals_not_scatter():

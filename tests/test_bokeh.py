@@ -24,12 +24,12 @@ def _segments(fig):
 
 
 def _tick_segments(fig):
-    # Tick segments carry hover columns; the box edges don't.
-    return [r for r in _segments(fig) if "quantiles" in r.data_source.data]
+    # Tick segments carry a hover column; the box edges don't.
+    return [r for r in _segments(fig) if "hover" in r.data_source.data]
 
 
 def _box_segments(fig):
-    return [r for r in _segments(fig) if "quantiles" not in r.data_source.data]
+    return [r for r in _segments(fig) if "hover" not in r.data_source.data]
 
 
 def test_glyphs_are_fills_ticks_box():
@@ -77,47 +77,52 @@ def test_glyphs_drop_fill_when_alpha_zero():
 
 
 def test_fill_hover_is_band_and_range():
+    # An interior box's single hover string reads as value range, percentile
+    # band, and the share inside — line-break separated, the shared layout.
     fig = figure()
-    rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], bins=4)
-    data = rends["fills"].data_source.data
-    # Each box carries its value range and percentile band, the same layout
-    # as the other backends.
-    assert data["quantiles"][0] == "p0 to p25"
-    assert data["values"][0] == "1 to 2"
-    assert data["quantiles"][-1] == "p75 to p100"
-    assert data["values"][-1] == "4 to 5"
+    rends = pavement_glyphs(fig, [1, 2, 3, 4, 5, 6, 7, 8], bins=4)
+    hov = rends["fills"].data_source.data["hover"]
+    assert hov[1] == "2.5 to 4.5<br>p25 to p50<br>25% (2 of 8 values)"
+    # An empty box (every value here sits on a quantile edge) drops the band.
+    empty = pavement_glyphs(figure(), [1, 2, 3, 4, 5], bins=4)
+    assert empty["fills"].data_source.data["hover"][0] == \
+        "1 to 2<br>0% (0 of 5 values)"
+    assert empty["fills"].data_source.data["hover"][-1] == \
+        "4 to 5<br>0% (0 of 5 values)"
 
 
 def test_tick_hover_is_single_quantile_and_value():
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], bins=4)
-    data = rends["ticks"].data_source.data
-    assert list(data["quantiles"]) == ["p0", "p25", "p50", "p75", "p100"]
-    assert list(data["values"]) == ["1", "2", "3", "4", "5"]
+    assert list(rends["ticks"].data_source.data["hover"]) == [
+        "1<br>p0<br>20% (1 of 5 values)", "2<br>p25<br>20% (1 of 5 values)",
+        "3<br>p50<br>20% (1 of 5 values)", "4<br>p75<br>20% (1 of 5 values)",
+        "5<br>p100<br>20% (1 of 5 values)"]
 
 
 def test_value_format_customizes_value_strings():
     # A custom value_format reformats the value strings on both hover
-    # sources (bin ranges and tick values); the percentiles are unchanged.
+    # layers (bin ranges and tick values); the percentiles are unchanged.
     fig = figure()
-    rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], bins=4,
+    rends = pavement_glyphs(fig, [1, 2, 3, 4, 5, 6, 7, 8], bins=4,
                             value_format=lambda v: f"${v:.2f}")
-    assert rends["fills"].data_source.data["values"][0] == "$1.00 to $2.00"
-    assert list(rends["ticks"].data_source.data["values"])[0] == "$1.00"
-    assert rends["fills"].data_source.data["quantiles"][0] == "p0 to p25"
+    assert rends["fills"].data_source.data["hover"][0] == \
+        "$1.00 to $2.50<br>p0 to p25<br>12% (1 of 8 values)"
+    assert list(rends["ticks"].data_source.data["hover"])[0] == \
+        "$1.00<br>p0<br>12% (1 of 8 values)"
 
 
 def test_value_format_threads_through_plot():
-    fig = plot([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
+    fig = plot([1, 2, 3, 4, 5, 6, 7, 8], bins=4, value_format=lambda v: f"${v:.2f}")
     data = _quads(fig)[0].data_source.data
-    assert data["values"][0] == "$1.00 to $2.00"
+    assert data["hover"][0] == "$1.00 to $2.50<br>p0 to p25<br>12% (1 of 8 values)"
 
 
-def test_named_glyphs_carry_group():
+def test_named_glyphs_lead_hover_with_name():
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], name="cats")
-    assert rends["fills"].data_source.data["group"][0] == "cats"
-    assert rends["ticks"].data_source.data["group"][0] == "cats"
+    assert rends["fills"].data_source.data["hover"][0].startswith("cats<br>")
+    assert rends["ticks"].data_source.data["hover"][0].startswith("cats<br>")
     assert rends["fills"].name == "cats"
 
 
@@ -165,7 +170,7 @@ def test_pavement_has_hover_by_default():
     fig = plot([1, 2, 3, 4, 5])
     hovers = fig.select(HoverTool)
     assert len(hovers) == 1
-    assert hovers[0].tooltips == "@values<br>@quantiles<br>@counts"
+    assert hovers[0].tooltips == "@hover{safe}"
 
 
 def test_pavement_hover_can_be_disabled():
@@ -190,8 +195,9 @@ def test_pavement_legend_toggles_whole_row():
 
 def test_pavement_named_hover_leads_with_group():
     fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
-    assert fig.select(HoverTool)[0].tooltips == \
-        "@group<br>@values<br>@quantiles<br>@counts"
+    assert fig.select(HoverTool)[0].tooltips == "@hover{safe}"
+    # The row name leads each glyph's composed hover string.
+    assert _quads(fig)[0].data_source.data["hover"][0].startswith("a<br>")
 
 
 def test_pavement_tidy_splits_by_category():

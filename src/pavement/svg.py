@@ -484,8 +484,18 @@ def spark(
         for b in hover_bins(spec, bins is None):
             x0, y0 = pt(position - half, b.low)
             x1, y1 = pt(position + half, b.high)
-            bin_text = b.value_range + chr(10) + b.band + chr(10) + b.count
-            title = f'<title>{escape(bin_text)}</title>' if hover else ''
+            # value range, then the percentile band, then the count — the
+            # shared order; but an empty box (a rug gap, or a bin whose mass
+            # sits on its edges) drops the band, which would otherwise read as
+            # a misleading "pNN to pNN" over a stretch holding no data. Mirrors
+            # the tick label's conditional percentile.
+            lines = [b.value_range]
+            if b.band and (b.inside or not b.count):
+                lines.append(b.band)
+            if b.count:
+                lines.append(b.count)
+            title = (f'<title>{escape(chr(10).join(lines))}</title>'
+                     if hover else '')
             parts.append(rect(
                 x0, y0, x1, y1, cls=' class="pvbin"',
                 extra=f'fill="{fill_paint}" fill-opacity="{_num(rest_opacity)}" '

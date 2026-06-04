@@ -45,11 +45,14 @@ def test_spark_rug_gap_boxes_hover_the_spaces_between_values():
     # is a thin one. Five distinct values -> four gaps.
     out = spark([1, 2, 3, 4, 5], bins=None)
     assert out.count('class="pvbin"') == 4
+    # An empty box holds no data, so it drops the percentile band (which would
+    # read as a misleading "pNN to pNN" over a gap): just a value range and a
+    # zero count.
     gaps = re.findall(r'<rect class="pvbin".*?<title>(.*?)</title>', out, re.S)
-    assert gaps == ["1 to 2\np0 to p25\n0% (0 of 5 values)",
-                    "2 to 3\np25 to p50\n0% (0 of 5 values)",
-                    "3 to 4\np50 to p75\n0% (0 of 5 values)",
-                    "4 to 5\np75 to p100\n0% (0 of 5 values)"]
+    assert gaps == ["1 to 2\n0% (0 of 5 values)",
+                    "2 to 3\n0% (0 of 5 values)",
+                    "3 to 4\n0% (0 of 5 values)",
+                    "4 to 5\n0% (0 of 5 values)"]
 
 
 def test_spark_rug_gap_boxes_skip_repeated_values():
@@ -139,9 +142,9 @@ def test_spark_colored_dense_rug_draws_single_fill():
 
 
 def test_spark_hover_adds_band_tooltip():
-    out = spark([1, 2, 3, 4, 5], bins=4)
+    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=4)
     assert "<title>" in out
-    assert "p0 to p25" in out                # a percentile band
+    assert "p0 to p25" in out                # a percentile band (interior bin)
 
 
 def test_spark_hover_adds_value_count_line():
@@ -154,6 +157,24 @@ def test_spark_hover_adds_value_count_line():
     assert "1 to 2.5\np0 to p25\n12% (1 of 8 values)" in out  # a bin tooltip
     assert "25% (2 of 8 values)" in out                  # a fuller interior bin
     assert "1\np0\n12% (1 of 8 values)" in out           # the min, on its tick
+
+
+def test_spark_empty_bin_drops_its_band():
+    # A bin holding no data strictly inside it (here every value lands on a bin
+    # edge, so no bin has an interior) drops the percentile band from its
+    # tooltip — it would otherwise read as a misleading "pNN to pNN" over a
+    # stretch with nothing in it — keeping just the value range and zero count.
+    out = spark([0, 1, 2, 3, 4], bins=4)
+    bins = re.findall(r'<rect class="pvbin".*?<title>(.*?)</title>', out, re.S)
+    assert bins == ["0 to 1\n0% (0 of 5 values)", "1 to 2\n0% (0 of 5 values)",
+                    "2 to 3\n0% (0 of 5 values)", "3 to 4\n0% (0 of 5 values)"]
+
+
+def test_spark_interior_bin_keeps_its_band():
+    # A bin that does hold data strictly inside it keeps its percentile band:
+    # the eight-value, four-bin split puts two values inside each interior bin.
+    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=4)
+    assert "2.5 to 4.5\np25 to p50\n25% (2 of 8 values)" in out
 
 
 def test_spark_rug_tick_hover_includes_count():
@@ -169,9 +190,10 @@ def test_spark_hover_false_omits_titles():
 
 def test_spark_value_format_customizes_bin_tooltips():
     # A custom value_format reformats the value range in each bin's
-    # tooltip; the percentile band is unchanged.
-    out = spark([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
-    assert "$1.00 to $2.00" in out
+    # tooltip; the percentile band is unchanged (shown on an interior bin).
+    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=4,
+                value_format=lambda v: f"${v:.2f}")
+    assert "$1.00 to $2.50" in out
     assert "p0 to p25" in out
 
 

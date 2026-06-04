@@ -138,7 +138,11 @@ def _row_geometry(
     bins: list[tuple[list[float], list[float], str, str, str]] = []
     for b in hover_bins(spec, rug):
         xs, ys = bin_polygon(b.low, b.high, position, spec.half, orientation)
-        bins.append((xs, ys, b.band, b.value_range, b.count))
+        # An empty box (a rug gap, or a bin whose mass sits on its edges) drops
+        # its percentile band, which would otherwise read as a misleading "pNN
+        # to pNN" over a stretch holding no data.
+        band = b.band if (b.inside or not b.count) else ""
+        bins.append((xs, ys, band, b.value_range, b.count))
 
     # Ticks: the quantile ticks as line segments (None lifts the pen between
     # them), plus a hover point per distinct value at the row center.
@@ -274,7 +278,10 @@ def pavement_traces(
     # need to bake an alpha into the color string (and no matplotlib).
     if fill_alpha > 0:
         for xs, ys, band, value_range, count in geom["bins"]:
-            text = "<br>".join(prefix + [value_range, band, count])
+            # An empty box's band is "" and drops out rather than leaving a
+            # blank line — the same handling as a single-value tick's percentile.
+            text = "<br>".join(s for s in prefix + [value_range, band, count]
+                               if s)
             traces.append(go.Scatter(
                 x=xs, y=ys, mode="lines", line=dict(width=0), fill="toself",
                 fillcolor=color, opacity=fill_alpha, hoveron="fills",
