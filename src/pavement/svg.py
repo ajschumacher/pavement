@@ -1123,14 +1123,20 @@ _EXTENT_CROP = 16   # max display length for a categorical extent label
 
 
 def _crop_value(v: Any) -> str:
-    """Render *v* as a string, cropping to ``_EXTENT_CROP`` characters.
+    """Render *v* as a string for an extent label cell.
 
-    Values longer than the limit are shown as the first ``_EXTENT_CROP - 1``
-    characters followed by an ellipsis (``…``), so the result is never wider
-    than ``_EXTENT_CROP`` characters.
+    Long values are truncated to ``_EXTENT_CROP`` characters (15 chars + ``…``).
+    Values that would appear blank — empty strings, or whose stripped form is
+    empty or non-printable (e.g. whitespace-only, control characters) — are
+    wrapped in straight quotation marks (``”…”``) so the cell visibly
+    conveys that a value is present.
     """
     s = str(v)
-    return s[:_EXTENT_CROP - 1] + '…' if len(s) > _EXTENT_CROP else s
+    cropped = s[:_EXTENT_CROP - 1] + '…' if len(s) > _EXTENT_CROP else s
+    stripped = s.strip()
+    if not stripped or not stripped.isprintable():
+        return '"' + cropped + '"'
+    return cropped
 
 
 def _column_extent(values: list[Any], present: list[Any]) -> tuple[str, str]:
