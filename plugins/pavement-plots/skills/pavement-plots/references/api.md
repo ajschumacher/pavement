@@ -22,7 +22,7 @@ Shared core parameters (present on matplotlib, plotly, bokeh, holoviews):
 - `labels=None` — label per row.
 - `bins=4` — int (equal-mass bins), `None` (rug), or a sequence for per-row control.
 - `widths=0.6` — row thickness; scalar or per-row sequence.
-- `whisker_extent=0.1`, `show_whiskers=True` — whisker length / visibility.
+- `tassel_extent=0.1`, `show_tassels=True` — tassel length / visibility.
 - `show_box=None` — resolved per row: defaults to box on for binned, off for `bins=None`
   rug. Pass `True`/`False` to override.
 - `orientation="vertical"` — or `"horizontal"`.
@@ -47,12 +47,12 @@ A 2D pavement: a grid where every cell holds an equal share of the data. `first_
 chooses whether the first equal-mass cut is along x or y; `x_bins`/`y_bins` override `bins`
 per axis. Returns a dict of artists.
 
-### `margin(data, axis="x", where=None, bins=4, weights=None, pad=0.03, size=0.04, expand_margins=True, show_whiskers=True, show_box=None, line_props=None, box_props=None, clip_on=False, ax=None)`
+### `margin(data, axis="x", where=None, bins=4, weights=None, pad=0.03, size=0.04, expand_margins=True, show_tassels=True, show_box=None, line_props=None, box_props=None, clip_on=False, ax=None)`
 A single marginal pavement strip just inside or outside an edge of an existing plot — a
 richer drop-in for a rug. `axis="x"|"y"`, `where` picks the edge (e.g. `"top"`,
 `"bottom"`, `"left"`, `"right"`).
 
-### `spark(data, weights=None, bins=4, orientation="horizontal", width=0.6, whisker_extent=0.1, show_whiskers=True, show_box=None, color=None, fill_alpha=0.3, line_props=None, box_props=None, figsize=None, dpi=200, pad=0.0, transparent=True, path=None)`
+### `spark(data, weights=None, bins=4, orientation="horizontal", width=0.6, tassel_extent=0.1, show_tassels=True, show_box=None, color=None, fill_alpha=0.3, line_props=None, box_props=None, figsize=None, dpi=200, pad=0.0, transparent=True, path=None)`
 A borderless, word-sized raster image for inline use. Pass `path="spark.png"` to save;
 returns the matplotlib `Figure`. (Web counterpart: `pavement.svg.spark`.)
 
@@ -67,7 +67,7 @@ import pavement.svg as pavement
 `.svg`/`.html`). `summary` returns a `Summary` object (an HTML table that renders inline
 in Jupyter), not a string.
 
-### `spark(data, weights=None, bins=4, orientation="horizontal", width=0.6, whisker_extent=0.1, show_whiskers=True, show_box=None, color=None, fill_alpha=0.3, line_color=None, line_width=1.2, height="1em", inline=True, hover=True, value_format=None, tick_hover_limit=24, highlight=True, class_="pavement-spark", path=None)`
+### `spark(data, weights=None, bins=4, orientation="horizontal", width=0.6, tassel_extent=0.1, show_tassels=True, show_box=None, color=None, fill_alpha=0.3, line_color=None, line_width=1.2, height="1em", inline=True, hover=True, value_format=None, tick_hover_limit=24, highlight=True, class_="pavement-spark", path=None)`
 Numeric sparkline. Defaults to `currentColor`, scales with text. `value_format` formats
 tooltip values (same callable as the interactive backends). `bins=None` makes a rug where
 each value is hoverable when few, or a single summary when many (`tick_hover_limit`). Also

@@ -149,9 +149,9 @@ def test_horizontal_swaps_axes():
     assert list(vert.x) == list(horiz.y)
 
 
-def test_repeated_value_makes_a_whisker():
+def test_repeated_value_makes_a_tassel():
     # Heavy repetition piles several quantile edges onto one value, whose
-    # tick then reaches past the box as a whisker.
+    # tick then reaches past the box as a tassel.
     line = _line_trace(pavement_traces([0, 0, 0, 0, 1, 2, 3], bins=4,
                                        width=0.6))
     half = 0.6 / 2

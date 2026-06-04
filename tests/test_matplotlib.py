@@ -206,14 +206,14 @@ def test_plot_show_box_true_forces_box_on_rug():
     plt.close()
 
 
-def test_draw_pavement_repeated_value_makes_a_whisker():
+def test_draw_pavement_repeated_value_makes_a_tassel():
     plt.figure()
-    # A repeated value reaches past the box as a whisker — one line per
-    # distinct value, no separate whiskers artist.
+    # A repeated value reaches past the box as a tassel — one line per
+    # distinct value, no separate tassels artist.
     artists = draw_pavement([1, 1, 2, 3], width=0.6)
     half = 0.6 / 2
     # Vertical ticks are horizontal segments [[xmin, y], [xmax, y]]; the
-    # half-span is (xmax - xmin) / 2, which exceeds half for the whisker.
+    # half-span is (xmax - xmin) / 2, which exceeds half for the tassel.
     reaches = [(seg[1][0] - seg[0][0]) / 2
                for seg in artists["ticks"].get_segments()]
     assert max(reaches) > half
@@ -505,7 +505,7 @@ def test_spark_ink_runs_flush_to_every_edge(tmp_path):
     import matplotlib.image as mpimg
 
     out = tmp_path / "spark.png"
-    # Distinct values -> no whiskers, so the box's four edges define the
+    # Distinct values -> no tassels, so the box's four edges define the
     # bounding box; with default pad they reach all four image borders
     # (and the half-stroke margin keeps them from being clipped). show_box=True
     # forces the complete box (these values all sit on bin edges, so the auto
