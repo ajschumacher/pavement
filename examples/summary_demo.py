@@ -145,9 +145,13 @@ Hover any line for its value, percentile, and count.</p>
                 f"{ratings.count(3)}/{ratings.count(4)} of the way, and the "
                 "rarer values less — the distribution's shape without bins.",
                 proportional_representation=True)}
-<p>A floor (<code>min_representation</code>, default 10% of full) keeps a rare
+<p>A floor (<code>min_representation</code>, default 5% of full) keeps a rare
 value's line visible rather than letting it collapse to a point; the lines stay
 centered on the value axis, so the rug keeps its symmetric look.</p>
+<p>This is what <code>summary</code> reaches for automatically: a numeric column
+with 16 or fewer distinct values (like <code>rating</code> in the dataframe
+above) is drawn as a frequency rug rather than smeared into equal-mass bins, so
+its handful of levels and their counts read straight off the strip.</p>
 """
 
 
@@ -342,8 +346,11 @@ JavaScript. Hover any strip for its share, value, and count.</p>
 <p>One row per column, under a top row for the frame as a whole: its
 <strong>{len(next(iter(people.values())))} rows</strong>, and a tally that
 treats each <em>whole row</em> as the entity. Numeric columns get a pavement
-<strong>spark</strong> whose resolution adapts to how many values are present —
-a rug for 24 or fewer, then 4, 8, or 16 equal-mass bins for larger columns.
+<strong>spark</strong> whose resolution adapts to the column — a
+<strong>frequency rug</strong> for 24 or fewer values, <em>or</em> for 16 or
+fewer distinct values (so the discrete <code>rating</code> shows its five levels
+and their counts as scaled lines rather than equal-mass bins), then 4, 8, or 16
+equal-mass bins for larger continuous columns.
 Dates work too: <code>signup_date</code> is laid out on a time axis (hover for
 the dates). Durations too: <code>session_duration</code> shows timedeltas on a
 duration axis (e.g. <em>1d 02:00</em>). Categorical columns get a

@@ -232,7 +232,7 @@ def spark(
     whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     proportional_representation: bool = False,
-    min_representation: float = 0.1,
+    min_representation: float = 0.05,
     show_box: bool | None = None,
     color: str | None = None,
     fill_alpha: float = 0.3,
@@ -292,9 +292,9 @@ def spark(
         and a frequency's reach would fight); a ``ValueError`` otherwise.
         Counts are unweighted — weights don't apply to a rug (see
         `pavement_stats`).
-    min_representation : float, default: 0.1
+    min_representation : float, default: 0.05
         Floor on a value line's length under *proportional_representation*, as
-        a fraction of the full box (so ``0.1`` keeps every line at least 10% of
+        a fraction of the full box (so ``0.05`` keeps every line at least 5% of
         full length). Keeps a rare value's line from collapsing to an
         invisible point, the way *min_box* protects a tiny tally slice. Ignored
         unless *proportional_representation* is on.
@@ -994,24 +994,34 @@ def tally(
 # lands, and it renders inline in Jupyter through `Summary._repr_html_`.
 # ---------------------------------------------------------------------------
 
-# Choosing a numeric column's pavement resolution from its total value count.
-# While the column is small enough to read one value at a time, a rug shows
-# them all — the limit matches `spark`'s tick_hover_limit, so every tick is
-# individually hoverable — and past that an equal-mass binned pavement,
-# doubling the bin count each time the total roughly quadruples, capped at 16
-# (finer bins don't read at a sparkline's size).
+# Choosing a numeric column's pavement resolution from its values. A rug shows
+# every value individually (drawn as a frequency rug in the summary, so the
+# line lengths carry the value counts); a binned pavement smears them into
+# equal-mass bins. We rug when either:
+#   - the column is small enough to read one value at a time (at most
+#     ``_RUG_LIMIT`` values total — the limit matches `spark`'s
+#     tick_hover_limit, so every tick stays individually hoverable), or
+#   - it has few enough *distinct* values (at most ``_DISTINCT_RUG_LIMIT``) that
+#     a frequency rug reads the distribution better than binning would — a
+#     discrete rating, say, that is many values but only a handful of levels.
+# Otherwise an equal-mass binned pavement, doubling the bin count each time the
+# total roughly quadruples, capped at 16 (finer bins don't read at a
+# sparkline's size).
 _RUG_LIMIT = 24
+_DISTINCT_RUG_LIMIT = 16  # a column with at most this many distinct values rugs
 _BIN_THRESHOLDS = ((97, 4), (257, 8))  # n < cut -> that many bins
 _MAX_BINS = 16
 
 
-def _choose_bins(n: int) -> int | None:
-    """Bins for a numeric column's spark, from its total value count.
+def _choose_bins(present: Sequence[Any]) -> int | None:
+    """Bins for a numeric column's spark, from its *present* values.
 
-    None (a rug) up to ``_RUG_LIMIT``, then 4, 8, and a 16-bin cap — see the
-    reasoning on the module constants above.
+    None (a rug) when the column has at most ``_RUG_LIMIT`` values *or* at most
+    ``_DISTINCT_RUG_LIMIT`` distinct values; otherwise 4, 8, and a 16-bin cap —
+    see the reasoning on the module constants above.
     """
-    if n <= _RUG_LIMIT:
+    n = len(present)
+    if n <= _RUG_LIMIT or len(set(present)) <= _DISTINCT_RUG_LIMIT:
         return None
     for cut, bins in _BIN_THRESHOLDS:
         if n < cut:
@@ -1208,8 +1218,12 @@ def _distribution_strip(values: list[Any], present: list[Any],
     if not present:
         return ''
     if _pavement_column(present):
-        svg = spark(present, bins=_choose_bins(len(present)),
-                    color=color, **opts)
+        bins = _choose_bins(present)
+        # A summary rug is drawn as a frequency rug: the value lines carry the
+        # value counts in their lengths, which is the whole point of rugging a
+        # discrete column rather than binning it.
+        svg = spark(present, bins=bins, color=color,
+                    proportional_representation=bins is None, **opts)
     else:
         svg = proportion(values, **opts)
     return _set_strip_width(svg, strip_width) if strip_width else svg
