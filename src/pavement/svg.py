@@ -44,6 +44,7 @@ from __future__ import annotations
 import datetime as _dt
 import math
 import numbers
+from collections import Counter
 from collections.abc import Iterable, Sequence
 from decimal import Decimal
 from typing import Any, Literal
@@ -230,6 +231,8 @@ def spark(
     width: float = 0.6,
     whisker_extent: float = 0.05,
     show_whiskers: bool = False,
+    proportional_representation: bool = False,
+    min_representation: float = 0.1,
     show_box: bool | None = None,
     color: str | None = None,
     fill_alpha: float = 0.3,
@@ -279,6 +282,22 @@ def spark(
         How far whisker marks reach beyond the box at repeated values.
     show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
+    proportional_representation : bool, default: False
+        Turn a rug into a *frequency rug*: scale each value line's length to
+        how often that value occurs, so the most common value's line spans the
+        full box and the rest reach proportionally less (a value seen half as
+        often draws a line half as long). The lines stay centered on the value
+        axis, shrinking symmetrically. Only meaningful for a rug, so it
+        requires ``bins=None`` and ``show_whiskers=False`` (a whisker's reach
+        and a frequency's reach would fight); a ``ValueError`` otherwise.
+        Counts are unweighted — weights don't apply to a rug (see
+        `pavement_stats`).
+    min_representation : float, default: 0.1
+        Floor on a value line's length under *proportional_representation*, as
+        a fraction of the full box (so ``0.1`` keeps every line at least 10% of
+        full length). Keeps a rare value's line from collapsing to an
+        invisible point, the way *min_box* protects a tiny tally slice. Ignored
+        unless *proportional_representation* is on.
     show_box : bool or None, default: None
         Whether (and how) to draw the long box edges (the borders parallel
         to the value axis). None (the default) draws them for a binned spark
@@ -361,6 +380,10 @@ def spark(
     n = len(data)
     if n == 0:
         raise ValueError("data must be non-empty")
+    if proportional_representation and (bins is not None or show_whiskers):
+        raise ValueError(
+            "proportional_representation requires a rug: bins=None and "
+            "show_whiskers=False")
     # Project an ordered non-float family (Decimal, date/datetime) onto a
     # numeric axis, taking its renderer as the default tooltip format. A
     # caller-supplied value_format still wins (and then receives the projected
@@ -374,6 +397,21 @@ def spark(
     fmt_value = value_format or fmt
     reach = max(t.reach for t in spec.ticks)
     half = spec.half
+
+    # A frequency rug scales each value line's *drawn* length to how common
+    # that value is — the most common reaches the full box, the rest less, but
+    # never below `min_representation` of full so a rare value stays visible.
+    # The lines stay centered (reach shrinks symmetrically), and the box width
+    # `reach` is unchanged (every tick's geometric reach is still `half`), so
+    # the viewBox isn't distorted. Without the flag, each line is drawn at its
+    # full geometric reach, exactly as before.
+    if proportional_representation:
+        freq = Counter(data)
+        top = max(freq.values())
+        mark_reaches = [t.reach * max(freq[t.value] / top, min_representation)
+                        for t in spec.ticks]
+    else:
+        mark_reaches = [t.reach for t in spec.ticks]
 
     value_low, value_high = spec.value_low, spec.value_high
     if value_high == value_low:  # constant data: give the box a little span
@@ -464,10 +502,15 @@ def spark(
     for low, high in box_edge_spans(spec, show_box):
         marks += [stroke_line(*pt(side, low), *pt(side, high))
                   for side in (position - half, position + half)]
-    for t in spec.ticks:
-        a = pt(position - t.reach, t.value)
-        b = pt(position + t.reach, t.value)
+    for t, mark_reach in zip(spec.ticks, mark_reaches):
+        # The visible mark uses the (possibly frequency-scaled) reach; the
+        # transparent hit-area keeps the full reach so even a short line stays
+        # easy to hover. They coincide unless proportional_representation is on.
+        a = pt(position - mark_reach, t.value)
+        b = pt(position + mark_reach, t.value)
         if per_tick_hover:
+            ha = pt(position - t.reach, t.value)
+            hb = pt(position + t.reach, t.value)
             # value first, then the percentile cut point (absent for a
             # single-value spark), then the count/share — the shared order.
             label = t.value_str
@@ -477,7 +520,7 @@ def spark(
             marks.append(
                 '<g class="pvtick">'
                 + stroke_line(*a, *b, attrs=' class="pvmark"')
-                + stroke_line(*a, *b, attrs=' class="pvhit" '
+                + stroke_line(*ha, *hb, attrs=' class="pvhit" '
                               'stroke="transparent" '
                               f'stroke-width="{_num(_HIT_WIDTH)}" '
                               'pointer-events="all"',
