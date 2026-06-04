@@ -16,7 +16,8 @@ from pavement.svg import (
     _is_numeric,
     _plural,
     _row_key,
-    _spark_extent,
+    _column_extent,
+    _crop_value,
     summary,
 )
 
@@ -180,30 +181,54 @@ def test_summary_numeric_resolution_follows_distinct_count():
 # Spark extent (min/max axis labels)
 # ---------------------------------------------------------------------------
 
-def test_spark_extent_numeric():
-    lo, hi = _spark_extent([1, 5, 3])
+def test_crop_value_short_values_unchanged():
+    assert _crop_value("hello") == "hello"
+    assert _crop_value("x" * 16) == "x" * 16
+
+
+def test_crop_value_long_values_truncated():
+    assert _crop_value("x" * 17) == "x" * 15 + "…"
+    assert len(_crop_value("a" * 100)) == 16
+
+
+def test_column_extent_numeric():
+    lo, hi = _column_extent([1, 5, 3], [1, 5, 3])
     assert lo == "1"
     assert hi == "5"
 
 
-def test_spark_extent_empty_and_categorical():
-    assert _spark_extent([]) == ('', '')
-    assert _spark_extent(["a", "b", "c"]) == ('', '')
+def test_column_extent_empty():
+    assert _column_extent([], []) == ('', '')
 
 
-def test_spark_extent_appears_in_summary_for_numeric_column():
+def test_column_extent_categorical():
+    # proportion_stats sorts descending; ties broken by first appearance.
+    # ["a","b","a","c"] -> counts: a=2, b=1, c=1 -> most="a", least="c"
+    lo, hi = _column_extent(["a", "b", "a", "c"], ["a", "b", "a", "c"])
+    assert lo == "a"
+    assert hi == "c"
+
+
+def test_column_extent_categorical_crops_long_values():
+    long = "x" * 20
+    lo, hi = _column_extent([long, "z"], [long, "z"])
+    assert lo == "x" * 15 + "…"
+    assert hi == "z"
+
+
+def test_column_extent_appears_in_summary_for_numeric_column():
     out = str(summary({"score": [10, 20, 30, 40, 50]}))
     assert "10" in out and "50" in out   # min and max visible
 
 
-def test_spark_extent_absent_for_categorical_column():
+def test_column_extent_appears_in_summary_for_categorical_column():
+    # "a" (most common) on left, "c" (least common, last) on right.
     out = str(summary({"cat": ["a", "b", "a", "c"]}))
-    # Proportion strip has no axis labels; extent cells should be empty.
     assert 'pavement-proportion' in out
-    # No stray numeric min/max values in the HTML.
     import re
     extent_spans = re.findall(r'font-size:\.85em[^>]*>([^<]+)<', out)
-    assert not extent_spans
+    assert "a" in extent_spans
+    assert "c" in extent_spans
 
 
 # ---------------------------------------------------------------------------

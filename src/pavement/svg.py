@@ -1119,19 +1119,41 @@ def _distribution_strip(values: list[Any], present: list[Any],
     return proportion(values, **opts)
 
 
-def _spark_extent(present: list[Any]) -> tuple[str, str]:
-    """Formatted min and max strings for a pavement column's axis-label cells.
+_EXTENT_CROP = 16   # max display length for a categorical extent label
 
-    Returns ``('', '')`` when *present* is empty or is not a pavement column
-    (categorical columns get a proportion strip and have no numeric axis).
-    Uses the same projection and formatter as `spark` so the values match
-    what appears in the hover tooltips.
+
+def _crop_value(v: Any) -> str:
+    """Render *v* as a string, cropping to ``_EXTENT_CROP`` characters.
+
+    Values longer than the limit are shown as the first ``_EXTENT_CROP - 1``
+    characters followed by an ellipsis (``…``), so the result is never wider
+    than ``_EXTENT_CROP`` characters.
     """
-    if not present or not _pavement_column(present):
+    s = str(v)
+    return s[:_EXTENT_CROP - 1] + '…' if len(s) > _EXTENT_CROP else s
+
+
+def _column_extent(values: list[Any], present: list[Any]) -> tuple[str, str]:
+    """Axis-label strings for the extent cells flanking a distribution strip.
+
+    - **Pavement columns**: formatted min and max, using the same projection
+      and formatter as `spark` so the values match the hover tooltips.
+    - **Proportion columns**: most common value on the left, least common on
+      the right, each cropped to ``_EXTENT_CROP`` characters.
+
+    Returns ``('', '')`` when *present* is empty.
+    """
+    if not present:
         return '', ''
-    projected, vfmt = _project(list(present))
-    fmt_v = vfmt or fmt
-    return fmt_v(min(projected)), fmt_v(max(projected))
+    if _pavement_column(present):
+        projected, vfmt = _project(list(present))
+        fmt_v = vfmt or fmt
+        return fmt_v(min(projected)), fmt_v(max(projected))
+    # Categorical: most common first, least common last in proportion_stats.
+    items = proportion_stats(values)['counts']
+    if not items:
+        return '', ''
+    return _crop_value(items[0][0]), _crop_value(items[-1][0])
 
 
 class Summary:
@@ -1252,7 +1274,7 @@ def summary(
             _tally_strip(keys, 'row', opts), '', '', '', total=True))
         for name, values in zip(names, columns):
             present = [v for v in values if not _is_missing(v)]
-            lo, hi = _spark_extent(present)
+            lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
                 _tally_strip(values, 'entry', opts),
@@ -1262,7 +1284,7 @@ def summary(
     else:
         values = list(data)
         present = [v for v in values if not _is_missing(v)]
-        lo, hi = _spark_extent(present)
+        lo, hi = _column_extent(values, present)
         rows.append(_summary_row(
             _count_label(len(values), 'entry'),
             _tally_strip(values, 'entry', opts),
