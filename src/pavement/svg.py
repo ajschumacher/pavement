@@ -1092,18 +1092,13 @@ _SVG_ASPECT = 140.0 / 30.0   # horizontal strip viewBox width:height ratio
 _TALLY_WIDTH_SCALE = 0.75    # tally strips: 75% of natural width (narrower)
 _DIST_WIDTH_SCALE = 1.30     # distribution strips: 130% of natural width (wider)
 _SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
-# Text-cell wrapper widths: explicit CSS width (not max-width) so the wrapper
-# is always exactly this wide regardless of text content, giving every summary
-# the same column layout. clamp() contracts the cell on narrow viewports.
-_NAME_WRAP_WIDTH = 'clamp(6em, 25vw, 14em)'
-_EXT_WRAP_WIDTH = 'clamp(3.5em, 7vw, 6em)'
-# Full inline style for each text-cell wrapper. The explicit width is the key:
-# it makes the <td> content always the same size, so table-layout:auto gives
-# every column a consistent width regardless of what text happens to be inside.
-_NAME_WRAP = (f'display:block;width:{_NAME_WRAP_WIDTH};overflow-x:auto;'
+# All three text columns (name, left extent, right extent) share one width so
+# the layout is visually uniform. The explicit CSS width — not max-width —
+# means the wrapper is always exactly this wide regardless of content.
+# clamp() contracts the cell gracefully on narrow viewports.
+_TEXT_COL_WIDTH = 'clamp(5em, 12vw, 8em)'
+_TEXT_WRAP = (f'display:block;width:{_TEXT_COL_WIDTH};overflow-x:auto;'
               f'white-space:nowrap;scrollbar-width:thin;')
-_EXT_WRAP = (f'display:block;width:{_EXT_WRAP_WIDTH};overflow-x:auto;'
-             f'white-space:nowrap;scrollbar-width:thin;')
 
 
 def _count_label(n: int, noun: str) -> str:
@@ -1120,9 +1115,9 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
     td_extr = _TD_EXTR_TOTAL if total else _TD_EXTR
     lo_inner = f'<span style="{_EXTENT_STYLE}">{escape(lo)}</span>' if lo else ''
     hi_inner = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
-    lo_html = f'<div style="{_EXT_WRAP}">{lo_inner}</div>' if lo else ''
-    hi_html = f'<div style="{_EXT_WRAP}">{hi_inner}</div>' if hi else ''
-    return (f'<tr><td style="{td}"><div style="{_NAME_WRAP}">{label}</div></td>'
+    lo_html = f'<div style="{_TEXT_WRAP}">{lo_inner}</div>' if lo else ''
+    hi_html = f'<div style="{_TEXT_WRAP}">{hi_inner}</div>' if hi else ''
+    return (f'<tr><td style="{td}"><div style="{_TEXT_WRAP}">{label}</div></td>'
             f'<td style="{td}">{tally_html}</td>'
             f'<td style="{td_extl}">{lo_html}</td>'
             f'<td style="{td_dist}">{dist_html}</td>'
