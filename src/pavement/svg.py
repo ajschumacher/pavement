@@ -1081,6 +1081,12 @@ _TD_EXTR_TOTAL = _TD_EXTR + 'border-bottom:1px solid rgba(128,128,128,.35);'
 _COUNT_STYLE = 'color:#888;'  # muted, for a "1,234 rows" / "1,234 values" cell
 _NAME_STYLE = ('font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
                'monospace;font-size:.92em;')
+# Separate style for the name cell so it gets symmetric padding (0.4em each
+# side), matching the extent cells.  _TD (used for the tally cell) keeps its
+# original 0/0.8em padding so the tally SVG stays flush-left as before.
+_TD_NAME = ('border:none;padding:.18em .4em .18em .4em;text-align:left;'
+            'vertical-align:middle;white-space:nowrap;')
+_TD_NAME_TOTAL = _TD_NAME + 'border-bottom:1px solid rgba(128,128,128,.35);'
 _EXTENT_STYLE = ('color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,'
                  'Consolas,monospace;font-size:.85em;')
 
@@ -1092,14 +1098,13 @@ _SVG_ASPECT = 140.0 / 30.0   # horizontal strip viewBox width:height ratio
 _TALLY_WIDTH_SCALE = 0.75    # tally strips: 75% of natural width (narrower)
 _DIST_WIDTH_SCALE = 1.30     # distribution strips: 130% of natural width (wider)
 _SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
-# Text column width as a fraction of the natural SVG width (height × aspect).
-# All three text columns (name, left extent, right extent) use this same scale
-# so they get identical column widths, computed once from the base height.
-# The column width includes cell padding; see summary() for the math.
-_TEXT_COL_SCALE = 0.93
-# Total horizontal cell padding for all text/tally cells (uses _TD style).
-# Name and tally share _TD: right=0.8em, left=0em → total 0.8em.
-# Both extent cells use _TD_EXTL/R: 0.4em each side → total 0.8em. Consistent.
+# Responsive width for all three text columns.  Using the same clamp() value
+# for name, ext-left, and ext-right guarantees they are always exactly equal
+# at any viewport width.  table-layout:fixed + calc() table width enforces this.
+_TEXT_COL_CLAMP = 'clamp(5em, 12vw, 8em)'
+# Total horizontal cell padding shared by tally and all text cells.
+# Name cell uses _TD_NAME (symmetric 0.4+0.4), tally uses _TD (0+0.8),
+# extent cells use _TD_EXTL/R (0.4+0.4) — all sum to 0.8em.
 _TD_HPAD = 0.8
 # Scrollable wrapper inside each text cell. Width comes from the <col> element
 # (via table-layout:fixed), so no explicit width is needed on the div itself.
@@ -1114,7 +1119,8 @@ def _count_label(n: int, noun: str) -> str:
 def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
                  *, total: bool = False) -> str:
     """One table row: label, tally, min-extent, distribution, max-extent cells."""
-    td = _TD_TOTAL if total else _TD
+    td_name = _TD_NAME_TOTAL if total else _TD_NAME
+    td_tally = _TD_TOTAL if total else _TD
     td_dist = _TD_DIST_TOTAL if total else _TD_DIST
     td_extl = _TD_EXTL_TOTAL if total else _TD_EXTL
     td_extr = _TD_EXTR_TOTAL if total else _TD_EXTR
@@ -1122,8 +1128,8 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
     hi_inner = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
     lo_html = f'<div style="{_TEXT_WRAP}">{lo_inner}</div>' if lo else ''
     hi_html = f'<div style="{_TEXT_WRAP}">{hi_inner}</div>' if hi else ''
-    return (f'<tr><td style="{td}"><div style="{_TEXT_WRAP}">{label}</div></td>'
-            f'<td style="{td}">{tally_html}</td>'
+    return (f'<tr><td style="{td_name}"><div style="{_TEXT_WRAP}">{label}</div></td>'
+            f'<td style="{td_tally}">{tally_html}</td>'
             f'<td style="{td_extl}">{lo_html}</td>'
             f'<td style="{td_dist}">{dist_html}</td>'
             f'<td style="{td_extr}">{hi_html}</td></tr>')
@@ -1351,19 +1357,18 @@ def summary(
             pass
     if h_em is not None:
         natural_w = h_em * _SVG_ASPECT
-        w_tally_svg = natural_w * _TALLY_WIDTH_SCALE   # SVG content width
-        w_dist_svg = natural_w * _DIST_WIDTH_SCALE     # SVG content width
-        w_tally = f'{w_tally_svg:.2f}em'               # for _set_strip_width
-        w_dist = f'{w_dist_svg:.2f}em'                 # for _set_strip_width
-        # <col> widths = cell content area + cell padding (border-box in fixed layout).
-        # Tally/name/extent cells all share _TD/_TD_EXT* with _TD_HPAD total.
-        # Distribution cell has no horizontal padding (_TD_DIST: padding 0 sides).
-        w_text_col = f'{natural_w * _TEXT_COL_SCALE:.2f}em'
-        w_tally_col = f'{w_tally_svg + _TD_HPAD:.2f}em'
-        w_dist_col = f'{w_dist_svg:.2f}em'
-        w_total = (3 * natural_w * _TEXT_COL_SCALE
-                   + w_tally_svg + _TD_HPAD
-                   + w_dist_svg)
+        w_tally_svg = natural_w * _TALLY_WIDTH_SCALE
+        w_dist_svg = natural_w * _DIST_WIDTH_SCALE
+        w_tally = f'{w_tally_svg:.2f}em'    # for _set_strip_width
+        w_dist = f'{w_dist_svg:.2f}em'      # for _set_strip_width
+        # <col> widths for the two strip columns.  Text columns all use
+        # _TEXT_COL_CLAMP — the same CSS value guarantees they are equal.
+        w_tally_col = f'{w_tally_svg + _TD_HPAD:.2f}em'  # SVG + tally cell padding
+        w_dist_col = f'{w_dist_svg:.2f}em'                # dist cell: no horiz. padding
+        # Table width = exact sum of column widths, expressed in CSS so the
+        # browser never has leftover space to redistribute.  calc() lets us add
+        # the responsive clamp() text columns to the fixed-em strip columns.
+        w_total_css = (f'calc(3 * {_TEXT_COL_CLAMP} + {w_tally_col} + {w_dist_col})')
         fixed_layout = True
     else:
         w_tally = w_dist = None
@@ -1409,21 +1414,21 @@ def summary(
             hi))
 
     if fixed_layout:
-        # table-layout:fixed with an explicit width forces the browser to use
-        # the <col> widths exactly, ignoring cell content entirely.  The three
-        # text columns get identical <col> widths so they are pixel-perfect
-        # equals regardless of what names or values happen to be in them.
+        # table-layout:fixed + explicit width ignores cell content entirely.
+        # All three text <col> elements use the same clamp() value → guaranteed
+        # equal.  The table width is the exact CSS sum of all column widths via
+        # calc(), so the browser never has leftover space to redistribute.
         colgroup = (
             f'<colgroup>'
-            f'<col style="width:{w_text_col};"/>'
+            f'<col style="width:{_TEXT_COL_CLAMP};"/>'
             f'<col style="width:{w_tally_col};"/>'
-            f'<col style="width:{w_text_col};"/>'
+            f'<col style="width:{_TEXT_COL_CLAMP};"/>'
             f'<col style="width:{w_dist_col};"/>'
-            f'<col style="width:{w_text_col};"/>'
+            f'<col style="width:{_TEXT_COL_CLAMP};"/>'
             f'</colgroup>'
         )
         table_style = (f'border-collapse:collapse;font-family:inherit;'
-                       f'table-layout:fixed;width:{w_total:.2f}em;')
+                       f'table-layout:fixed;width:{w_total_css};')
     else:
         colgroup = ''
         table_style = 'border-collapse:collapse;font-family:inherit;'
