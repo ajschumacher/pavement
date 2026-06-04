@@ -16,6 +16,7 @@ from pavement.svg import (
     _is_numeric,
     _plural,
     _row_key,
+    _spark_extent,
     summary,
 )
 
@@ -173,6 +174,36 @@ def test_summary_numeric_resolution_follows_distinct_count():
     assert 'class="pvbin"' not in rug
     binned = str(summary(list(range(50))))     # 50 distinct -> 4 bins
     assert binned.count('class="pvbin"') == 4
+
+
+# ---------------------------------------------------------------------------
+# Spark extent (min/max axis labels)
+# ---------------------------------------------------------------------------
+
+def test_spark_extent_numeric():
+    lo, hi = _spark_extent([1, 5, 3])
+    assert lo == "1"
+    assert hi == "5"
+
+
+def test_spark_extent_empty_and_categorical():
+    assert _spark_extent([]) == ('', '')
+    assert _spark_extent(["a", "b", "c"]) == ('', '')
+
+
+def test_spark_extent_appears_in_summary_for_numeric_column():
+    out = str(summary({"score": [10, 20, 30, 40, 50]}))
+    assert "10" in out and "50" in out   # min and max visible
+
+
+def test_spark_extent_absent_for_categorical_column():
+    out = str(summary({"cat": ["a", "b", "a", "c"]}))
+    # Proportion strip has no axis labels; extent cells should be empty.
+    assert 'pavement-proportion' in out
+    # No stray numeric min/max values in the HTML.
+    import re
+    extent_spans = re.findall(rf'font-size:\.85em[^>]*>([^<]+)<', out)
+    assert not extent_spans
 
 
 # ---------------------------------------------------------------------------
