@@ -43,7 +43,10 @@ def test_df_pave_call_and_summary_return_a_summary():
 
 def test_df_pave_forwards_kwargs_to_summary():
     df = pd.DataFrame({"a": [1, 2, 3]})
-    assert "height:2.5em" in str(df.pave(height="2.5em"))
+    out = str(df.pave(height="2.5em"))
+    # Tally and distribution get independently scaled heights, not the base.
+    assert "height:1.88em" in out   # tally: 2.5 × 0.75
+    assert "height:3.25em" in out   # distribution: 2.5 × 1.30
 
 
 def test_df_pave_spark_returns_renderable_svg_string():
@@ -126,7 +129,7 @@ def test_enable_repr_renders_frames_as_summaries(ipython_shell):
     fmt = ipython_shell.display_formatter.formatters["text/html"]
     html = fmt.lookup_by_type(pd.DataFrame)(
         pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "x"]}))
-    assert "<table" in html and "height:2em" in html          # forwarded kwarg
+    assert "<table" in html and "height:1.50em" in html       # tally: 2em × 0.75
     assert "<table" in fmt.lookup_by_type(pd.Series)(pd.Series([1, 2, 3]))
 
 

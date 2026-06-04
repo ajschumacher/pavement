@@ -1084,6 +1084,20 @@ _NAME_STYLE = ('font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
 _EXTENT_STYLE = ('color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,'
                  'Consolas,monospace;font-size:.85em;')
 
+# Responsive layout constants for the summary wrapper and column widths.
+# The wrapper caps the table at a comfortable "page of text" width and lets
+# the text columns (name, extents) contract gracefully on smaller screens via
+# clamp(), while always providing a horizontal-scroll fallback.
+_SVG_ASPECT = 140.0 / 30.0   # horizontal strip viewBox width:height ratio
+_TALLY_SCALE = 0.75           # tally strips: 75% of base height (narrower)
+_DIST_SCALE = 1.30            # distribution strips: 130% of base height (wider)
+_SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
+_NAME_COL_WIDTH = 'clamp(6em, 25vw, 14em)'
+_EXT_COL_WIDTH = 'clamp(3.5em, 7vw, 6em)'
+# Scrollable wrapper for text cells: clips long names/extents without breaking
+# the column layout, and shows a thin scrollbar only when content overflows.
+_SCROLL_STYLE = 'overflow-x:auto;white-space:nowrap;scrollbar-width:thin;'
+
 
 def _count_label(n: int, noun: str) -> str:
     """A muted ``"1,234 rows"`` style count for a summary's label cell."""
@@ -1097,9 +1111,11 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
     td_dist = _TD_DIST_TOTAL if total else _TD_DIST
     td_extl = _TD_EXTL_TOTAL if total else _TD_EXTL
     td_extr = _TD_EXTR_TOTAL if total else _TD_EXTR
-    lo_html = f'<span style="{_EXTENT_STYLE}">{escape(lo)}</span>' if lo else ''
-    hi_html = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
-    return (f'<tr><td style="{td}">{label}</td>'
+    lo_inner = f'<span style="{_EXTENT_STYLE}">{escape(lo)}</span>' if lo else ''
+    hi_inner = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
+    lo_html = f'<div style="{_SCROLL_STYLE}">{lo_inner}</div>' if lo else ''
+    hi_html = f'<div style="{_SCROLL_STYLE}">{hi_inner}</div>' if hi else ''
+    return (f'<tr><td style="{td}"><div style="{_SCROLL_STYLE}">{label}</div></td>'
             f'<td style="{td}">{tally_html}</td>'
             f'<td style="{td_extl}">{lo_html}</td>'
             f'<td style="{td_dist}">{dist_html}</td>'
@@ -1156,7 +1172,7 @@ def _fmt_extent(value: float) -> str:
     return fmt(v)
 
 
-_EXTENT_CROP = 16   # max display length for a categorical extent label
+_EXTENT_CROP = 128  # max display length for a categorical extent label (cell scrolls)
 
 
 def _crop_value(v: Any) -> str:
@@ -1299,7 +1315,27 @@ def summary(
     proportion : The categorical distribution strip.
     spark : The numeric distribution sparkline.
     """
-    opts = {'height': height, 'hover': hover, 'highlight': highlight}
+    # Scale tally and distribution strip heights independently so their columns
+    # have distinct, fixed widths. Non-em heights fall back to the base value.
+    h_em: float | None = None
+    if isinstance(height, str) and height.endswith('em'):
+        try:
+            h_em = float(height[:-2])
+        except ValueError:
+            pass
+    if h_em is not None:
+        h_tally = f'{h_em * _TALLY_SCALE:.2f}em'
+        h_dist = f'{h_em * _DIST_SCALE:.2f}em'
+        w_tally = f'{h_em * _TALLY_SCALE * _SVG_ASPECT:.2f}em'
+        w_dist = f'{h_em * _DIST_SCALE * _SVG_ASPECT:.2f}em'
+        fixed_layout = True
+    else:
+        h_tally = h_dist = height
+        fixed_layout = False
+
+    tally_opts = {'height': h_tally, 'hover': hover, 'highlight': highlight}
+    dist_opts = {'height': h_dist, 'hover': hover, 'highlight': highlight}
+
     columns_data = _as_columns(data)
     rows: list[str] = []
 
@@ -1314,15 +1350,15 @@ def summary(
                        f'{n_cols:,} by {n_rows:,}</span>')
         rows.append(_summary_row(
             shape_label,
-            _tally_strip(keys, 'row', opts), '', '', '', total=True))
+            _tally_strip(keys, 'row', tally_opts), '', '', '', total=True))
         for name, values in zip(names, columns):
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
-                _tally_strip(values, 'entry', opts),
+                _tally_strip(values, 'entry', tally_opts),
                 lo,
-                _distribution_strip(values, present, color, opts),
+                _distribution_strip(values, present, color, dist_opts),
                 hi))
     else:
         values = list(data)
@@ -1330,14 +1366,32 @@ def summary(
         lo, hi = _column_extent(values, present)
         rows.append(_summary_row(
             _count_label(len(values), 'entry'),
-            _tally_strip(values, 'entry', opts),
+            _tally_strip(values, 'entry', tally_opts),
             lo,
-            _distribution_strip(values, present, color, opts),
+            _distribution_strip(values, present, color, dist_opts),
             hi))
 
-    table = (f'<table class={quoteattr(class_)} '
-             f'style="border-collapse:collapse;font-family:inherit;">'
-             f'{"".join(rows)}</table>')
+    if fixed_layout:
+        colgroup = (
+            f'<colgroup>'
+            f'<col style="width:{_NAME_COL_WIDTH};"/>'
+            f'<col style="width:{w_tally};"/>'
+            f'<col style="width:{_EXT_COL_WIDTH};"/>'
+            f'<col style="width:{w_dist};"/>'
+            f'<col style="width:{_EXT_COL_WIDTH};"/>'
+            f'</colgroup>'
+        )
+        table_style = ('border-collapse:collapse;font-family:inherit;'
+                       'table-layout:fixed;')
+    else:
+        colgroup = ''
+        table_style = 'border-collapse:collapse;font-family:inherit;'
+
+    table = (
+        f'<div style="max-width:{_SUMMARY_MAX_WIDTH};overflow-x:auto;">'
+        f'<table class={quoteattr(class_)} style={quoteattr(table_style)}>'
+        f'{colgroup}{"".join(rows)}</table></div>'
+    )
 
     if path is not None:
         document = table

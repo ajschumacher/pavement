@@ -110,7 +110,9 @@ def test_summary_repr_html_is_the_table_fragment():
     out = summary([1, 2, 3, 4, 5])
     html = out._repr_html_()
     assert html == str(out)                    # str() gives the same fragment
-    assert html.startswith("<table") and html.rstrip().endswith("</table>")
+    # A responsive wrapper div contains the table — still a plain HTML fragment
+    assert html.startswith("<div") and html.rstrip().endswith("</div>")
+    assert "<table" in html and "</table>" in html
 
 
 def test_summary_is_exposed_at_top_level():
@@ -229,12 +231,12 @@ def test_fmt_extent_used_for_numeric_column_extent():
 
 def test_crop_value_short_values_unchanged():
     assert _crop_value("hello") == "hello"
-    assert _crop_value("x" * 16) == "x" * 16
+    assert _crop_value("x" * 127) == "x" * 127
 
 
 def test_crop_value_long_values_truncated():
-    assert _crop_value("x" * 17) == "x" * 15 + "…"
-    assert len(_crop_value("a" * 100)) == 16
+    assert _crop_value("x" * 129) == "x" * 127 + "…"
+    assert len(_crop_value("a" * 200)) == 128
 
 
 def test_crop_value_empty_string_gets_quoted():
@@ -274,9 +276,9 @@ def test_column_extent_categorical():
 
 
 def test_column_extent_categorical_crops_long_values():
-    long = "x" * 20
+    long = "x" * 130
     lo, hi = _column_extent([long, "z"], [long, "z"])
-    assert lo == "x" * 15 + "…"
+    assert lo == "x" * 127 + "…"
     assert hi == "z"
 
 
@@ -375,7 +377,11 @@ def test_summary_class_is_on_the_table():
 
 
 def test_summary_height_is_passed_to_strips():
-    assert "height:2.5em" in str(summary([1, 2, 3], height="2.5em"))
+    out = str(summary([1, 2, 3], height="2.5em"))
+    # Tally and distribution get independently scaled heights (75% and 130%
+    # of the base height), not the base value itself.
+    assert "height:1.88em" in out   # tally: 2.5 × 0.75, rounded to 2 dp
+    assert "height:3.25em" in out   # distribution: 2.5 × 1.30
 
 
 def test_summary_hover_false_omits_titles():
@@ -408,7 +414,9 @@ def test_summary_writes_fragment_for_other_suffix(tmp_path):
     out = tmp_path / "summary.frag"
     result = summary([1, 2, 3], path=str(out))
     assert out.read_text() == str(result)
-    assert out.read_text().startswith("<table")
+    text = out.read_text()
+    assert text.startswith("<div")  # responsive wrapper div, table inside
+    assert "<table" in text
 
 
 # ---------------------------------------------------------------------------
