@@ -280,13 +280,16 @@ def spark(
     show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
     show_box : bool or None, default: None
-        Whether to draw the long box edges (the borders parallel to the
-        value axis). Each bin's pair of edges is drawn only over that bin
-        when it holds one or more data points strictly inside it, so the
-        outline closes around bins whose mass is spread out and gaps open
-        where it clumps onto the value lines. None (the default) enables
-        these edges when binned and omits them for a rug (``bins=None``),
-        so a rug spark reads like a plain rug; True or False forces it.
+        Whether (and how) to draw the long box edges (the borders parallel
+        to the value axis). None (the default) draws them for a binned spark
+        and omits them for a rug (``bins=None``), so a rug reads like a plain
+        rug; when drawn, each bin contributes its pair of edges only where it
+        holds one or more data points strictly inside it, so the outline
+        closes around bins whose mass is spread out and gaps open where it
+        clumps onto the value lines. ``True`` forces the *complete* box — the
+        two edges unbroken across the whole value range, rug or binned — for
+        when a solid outline is wanted regardless of where the mass falls.
+        ``False`` omits the edges entirely.
     color : str, optional
         Any CSS color. Tints the lines and fills each bin translucently
         (see *fill_alpha*). Defaults to no fill and ``currentColor``
@@ -447,26 +450,31 @@ def spark(
 
     # All the value strokes share their styling, so it lives once on a
     # parent <g> and each line is just coordinates — keeps a dense rug
-    # compact. The two long box edges run along the value axis at each side,
-    # but only over the bins that hold data strictly inside them; then one
-    # tick per distinct value, reaching past the box as a whisker where the
-    # value repeats (and closing the box ends at the extremes).
+    # compact. The two long box edges run along the value axis at each side;
+    # then one tick per distinct value, reaching past the box as a whisker
+    # where the value repeats (and closing the box ends at the extremes).
     # A hoverable tick pairs its visible mark with a transparent hit-area
     # inside a <g class="pvtick">, so CSS can thicken the mark on hover.
     # The two long box edges (perpendicular to the ticks) are dropped for a
     # rug by default, so it reads like a plain rug rather than a one-row box.
     #
-    # Drawing a bin's top/bottom edge only where it has interior points (and
-    # leaving a gap where it doesn't) makes the box itself expressive: a
-    # closed segment marks a bin whose mass is spread between its borders,
-    # and a gap marks one whose mass sits on the value lines, so spread and
-    # clumping read straight off the outline.
+    # By default a binned spark draws each bin's edge only over the bins that
+    # hold data strictly inside them — a closed segment marks a bin whose mass
+    # is spread between its borders, and a gap marks one whose mass sits on the
+    # value lines, so spread and clumping read straight off the outline. An
+    # explicit show_box=True overrides that with the complete box: the two
+    # edges run unbroken across the whole value range, rug or binned, for when
+    # a solid outline is wanted regardless of where the mass falls.
     marks: list[str] = []
     if resolve_show_box(show_box, bins):
-        for b in spec.bins:
-            if b.inside > 0:
-                marks += [stroke_line(*pt(side, b.low), *pt(side, b.high))
-                          for side in (position - half, position + half)]
+        if show_box is True:
+            marks += [stroke_line(*pt(side, value_low), *pt(side, value_high))
+                      for side in (position - half, position + half)]
+        else:
+            for b in spec.bins:
+                if b.inside > 0:
+                    marks += [stroke_line(*pt(side, b.low), *pt(side, b.high))
+                              for side in (position - half, position + half)]
     for t in spec.ticks:
         a = pt(position - t.reach, t.value)
         b = pt(position + t.reach, t.value)

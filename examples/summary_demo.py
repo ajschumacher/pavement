@@ -120,16 +120,39 @@ clumped_middle = ([round(_r.uniform(0, 30), 1) for _ in range(120)]
 _r = random.Random(5)
 few_values = [_r.choice([10, 10, 10, 25, 25, 60, 90]) for _ in range(400)]
 
+# The classic iris sepal_width (cm), all 150 measurements. Rounded to 0.1 cm,
+# so the values are discrete and heavily repeated — equal-mass cut points land
+# on the common ones, leaving some bins with no strict interior. It is the
+# realistic counterpart to the made-up distributions above, and the data the
+# show_box override is demonstrated on.
+sepal_width = [
+    3.5, 3.0, 3.2, 3.1, 3.6, 3.9, 3.4, 3.4, 2.9, 3.1, 3.7, 3.4, 3.0,
+    3.0, 4.0, 4.4, 3.9, 3.5, 3.8, 3.8, 3.4, 3.7, 3.6, 3.3, 3.4, 3.0,
+    3.4, 3.5, 3.4, 3.2, 3.1, 3.4, 4.1, 4.2, 3.1, 3.2, 3.5, 3.6, 3.0,
+    3.4, 3.5, 2.3, 3.2, 3.5, 3.8, 3.0, 3.8, 3.2, 3.7, 3.3, 3.2, 3.2,
+    3.1, 2.3, 2.8, 2.8, 3.3, 2.4, 2.9, 2.7, 2.0, 3.0, 2.2, 2.9, 2.9,
+    3.1, 3.0, 2.7, 2.2, 2.5, 3.2, 2.8, 2.5, 2.8, 2.9, 3.0, 2.8, 3.0,
+    2.9, 2.6, 2.4, 2.4, 2.7, 2.7, 3.0, 3.4, 3.1, 2.3, 3.0, 2.5, 2.6,
+    3.0, 2.6, 2.3, 2.7, 3.0, 2.9, 2.9, 2.5, 2.8, 3.3, 2.7, 3.0, 2.9,
+    3.0, 3.0, 2.5, 2.9, 2.5, 3.6, 3.2, 2.7, 3.0, 2.5, 2.8, 3.2, 3.0,
+    3.8, 2.6, 2.2, 3.2, 2.8, 2.8, 2.7, 3.3, 3.2, 2.8, 3.0, 2.8, 3.0,
+    2.8, 3.8, 2.8, 2.8, 2.6, 3.0, 3.4, 3.1, 3.0, 3.1, 3.1, 3.1, 2.7,
+    3.2, 3.3, 3.0, 2.5, 3.0, 3.4, 3.0,
+]
+
 # Bigger than the inline strips above, with whiskers on, so the closed edges
 # and the gaps (and the whisker at a clumped value) read clearly.
 _BOX_OPTS = dict(bins=8, show_whiskers=True, height="2.6em")
 
 
-def _box_figure(title: str, note: str, values: list) -> str:
-    """One labeled spark for the box-edge gallery."""
+def _box_figure(title: str, note: str, values: list, **overrides: object) -> str:
+    """One labeled spark for the box-edge gallery. *overrides* tweak the shared
+    spark options (e.g. ``bins=None`` for a rug, ``show_box=True`` to force a
+    complete box)."""
+    opts = {**_BOX_OPTS, **overrides}
     return (
         '<figure style="margin:1.4rem 0;">'
-        f'<div style="color:#1a3a5a;">{psvg.spark(values, **_BOX_OPTS)}</div>'
+        f'<div style="color:#1a3a5a;">{psvg.spark(values, **opts)}</div>'
         f'<figcaption style="color:#555;font-size:0.95rem;margin-top:0.5rem;">'
         f'<strong>{title}.</strong> {note}</figcaption></figure>')
 
@@ -154,6 +177,29 @@ its value range, percentile, and count.</p>
              "When every value lands on a bin edge, no bin has an interior at "
              "all — the box never closes, leaving just the value lines.",
              few_values)}
+
+<h3>Forcing a complete box</h3>
+<p>The gapped outline is the default, but <code>show_box=True</code> forces the
+<em>complete</em> box — the two long edges unbroken across the whole value
+range — for a rug or a pavement alike, for when a solid outline is wanted
+regardless of where the values fall. The four below are the same 150 iris
+<code>sepal_width</code> measurements, drawn each way.</p>
+{_box_figure("Pavement, default",
+             "An 8-bin pavement. The values cluster and repeat, so some bins "
+             "hold no interior point and the box opens into gaps there.",
+             sepal_width)}
+{_box_figure("Pavement, <code>show_box=True</code>",
+             "The same pavement with the box forced complete: the top and "
+             "bottom edges run unbroken across the full range.",
+             sepal_width, show_box=True)}
+{_box_figure("Rug, default",
+             "The same data as a rug (<code>bins=None</code>): one line per "
+             "distinct value and no box at all, the way a rug normally reads.",
+             sepal_width, bins=None)}
+{_box_figure("Rug, <code>show_box=True</code>",
+             "A rug with the box forced on — the old always-boxed behavior, "
+             "still available when a framed rug is what you want.",
+             sepal_width, bins=None, show_box=True)}
 """
 
 
@@ -224,6 +270,7 @@ PAGE = f"""<!doctype html>
           font: 18px/1.6 Georgia, serif; color: #1a1a1a; background: #fbfaf7; }}
   h1 {{ font-size: 1.7rem; margin-bottom: 0.2rem; }}
   h2 {{ font-size: 1.2rem; margin-top: 2.4rem; }}
+  h3 {{ font-size: 1.05rem; margin-top: 1.8rem; }}
   .sub {{ color: #777; font-style: italic; margin-top: 0; }}
   p {{ max-width: 50rem; }}
   code {{ font-family: Menlo, monospace; font-size: 0.85em;

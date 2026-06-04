@@ -43,14 +43,24 @@ def test_spark_rug_has_no_bin_rects():
     assert spark([1, 2, 3, 4, 5], bins=None).count('class="pvbin"') == 0
 
 
-def test_spark_rug_has_no_box_edges():
-    # A rug is all value ticks with nothing spread strictly *between* them,
-    # so no bin has an interior to close a box around: it reads like a plain
-    # rug by default, and forcing show_box adds no edges (every gap between
-    # consecutive values is itself a value line).
+def test_spark_rug_drops_box_edges_by_default():
+    # A rug reads like a plain rug: no long box edges by default, just the
+    # per-value tick marks.
     rug = spark([1, 2, 2, 3, 5], bins=None)
     forced = spark([1, 2, 2, 3, 5], bins=None, show_box=True)
-    assert forced.count("<line") == rug.count("<line")
+    # show_box=True forces the complete box, adding exactly its two long edges
+    # even for a rug (whose bins have no strict interior of their own).
+    assert forced.count("<line") == rug.count("<line") + 2
+
+
+def test_spark_show_box_true_forces_complete_box():
+    # An explicit show_box=True draws the two long edges unbroken across the
+    # whole value range, even where the default would leave a gap: data sitting
+    # entirely on bin boundaries gets no edges by default but two full edges
+    # when forced.
+    on_edges = spark([0, 1, 2, 3, 4], bins=4, hover=False)
+    forced = spark([0, 1, 2, 3, 4], bins=4, hover=False, show_box=True)
+    assert forced.count("<line") == on_edges.count("<line") + 2
 
 
 def test_spark_binned_box_edges_close_over_interior_bins():
