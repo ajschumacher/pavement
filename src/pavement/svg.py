@@ -44,6 +44,7 @@ from __future__ import annotations
 import datetime as _dt
 import math
 import numbers
+from collections import Counter
 from collections.abc import Iterable, Sequence
 from decimal import Decimal
 from typing import Any, Literal
@@ -230,6 +231,8 @@ def spark(
     width: float = 0.6,
     whisker_extent: float = 0.05,
     show_whiskers: bool = False,
+    proportional_representation: bool = False,
+    min_representation: float = 0.05,
     show_box: bool | None = None,
     color: str | None = None,
     fill_alpha: float = 0.3,
@@ -279,6 +282,24 @@ def spark(
         How far whisker marks reach beyond the box at repeated values.
     show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
+    proportional_representation : bool, default: False
+        Turn a rug into a *frequency rug*: scale each value line's length to
+        how often that value occurs, so the most common value's line spans the
+        full box and the rest reach proportionally less (a value seen half as
+        often draws a line half as long). The lines sit on a shared baseline —
+        the bottom edge for a horizontal rug, the left edge for a vertical one —
+        and grow toward the far edge, like little bars. Only meaningful for a
+        rug, so it
+        requires ``bins=None`` and ``show_whiskers=False`` (a whisker's reach
+        and a frequency's reach would fight); a ``ValueError`` otherwise.
+        Counts are unweighted — weights don't apply to a rug (see
+        `pavement_stats`).
+    min_representation : float, default: 0.05
+        Floor on a value line's length under *proportional_representation*, as
+        a fraction of the full box (so ``0.05`` keeps every line at least 5% of
+        full length). Keeps a rare value's line from collapsing to an
+        invisible point, the way *min_box* protects a tiny tally slice. Ignored
+        unless *proportional_representation* is on.
     show_box : bool or None, default: None
         Whether (and how) to draw the long box edges (the borders parallel
         to the value axis). None (the default) draws them for a binned spark
@@ -361,6 +382,10 @@ def spark(
     n = len(data)
     if n == 0:
         raise ValueError("data must be non-empty")
+    if proportional_representation and (bins is not None or show_whiskers):
+        raise ValueError(
+            "proportional_representation requires a rug: bins=None and "
+            "show_whiskers=False")
     # Project an ordered non-float family (Decimal, date/datetime) onto a
     # numeric axis, taking its renderer as the default tooltip format. A
     # caller-supplied value_format still wins (and then receives the projected
@@ -374,6 +399,21 @@ def spark(
     fmt_value = value_format or fmt
     reach = max(t.reach for t in spec.ticks)
     half = spec.half
+
+    # A frequency rug scales each value line's *drawn* length to how common
+    # that value is — the most common reaches the full box, the rest less, but
+    # never below `min_representation` of full so a rare value stays visible.
+    # The lines are anchored on a baseline edge below (see the tick loop), and
+    # the box thickness `reach` is unchanged (every tick's geometric reach is
+    # still `half`), so the viewBox isn't distorted. Without the flag, each line
+    # is drawn at its full geometric reach, exactly as before.
+    if proportional_representation:
+        freq = Counter(data)
+        top = max(freq.values())
+        mark_reaches = [t.reach * max(freq[t.value] / top, min_representation)
+                        for t in spec.ticks]
+    else:
+        mark_reaches = [t.reach for t in spec.ticks]
 
     value_low, value_high = spec.value_low, spec.value_high
     if value_high == value_low:  # constant data: give the box a little span
@@ -464,10 +504,31 @@ def spark(
     for low, high in box_edge_spans(spec, show_box):
         marks += [stroke_line(*pt(side, low), *pt(side, high))
                   for side in (position - half, position + half)]
-    for t in spec.ticks:
-        a = pt(position - t.reach, t.value)
-        b = pt(position + t.reach, t.value)
+    # A frequency rug anchors its lines on one box edge (the *baseline*) and
+    # grows them inward by their frequency-scaled length, so they read like
+    # little bars rising from a shared line rather than floating symmetrically
+    # across the value axis (which proved hard to read). The baseline is the
+    # bottom edge for a horizontal rug and the left edge for a vertical one, and
+    # a line grows the full box thickness (`2 * mark_reach`) toward the far
+    # edge. In perpendicular coordinates the bottom is `position + half` (it
+    # maps to the largest y) and the left is `position - half` (the smallest x),
+    # so the two orientations anchor at opposite perp ends and grow opposite
+    # ways. A plain rug or pavement keeps the symmetric, axis-centered marks.
+    base_perp = position + half if horizontal else position - half
+    grow = -1.0 if horizontal else 1.0
+    for t, mark_reach in zip(spec.ticks, mark_reaches):
+        # The visible mark uses the (possibly frequency-scaled) reach; the
+        # transparent hit-area keeps the full reach so even a short line stays
+        # easy to hover. They coincide unless proportional_representation is on.
+        if proportional_representation:
+            a = pt(base_perp, t.value)
+            b = pt(base_perp + grow * 2 * mark_reach, t.value)
+        else:
+            a = pt(position - mark_reach, t.value)
+            b = pt(position + mark_reach, t.value)
         if per_tick_hover:
+            ha = pt(position - t.reach, t.value)
+            hb = pt(position + t.reach, t.value)
             # value first, then the percentile cut point (absent for a
             # single-value spark), then the count/share — the shared order.
             label = t.value_str
@@ -477,7 +538,7 @@ def spark(
             marks.append(
                 '<g class="pvtick">'
                 + stroke_line(*a, *b, attrs=' class="pvmark"')
-                + stroke_line(*a, *b, attrs=' class="pvhit" '
+                + stroke_line(*ha, *hb, attrs=' class="pvhit" '
                               'stroke="transparent" '
                               f'stroke-width="{_num(_HIT_WIDTH)}" '
                               'pointer-events="all"',
@@ -951,24 +1012,34 @@ def tally(
 # lands, and it renders inline in Jupyter through `Summary._repr_html_`.
 # ---------------------------------------------------------------------------
 
-# Choosing a numeric column's pavement resolution from its total value count.
-# While the column is small enough to read one value at a time, a rug shows
-# them all — the limit matches `spark`'s tick_hover_limit, so every tick is
-# individually hoverable — and past that an equal-mass binned pavement,
-# doubling the bin count each time the total roughly quadruples, capped at 16
-# (finer bins don't read at a sparkline's size).
+# Choosing a numeric column's pavement resolution from its values. A rug shows
+# every value individually (drawn as a frequency rug in the summary, so the
+# line lengths carry the value counts); a binned pavement smears them into
+# equal-mass bins. We rug when either:
+#   - the column is small enough to read one value at a time (at most
+#     ``_RUG_LIMIT`` values total — the limit matches `spark`'s
+#     tick_hover_limit, so every tick stays individually hoverable), or
+#   - it has few enough *distinct* values (at most ``_DISTINCT_RUG_LIMIT``) that
+#     a frequency rug reads the distribution better than binning would — a
+#     discrete rating, say, that is many values but only a handful of levels.
+# Otherwise an equal-mass binned pavement, doubling the bin count each time the
+# total roughly quadruples, capped at 16 (finer bins don't read at a
+# sparkline's size).
 _RUG_LIMIT = 24
+_DISTINCT_RUG_LIMIT = 16  # a column with at most this many distinct values rugs
 _BIN_THRESHOLDS = ((97, 4), (257, 8))  # n < cut -> that many bins
 _MAX_BINS = 16
 
 
-def _choose_bins(n: int) -> int | None:
-    """Bins for a numeric column's spark, from its total value count.
+def _choose_bins(present: Sequence[Any]) -> int | None:
+    """Bins for a numeric column's spark, from its *present* values.
 
-    None (a rug) up to ``_RUG_LIMIT``, then 4, 8, and a 16-bin cap — see the
-    reasoning on the module constants above.
+    None (a rug) when the column has at most ``_RUG_LIMIT`` values *or* at most
+    ``_DISTINCT_RUG_LIMIT`` distinct values; otherwise 4, 8, and a 16-bin cap —
+    see the reasoning on the module constants above.
     """
-    if n <= _RUG_LIMIT:
+    n = len(present)
+    if n <= _RUG_LIMIT or len(set(present)) <= _DISTINCT_RUG_LIMIT:
         return None
     for cut, bins in _BIN_THRESHOLDS:
         if n < cut:
@@ -1165,8 +1236,12 @@ def _distribution_strip(values: list[Any], present: list[Any],
     if not present:
         return ''
     if _pavement_column(present):
-        svg = spark(present, bins=_choose_bins(len(present)),
-                    color=color, **opts)
+        bins = _choose_bins(present)
+        # A summary rug is drawn as a frequency rug: the value lines carry the
+        # value counts in their lengths, which is the whole point of rugging a
+        # discrete column rather than binning it.
+        svg = spark(present, bins=bins, color=color,
+                    proportional_representation=bins is None, **opts)
     else:
         svg = proportion(values, **opts)
     return _set_strip_width(svg, strip_width) if strip_width else svg

@@ -288,3 +288,92 @@ def test_spark_writes_standalone_html(tmp_path):
 def test_spark_empty_data_raises():
     with pytest.raises(ValueError):
         spark([])
+
+
+def _mark_lengths(markup):
+    """The drawn length (viewBox units) of each value line's visible mark, in
+    document order. Reads the stroke <g> and measures the .pvmark lines (or,
+    when hover is off, the plain lines) along the perpendicular axis."""
+    group = re.search(r'pointer-events="none">(.*?)</g>', markup, re.S).group(1)
+    lengths = []
+    for line in re.findall(r"<line[^>]*?/>", group):
+        if "pvhit" in line:
+            continue  # the transparent hit-area, not the visible mark
+        y1 = float(re.search(r'y1="([-\d.]+)"', line).group(1))
+        y2 = float(re.search(r'y2="([-\d.]+)"', line).group(1))
+        lengths.append(abs(y2 - y1))
+    return lengths
+
+
+def test_spark_proportional_scales_lines_by_frequency():
+    # 4 is the most common value, so its line spans the full box height (30);
+    # the others reach proportionally less. Values ascend left to right, so the
+    # lengths follow the per-value counts in value order.
+    data = [1] * 12 + [2] * 40 + [3] * 94 + [4] * 97 + [5] * 60
+    lengths = _mark_lengths(
+        spark(data, bins=None, proportional_representation=True, hover=False))
+    # Coordinates are rounded to 2 decimals each, so allow ~0.02 of slack.
+    assert len(lengths) == 5                                    # one per value
+    assert lengths[3] == pytest.approx(30)                      # value 4: max
+    assert lengths[2] == pytest.approx(30 * 94 / 97, abs=0.02)  # value 3
+    assert lengths[4] == pytest.approx(30 * 60 / 97, abs=0.02)  # value 5
+    assert lengths[1] == pytest.approx(30 * 40 / 97, abs=0.02)  # value 2
+    assert lengths[0] == pytest.approx(30 * 12 / 97, abs=0.02)  # value 1
+
+
+def test_spark_proportional_lines_sit_on_bottom_baseline():
+    # Frequency-rug lines are anchored on the bottom edge of a horizontal rug
+    # (y = 30, the largest y) and grow upward, so every visible mark shares its
+    # bottom endpoint regardless of length.
+    data = [1] * 12 + [2] * 40 + [3] * 94 + [4] * 97 + [5] * 60
+    out = spark(data, bins=None, proportional_representation=True, hover=False)
+    group = re.search(r'pointer-events="none">(.*?)</g>', out, re.S).group(1)
+    for line in re.findall(r"<line[^>]*?/>", group):
+        if "pvhit" in line:
+            continue
+        y1 = float(re.search(r'y1="([-\d.]+)"', line).group(1))
+        y2 = float(re.search(r'y2="([-\d.]+)"', line).group(1))
+        assert max(y1, y2) == pytest.approx(30)    # bottom endpoint on baseline
+
+
+def test_spark_proportional_enforces_minimum_length():
+    # A value far rarer than min_representation still draws a visible line at
+    # the floor (here 20% of the full 30 = 6), not a vanishing point.
+    data = [1] + [2] * 100
+    lengths = _mark_lengths(spark(
+        data, bins=None, proportional_representation=True,
+        min_representation=0.2, hover=False))
+    assert lengths[0] == pytest.approx(30 * 0.2)   # the lone 1, floored
+    assert lengths[1] == pytest.approx(30)         # the 100 twos, the max
+
+
+def test_spark_proportional_keeps_full_hit_area():
+    # Even a short visible mark keeps a full-height transparent hit-area, so a
+    # rare value stays easy to hover.
+    data = [1] + [2] * 100
+    out = spark(data, bins=None, proportional_representation=True,
+                min_representation=0.05)
+    hits = re.findall(r'<line class="pvhit"[^>]*?/>', out)
+    for line in hits:
+        y1 = float(re.search(r'y1="([-\d.]+)"', line).group(1))
+        y2 = float(re.search(r'y2="([-\d.]+)"', line).group(1))
+        assert abs(y2 - y1) == pytest.approx(30)
+
+
+def test_spark_proportional_requires_rug():
+    with pytest.raises(ValueError):
+        spark([1, 2, 3, 4], bins=4, proportional_representation=True)
+
+
+def test_spark_proportional_rejects_whiskers():
+    with pytest.raises(ValueError):
+        spark([1, 2, 3, 4], bins=None, proportional_representation=True,
+              show_whiskers=True)
+
+
+def test_spark_proportional_off_leaves_lines_full():
+    # Without the flag every rug line spans the full box, regardless of how
+    # often the value repeats.
+    data = [1] * 5 + [2] * 50
+    lengths = _mark_lengths(spark(data, bins=None, hover=False))
+    assert all(length == pytest.approx(30) for length in lengths)

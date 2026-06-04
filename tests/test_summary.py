@@ -34,7 +34,8 @@ def _titles(html):
 
 
 # ---------------------------------------------------------------------------
-# Bin selection: rug up to 24, then 4 / 8 / 16 based on total value count
+# Bin selection: rug up to 24 (or up to 16 distinct), then 4 / 8 / 16 based on
+# total value count. All-distinct inputs isolate the count-based thresholds.
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("n, expected", [
@@ -44,7 +45,36 @@ def _titles(html):
     (257, 16), (10_000, 16),        # sixteen past 256, and capped there
 ])
 def test_choose_bins_thresholds(n, expected):
-    assert _choose_bins(n) == expected
+    # range(n) is n distinct values, so the distinct-value rug rule never fires
+    # and the count thresholds are what's exercised.
+    assert _choose_bins(range(n)) == expected
+
+
+def test_choose_bins_rugs_few_distinct_values():
+    # Many values but few distinct levels (a discrete rating, say) rug rather
+    # than bin, however large the column — the frequency rug carries the counts.
+    assert _choose_bins([1, 2, 3, 4, 5] * 1000) is None        # 5 distinct
+    assert _choose_bins(list(range(16)) * 100) is None         # 16 distinct, at the limit
+    assert _choose_bins(list(range(17)) * 100) == 16           # 17 distinct -> binned
+
+
+def test_summary_rugs_discrete_column_proportionally():
+    # A many-row, few-distinct numeric column rugs, drawn as a frequency rug:
+    # the value lines differ in length (carrying the counts) rather than all
+    # spanning the box as a binned pavement or a plain rug would.
+    data = {"rating": [1] * 10 + [2] * 40 + [3] * 90 + [4] * 95 + [5] * 50}
+    html = str(summary(data))
+    # The numeric column's spark is a rug: per-value ticks, no equal-mass bins.
+    assert 'class="pvbin"' not in html
+    # Its visible marks (.pvmark) vary in length, the signature of a frequency
+    # rug — a plain rug or a pavement would draw them all full height.
+    marks = re.findall(r'<line class="pvmark"[^>]*?/>', html)
+    lengths = set()
+    for line in marks:
+        y1 = float(re.search(r'y1="([-\d.]+)"', line).group(1))
+        y2 = float(re.search(r'y2="([-\d.]+)"', line).group(1))
+        lengths.add(round(abs(y2 - y1), 2))
+    assert len(lengths) > 1
 
 
 def test_choose_bins_rug_limit_matches_spark_tick_hover_limit():
@@ -53,7 +83,7 @@ def test_choose_bins_rug_limit_matches_spark_tick_hover_limit():
     from pavement.svg import spark
     out = spark(list(range(24)), bins=None)
     assert out.count("<title>") == 24          # all hoverable at the limit
-    assert _choose_bins(24) is None
+    assert _choose_bins(range(24)) is None
 
 
 # ---------------------------------------------------------------------------

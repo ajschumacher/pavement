@@ -104,6 +104,59 @@ survey = (["strongly agree"] * 30 + ["agree"] * 55 + ["neutral"] * 22
 
 
 # ---------------------------------------------------------------------------
+# A frequency rug: a rug (bins=None) whose value lines are scaled to how often
+# each value occurs. The same five-level "rating" the dataframe above shows as
+# a binned pavement, but here every distinct value is one line whose length is
+# its relative frequency — the most common value reaching full height, the rest
+# proportionally less (with a floor so a rare value never disappears).
+# ---------------------------------------------------------------------------
+ratings = [1] * 12 + [2] * 40 + [3] * 94 + [4] * 97 + [5] * 60
+
+
+def _rating_figure(title: str, note: str, **overrides: object) -> str:
+    opts = dict(bins=None, height="2.6em", line_width=1.4)
+    return (
+        '<figure style="margin:1.4rem 0;">'
+        f'<div style="color:#1a3a5a;">{psvg.spark(ratings, **opts, **overrides)}</div>'
+        f'<figcaption style="color:#555;font-size:0.95rem;margin-top:0.5rem;">'
+        f'<strong>{title}.</strong> {note}</figcaption></figure>')
+
+
+frequency_rug_section = f"""
+<h2>A frequency rug</h2>
+<p>A rug (<code>bins=None</code>) draws one line per distinct value. By default
+every line spans the full height, so a value that occurs once looks just like
+one that occurs a hundred times. With <code>proportional_representation=True</code>
+each line is instead scaled to <em>how often that value occurs</em>: the most
+common value reaches the full box and the rest reach proportionally less, so the
+shape of the distribution reads straight off the line lengths — without binning
+the data away.</p>
+<p>The data below is a five-level rating with
+<strong>{ratings.count(4)} fours</strong> (the most common),
+<strong>{ratings.count(3)} threes</strong>,
+{ratings.count(5)} fives, {ratings.count(2)} twos, and {ratings.count(1)} ones.
+Hover any line for its value, percentile, and count.</p>
+{_rating_figure("Plain rug",
+                "Every distinct value is one full-height line — you can see "
+                "<em>which</em> values occur, but not how often.")}
+{_rating_figure("Frequency rug",
+                "The same values, each line scaled to its frequency. The line "
+                "for 4 (the most common) spans the full height; 3 reaches "
+                f"{ratings.count(3)}/{ratings.count(4)} of the way, and the "
+                "rarer values less — the distribution's shape without bins.",
+                proportional_representation=True)}
+<p>A floor (<code>min_representation</code>, default 5% of full) keeps a rare
+value's line visible rather than letting it collapse to a point; the lines sit
+on a shared baseline (the bottom, for a horizontal rug) and grow upward, so they
+read like little bars.</p>
+<p>This is what <code>summary</code> reaches for automatically: a numeric column
+with 16 or fewer distinct values (like <code>rating</code> in the dataframe
+above) is drawn as a frequency rug rather than smeared into equal-mass bins, so
+its handful of levels and their counts read straight off the strip.</p>
+"""
+
+
+# ---------------------------------------------------------------------------
 # Three distributions to show off the expressive box edges. A bin draws its
 # long top/bottom edge only where data falls *strictly inside* it, so the
 # outline closes around bins whose mass is spread out and opens into a gap
@@ -294,8 +347,11 @@ JavaScript. Hover any strip for its share, value, and count.</p>
 <p>One row per column, under a top row for the frame as a whole: its
 <strong>{len(next(iter(people.values())))} rows</strong>, and a tally that
 treats each <em>whole row</em> as the entity. Numeric columns get a pavement
-<strong>spark</strong> whose resolution adapts to how many values are present —
-a rug for 24 or fewer, then 4, 8, or 16 equal-mass bins for larger columns.
+<strong>spark</strong> whose resolution adapts to the column — a
+<strong>frequency rug</strong> for 24 or fewer values, <em>or</em> for 16 or
+fewer distinct values (so the discrete <code>rating</code> shows its five levels
+and their counts as scaled lines rather than equal-mass bins), then 4, 8, or 16
+equal-mass bins for larger continuous columns.
 Dates work too: <code>signup_date</code> is laid out on a time axis (hover for
 the dates). Durations too: <code>session_duration</code> shows timedeltas on a
 duration axis (e.g. <em>1d 02:00</em>). Categorical columns get a
@@ -309,7 +365,7 @@ label shows the value count instead. Numeric values give a spark:</p>
 {pavement.summary(daily_signups)}
 <p>…and categorical values give a proportion strip:</p>
 {pavement.summary(survey)}
-{pandas_section}{numpy_section}{box_section}
+{pandas_section}{numpy_section}{frequency_rug_section}{box_section}
 <h2>In a notebook</h2>
 <p>Everything above is just <code>str(pavement.summary(...))</code> dropped
 into this page. In Jupyter you skip the <code>str()</code> — the last line of
