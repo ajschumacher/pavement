@@ -1065,7 +1065,7 @@ def _as_columns(data: Any) -> tuple[list[Any], list[list[Any]]] | None:
 # matters for a fragment dropped into a notebook cell (and rendered again and
 # again). Each strip still carries its own scoped hover style inside its
 # <svg>. The grays are mid-tone, legible on light and dark themes alike.
-_TD = ('border:none;padding:.18em .8em .18em 0;text-align:left;'
+_TD = ('border:none;padding:.18em 0;text-align:left;'
        'vertical-align:middle;white-space:nowrap;')
 _TD_TOTAL = _TD + 'border-bottom:1px solid rgba(128,128,128,.35);'
 # Distribution column: no side padding — the extent cells handle the gaps.
@@ -1102,10 +1102,6 @@ _SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
 # for name, ext-left, and ext-right guarantees they are always exactly equal
 # at any viewport width.  table-layout:fixed + calc() table width enforces this.
 _TEXT_COL_CLAMP = 'clamp(5em, 12vw, 8em)'
-# Total horizontal cell padding shared by tally and all text cells.
-# Name cell uses _TD_NAME (symmetric 0.4+0.4), tally uses _TD (0+0.8),
-# extent cells use _TD_EXTL/R (0.4+0.4) — all sum to 0.8em.
-_TD_HPAD = 0.8
 # Scrollable wrapper inside each text cell. Width comes from the <col> element
 # (via table-layout:fixed), so no explicit width is needed on the div itself.
 _TEXT_WRAP = 'display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;'
@@ -1363,8 +1359,8 @@ def summary(
         w_dist = f'{w_dist_svg:.2f}em'      # for _set_strip_width
         # <col> widths for the two strip columns.  Text columns all use
         # _TEXT_COL_CLAMP — the same CSS value guarantees they are equal.
-        w_tally_col = f'{w_tally_svg + _TD_HPAD:.2f}em'  # SVG + tally cell padding
-        w_dist_col = f'{w_dist_svg:.2f}em'                # dist cell: no horiz. padding
+        w_tally_col = f'{w_tally_svg:.2f}em'   # tally cell: no horiz. padding
+        w_dist_col = f'{w_dist_svg:.2f}em'    # dist cell: no horiz. padding
         # Table width = exact sum of column widths, expressed in CSS so the
         # browser never has leftover space to redistribute.  calc() lets us add
         # the responsive clamp() text columns to the fixed-em strip columns.
