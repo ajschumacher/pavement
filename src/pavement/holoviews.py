@@ -52,6 +52,7 @@ from .core import pavement_stats
 from ._geometry import (
     bin_corners,
     broadcast,
+    hover_bins,
     hover_fields,
     long_box_edges,
     normalize_rows,
@@ -111,6 +112,7 @@ def _row_geometry(
     group: Hashable | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
+    rug: bool = False,
 ) -> tuple[list[tuple], list[tuple], list[tuple]]:
     """Build the (fill, tick, box-edge) tuples for one row.
 
@@ -128,9 +130,12 @@ def _row_geometry(
     extra = () if group is None else (group,)
 
     # Fills: one borderless rectangle per equal-mass bin, a hover target
-    # reading as a value range, a percentile band, and a value share.
+    # reading as a value range, a percentile band, and a value share. A rug
+    # instead hovers the gaps between its distinct values (`hover_bins` drops
+    # the zero-width bins at repeated points), so it gets the same easy hover
+    # targets between its lines.
     fills: list[tuple] = []
-    for b in spec.bins:
+    for b in hover_bins(spec, rug):
         (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
                                          orientation)
         fills.append((x0, y0, x1, y1, b.low, b.high, b.band, b.value_range,
@@ -229,7 +234,7 @@ def pavement_elements(
     fills, ticks, edges = _row_geometry(
         values, position, width, orientation,
         whisker_extent, show_whiskers, show_box,
-        group, value_format, data=data)
+        group, value_format, data=data, rug=bins is None)
     fill_vdims = _FILL_VDIMS if group is None else [*_FILL_VDIMS, "group"]
     tick_vdims = _TICK_VDIMS if group is None else [*_TICK_VDIMS, "group"]
     return {

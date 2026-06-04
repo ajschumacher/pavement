@@ -150,9 +150,13 @@ def test_summary_decimal_column_is_a_spark():
 
 
 def test_summary_date_column_resolution_follows_distinct_count():
-    # <=24 distinct dates -> a rug (no equal-mass bins).
+    # <=24 distinct dates -> a rug: one tick per distinct date, and any boxes
+    # are the zero-interior gaps between values rather than equal-mass bins.
     few = [dt.date(2020, 1, 1), dt.date(2020, 1, 2), dt.date(2020, 1, 3)] * 5
-    assert 'class="pvbin"' not in str(summary({"d": few}))
+    html = str(summary({"d": few}))
+    assert html.count('class="pvtick"') == 3       # one tick per distinct date
+    gaps = re.findall(r'<rect class="pvbin".*?<title>(.*?)</title>', html, re.S)
+    assert gaps and all("(0 of" in g for g in gaps)
 
 
 def test_summary_mixed_date_and_number_column_is_categorical():

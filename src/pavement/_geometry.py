@@ -272,6 +272,23 @@ def box_edge_spans(spec: RowSpec,
     return [(b.low, b.high) for b in spec.bins if b.inside > 0]
 
 
+def hover_bins(spec: RowSpec, rug: bool) -> list[Bin]:
+    """The bins to draw as hover targets — the boxes between the value lines.
+
+    A binned row draws every equal-mass bin, the way it always has. A rug's
+    "bins" sit between consecutive *data points*, so the ones at repeated
+    values are zero-width and coincide with the tick lines; drop those, keeping
+    just the boxes that span the gaps between distinct values. That gives a rug
+    the same easy hover targets a pavement has between its bins — handy where a
+    value line is a thin target or a gap is wide — without emitting a box per
+    duplicate point. Every backend picks its hover boxes through this, so they
+    stay consistent.
+    """
+    if rug:
+        return [b for b in spec.bins if b.low < b.high]
+    return spec.bins
+
+
 def long_box_edges(
     spec: RowSpec, show_box: bool | None,
 ) -> list[tuple[float, float, float, float]]:

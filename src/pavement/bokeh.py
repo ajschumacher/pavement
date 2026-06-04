@@ -76,6 +76,7 @@ from ._geometry import (
     bin_corners,
     broadcast,
     complete_color_map,
+    hover_bins,
     hover_fields,
     long_box_edges,
     normalize_rows,
@@ -110,6 +111,7 @@ def _row_geometry(
     show_box: bool | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
+    rug: bool = False,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, quantile ticks, and box edges.
 
@@ -133,9 +135,12 @@ def _row_geometry(
                     whisker_extent, show_whiskers, value_format, data=data)
 
     # Bins: one borderless quad per equal-mass bin (left, right, bottom,
-    # top), carrying its value range, percentile band, and count for hover.
+    # top), carrying its value range, percentile band, and count for hover. A
+    # rug instead hovers the gaps between its distinct values (`hover_bins`
+    # drops the zero-width bins at repeated points), so it gets the same easy
+    # hover targets between its lines.
     bins: list[tuple[float, float, float, float, str, str, str]] = []
-    for b in spec.bins:
+    for b in hover_bins(spec, rug):
         (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
                                          orientation)
         bins.append((x0, x1, y0, y1, b.band, b.value_range, b.count))
@@ -248,7 +253,7 @@ def pavement_glyphs(
     geom = _row_geometry(values, position, width, orientation,
                          whisker_extent, show_whiskers,
                          show_box, value_format,
-                         data=data)
+                         data=data, rug=bins is None)
     if color is None:
         color = _default_colors(1)[0]
     group = None if name is None else [str(name)] * len(geom["bins"])

@@ -68,6 +68,7 @@ from ._geometry import (
     bin_polygon,
     broadcast,
     complete_color_map,
+    hover_bins,
     long_box_edges,
     normalize_rows,
     resolve_colors,
@@ -105,6 +106,7 @@ def _row_geometry(
     show_box: bool | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
+    rug: bool = False,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, visible lines, and tick hovers.
 
@@ -129,9 +131,12 @@ def _row_geometry(
     spec = row_spec(values, position, width, orientation,
                     whisker_extent, show_whiskers, value_format, data=data)
 
-    # Bins: one borderless rectangle per equal-mass bin, as a closed polygon.
+    # Bins: one borderless rectangle per equal-mass bin, as a closed polygon. A
+    # rug instead hovers the gaps between its distinct values (`hover_bins`
+    # drops the zero-width bins at repeated points), so it gets the same easy
+    # hover targets between its lines.
     bins: list[tuple[list[float], list[float], str, str, str]] = []
-    for b in spec.bins:
+    for b in hover_bins(spec, rug):
         xs, ys = bin_polygon(b.low, b.high, position, spec.half, orientation)
         bins.append((xs, ys, b.band, b.value_range, b.count))
 
@@ -250,7 +255,7 @@ def pavement_traces(
     geom = _row_geometry(values, position, width, orientation,
                          whisker_extent, show_whiskers,
                          show_box, value_format,
-                         data=data)
+                         data=data, rug=bins is None)
     if color is None:
         color = _default_colors(1)[0]
     legendgroup = name if name is not None else None
