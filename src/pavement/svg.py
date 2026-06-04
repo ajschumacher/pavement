@@ -1101,7 +1101,7 @@ _SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
 # Responsive width for all three text columns.  Using the same clamp() value
 # for name, ext-left, and ext-right guarantees they are always exactly equal
 # at any viewport width.  table-layout:fixed + calc() table width enforces this.
-_TEXT_COL_CLAMP = 'clamp(5em, 12vw, 12em)'
+_TEXT_COL_CLAMP = 'clamp(5em, 20vw, 12em)'
 # Scrollable wrapper inside each text cell. Width comes from the <col> element
 # (via table-layout:fixed), so no explicit width is needed on the div itself.
 _TEXT_WRAP = 'display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;'
