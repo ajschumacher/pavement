@@ -202,7 +202,7 @@ def test_spark_extent_absent_for_categorical_column():
     assert 'pavement-proportion' in out
     # No stray numeric min/max values in the HTML.
     import re
-    extent_spans = re.findall(rf'font-size:\.85em[^>]*>([^<]+)<', out)
+    extent_spans = re.findall(r'font-size:\.85em[^>]*>([^<]+)<', out)
     assert not extent_spans
 
 
