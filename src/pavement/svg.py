@@ -1092,11 +1092,18 @@ _SVG_ASPECT = 140.0 / 30.0   # horizontal strip viewBox width:height ratio
 _TALLY_WIDTH_SCALE = 0.75    # tally strips: 75% of natural width (narrower)
 _DIST_WIDTH_SCALE = 1.30     # distribution strips: 130% of natural width (wider)
 _SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
-_NAME_COL_WIDTH = 'clamp(6em, 25vw, 14em)'
-_EXT_COL_WIDTH = 'clamp(3.5em, 7vw, 6em)'
-# Scrollable wrapper for text cells: clips long names/extents without breaking
-# the column layout, and shows a thin scrollbar only when content overflows.
-_SCROLL_STYLE = 'overflow-x:auto;white-space:nowrap;scrollbar-width:thin;'
+# Text-cell wrapper widths: explicit CSS width (not max-width) so the wrapper
+# is always exactly this wide regardless of text content, giving every summary
+# the same column layout. clamp() contracts the cell on narrow viewports.
+_NAME_WRAP_WIDTH = 'clamp(6em, 25vw, 14em)'
+_EXT_WRAP_WIDTH = 'clamp(3.5em, 7vw, 6em)'
+# Full inline style for each text-cell wrapper. The explicit width is the key:
+# it makes the <td> content always the same size, so table-layout:auto gives
+# every column a consistent width regardless of what text happens to be inside.
+_NAME_WRAP = (f'display:block;width:{_NAME_WRAP_WIDTH};overflow-x:auto;'
+              f'white-space:nowrap;scrollbar-width:thin;')
+_EXT_WRAP = (f'display:block;width:{_EXT_WRAP_WIDTH};overflow-x:auto;'
+             f'white-space:nowrap;scrollbar-width:thin;')
 
 
 def _count_label(n: int, noun: str) -> str:
@@ -1113,9 +1120,9 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
     td_extr = _TD_EXTR_TOTAL if total else _TD_EXTR
     lo_inner = f'<span style="{_EXTENT_STYLE}">{escape(lo)}</span>' if lo else ''
     hi_inner = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
-    lo_html = f'<div style="{_SCROLL_STYLE}">{lo_inner}</div>' if lo else ''
-    hi_html = f'<div style="{_SCROLL_STYLE}">{hi_inner}</div>' if hi else ''
-    return (f'<tr><td style="{td}"><div style="{_SCROLL_STYLE}">{label}</div></td>'
+    lo_html = f'<div style="{_EXT_WRAP}">{lo_inner}</div>' if lo else ''
+    hi_html = f'<div style="{_EXT_WRAP}">{hi_inner}</div>' if hi else ''
+    return (f'<tr><td style="{td}"><div style="{_NAME_WRAP}">{label}</div></td>'
             f'<td style="{td}">{tally_html}</td>'
             f'<td style="{td_extl}">{lo_html}</td>'
             f'<td style="{td_dist}">{dist_html}</td>'
@@ -1333,23 +1340,19 @@ def summary(
     spark : The numeric distribution sparkline.
     """
     # Compute explicit strip widths from the base height and the SVG aspect
-    # ratio. All strips keep the same height; tally columns are 75% as wide
-    # as their natural size, distribution columns 130% — achieved by patching
-    # width:auto on the generated SVGs rather than by changing their heights.
-    # Non-em heights skip the fixed-layout path (can't compute em widths).
+    # ratio. All strips share the same height; tally is 75% as wide as its
+    # natural size, distribution 130% — patched onto the generated SVG string.
+    # For non-em heights the strip width is left as width:auto (unchanged).
     h_em: float | None = None
     if isinstance(height, str) and height.endswith('em'):
         try:
             h_em = float(height[:-2])
         except ValueError:
             pass
-    if h_em is not None:
-        w_tally = f'{h_em * _SVG_ASPECT * _TALLY_WIDTH_SCALE:.2f}em'
-        w_dist = f'{h_em * _SVG_ASPECT * _DIST_WIDTH_SCALE:.2f}em'
-        fixed_layout = True
-    else:
-        w_tally = w_dist = None
-        fixed_layout = False
+    w_tally = (f'{h_em * _SVG_ASPECT * _TALLY_WIDTH_SCALE:.2f}em'
+               if h_em is not None else None)
+    w_dist = (f'{h_em * _SVG_ASPECT * _DIST_WIDTH_SCALE:.2f}em'
+              if h_em is not None else None)
 
     opts = {'height': height, 'hover': hover, 'highlight': highlight}
     columns_data = _as_columns(data)
@@ -1390,26 +1393,11 @@ def summary(
                                 strip_width=w_dist),
             hi))
 
-    if fixed_layout:
-        colgroup = (
-            f'<colgroup>'
-            f'<col style="width:{_NAME_COL_WIDTH};"/>'
-            f'<col style="width:{w_tally};"/>'
-            f'<col style="width:{_EXT_COL_WIDTH};"/>'
-            f'<col style="width:{w_dist};"/>'
-            f'<col style="width:{_EXT_COL_WIDTH};"/>'
-            f'</colgroup>'
-        )
-        table_style = ('border-collapse:collapse;font-family:inherit;'
-                       'table-layout:fixed;')
-    else:
-        colgroup = ''
-        table_style = 'border-collapse:collapse;font-family:inherit;'
-
     table = (
         f'<div style="max-width:{_SUMMARY_MAX_WIDTH};overflow-x:auto;">'
-        f'<table class={quoteattr(class_)} style={quoteattr(table_style)}>'
-        f'{colgroup}{"".join(rows)}</table></div>'
+        f'<table class={quoteattr(class_)} '
+        f'style="border-collapse:collapse;font-family:inherit;">'
+        f'{"".join(rows)}</table></div>'
     )
 
     if path is not None:
