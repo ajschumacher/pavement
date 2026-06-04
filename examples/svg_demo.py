@@ -22,15 +22,15 @@ import pavement.svg as psvg
 rng = random.Random(7)
 
 # A few distributions with different shapes, plus two that pile up on a
-# value (so a whisker appears) and one rendered as a rug.
+# value (so a tassel appears) and one rendered as a rug.
 latency = [rng.expovariate(1 / 40) for _ in range(400)]            # skewed
 cpu = [min(100, max(0, rng.gauss(38, 12))) for _ in range(400)]    # ~normal
 scores = [min(100, max(0, rng.gauss(72, 11))) for _ in range(300)]
 commute = ([rng.gauss(9, 0.4) for _ in range(180)] +              # bimodal
            [rng.gauss(18, 0.8) for _ in range(180)])
-satisfaction = [rng.choice([1, 2, 3, 3, 4, 4, 4, 5, 5])           # whisker
+satisfaction = [rng.choice([1, 2, 3, 3, 4, 4, 4, 5, 5])           # tassel
                 for _ in range(250)]
-errors = [0.0] * 140 + [rng.expovariate(1 / 3) for _ in range(160)]  # whisker
+errors = [0.0] * 140 + [rng.expovariate(1 / 3) for _ in range(160)]  # tassel
 normal = [rng.gauss(0, 1) for _ in range(500)]
 # A small rug (at or below the default tick_hover_limit) so every value is
 # individually hoverable — each shows its percentile and value.
@@ -76,7 +76,7 @@ no JavaScript, no image files.</p>
 
 <p>Request latency kept a heavy tail {latency} while CPU stayed mid-range and
 symmetric {cpu}; exam scores {scores} clustered above the pass mark. Commute
-times split into two crowds {commute}. A pile-up raises a whisker: survey
+times split into two crowds {commute}. A pile-up raises a tassel: survey
 satisfaction bunched on one answer {satisfaction}, and the error budget sat at
 zero most days {errors}. With <code>bins=None</code> a spark becomes a rug
 {rug}, versus the binned summary of the same data {binned}.</p>

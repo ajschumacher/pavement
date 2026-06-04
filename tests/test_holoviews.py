@@ -54,15 +54,15 @@ def test_plot_rug_renders_with_empty_box():
     hv.renderer("bokeh").get_plot(plot([1, 2, 2, 3, 5], bins=None))
 
 
-def test_elements_one_tick_per_distinct_value_with_whisker():
+def test_elements_one_tick_per_distinct_value_with_tassel():
     # Heavy repetition collapses several quantile edges onto one value.
     els = pavement_elements([0, 0, 0, 0, 1, 2, 3], bins=4)
     ticks = els["ticks"]
     # 5 quantile edges but 0 repeats -> fewer than 5 distinct ticks, each
-    # drawn once (no separate whisker element stacked on a bin border).
+    # drawn once (no separate tassel element stacked on a bin border).
     assert len(ticks) < 5
     half = 0.6 / 2
-    # The repeated value's tick reaches past the box width (a whisker).
+    # The repeated value's tick reaches past the box width (a tassel).
     reaches = [abs(x1 - x0) / 2 for x0, x1 in
                zip(ticks.dimension_values("x0"), ticks.dimension_values("x1"))]
     assert max(reaches) > half

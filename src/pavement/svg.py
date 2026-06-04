@@ -229,8 +229,8 @@ def spark(
     bins: int | None = 4,
     orientation: Literal['vertical', 'horizontal'] = 'horizontal',
     width: float = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     proportional_representation: bool = False,
     min_representation: float = 0.05,
     show_box: bool | None = None,
@@ -276,12 +276,12 @@ def spark(
         left-to-right, the natural fit for an inline strip.
     width : float, default: 0.6
         Box thickness across the row. As with `pavement.matplotlib.spark`
-        only its ratio to *whisker_extent* matters — the geometry is
+        only its ratio to *tassel_extent* matters — the geometry is
         stretched to fill the SVG.
-    whisker_extent : float, default: 0.05
-        How far whisker marks reach beyond the box at repeated values.
-    show_whiskers : bool, default: False
-        Whether to draw whisker marks at repeated quantile values.
+    tassel_extent : float, default: 0.05
+        How far tassel marks reach beyond the box at repeated values.
+    show_tassels : bool, default: False
+        Whether to draw tassel marks at repeated quantile values.
     proportional_representation : bool, default: False
         Turn a rug into a *frequency rug*: scale each value line's length to
         how often that value occurs, so the most common value's line spans the
@@ -290,7 +290,7 @@ def spark(
         the bottom edge for a horizontal rug, the left edge for a vertical one —
         and grow toward the far edge, like little bars. Only meaningful for a
         rug, so it
-        requires ``bins=None`` and ``show_whiskers=False`` (a whisker's reach
+        requires ``bins=None`` and ``show_tassels=False`` (a tassel's reach
         and a frequency's reach would fight); a ``ValueError`` otherwise.
         Counts are unweighted — weights don't apply to a rug (see
         `pavement_stats`).
@@ -382,10 +382,10 @@ def spark(
     n = len(data)
     if n == 0:
         raise ValueError("data must be non-empty")
-    if proportional_representation and (bins is not None or show_whiskers):
+    if proportional_representation and (bins is not None or show_tassels):
         raise ValueError(
             "proportional_representation requires a rug: bins=None and "
-            "show_whiskers=False")
+            "show_tassels=False")
     # Project an ordered non-float family (Decimal, date/datetime) onto a
     # numeric axis, taking its renderer as the default tooltip format. A
     # caller-supplied value_format still wins (and then receives the projected
@@ -395,7 +395,7 @@ def spark(
     values = pavement_stats(data, bins=bins, weights=weights)
     position = 1.0
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers, value_format, data=data)
+                    tassel_extent, show_tassels, value_format, data=data)
     fmt_value = value_format or fmt
     reach = max(t.reach for t in spec.ticks)
     half = spec.half
@@ -491,7 +491,7 @@ def spark(
     # All the value strokes share their styling, so it lives once on a
     # parent <g> and each line is just coordinates — keeps a dense rug
     # compact. The long box edges run along the value axis at each side;
-    # then one tick per distinct value, reaching past the box as a whisker
+    # then one tick per distinct value, reaching past the box as a tassel
     # where the value repeats (and closing the box ends at the extremes).
     # A hoverable tick pairs its visible mark with a transparent hit-area
     # inside a <g class="pvtick">, so CSS can thicken the mark on hover.
