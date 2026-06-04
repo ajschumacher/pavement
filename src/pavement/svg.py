@@ -1128,14 +1128,14 @@ def _crop_value(v: Any) -> str:
     Long values are truncated to ``_EXTENT_CROP`` characters (15 chars + ``…``).
     Values that would appear blank — empty strings, or whose stripped form is
     empty or non-printable (e.g. whitespace-only, control characters) — are
-    wrapped in curly quotation marks (``“…”``) so the cell visibly
+    wrapped in straight quotation marks (``”…”``) so the cell visibly
     conveys that a value is present.
     """
     s = str(v)
     cropped = s[:_EXTENT_CROP - 1] + '…' if len(s) > _EXTENT_CROP else s
     stripped = s.strip()
     if not stripped or not stripped.isprintable():
-        return '“' + cropped + '”'
+        return '"' + cropped + '"'
     return cropped
 
 
