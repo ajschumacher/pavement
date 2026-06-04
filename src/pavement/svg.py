@@ -1057,9 +1057,21 @@ def _as_columns(data: Any) -> tuple[list[Any], list[list[Any]]] | None:
 _TD = ('border:none;padding:.18em .8em .18em 0;text-align:left;'
        'vertical-align:middle;white-space:nowrap;')
 _TD_TOTAL = _TD + 'border-bottom:1px solid rgba(128,128,128,.35);'
+# Distribution column: no side padding — the extent cells handle the gaps.
+_TD_DIST = 'border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;'
+_TD_DIST_TOTAL = _TD_DIST + 'border-bottom:1px solid rgba(128,128,128,.35);'
+# Min (left extent, right-aligned) and max (right extent, left-aligned) cells.
+_TD_EXTL = ('border:none;padding:.18em .4em .18em .4em;text-align:right;'
+            'vertical-align:middle;white-space:nowrap;')
+_TD_EXTL_TOTAL = _TD_EXTL + 'border-bottom:1px solid rgba(128,128,128,.35);'
+_TD_EXTR = ('border:none;padding:.18em .4em .18em .4em;text-align:left;'
+            'vertical-align:middle;white-space:nowrap;')
+_TD_EXTR_TOTAL = _TD_EXTR + 'border-bottom:1px solid rgba(128,128,128,.35);'
 _COUNT_STYLE = 'color:#888;'  # muted, for a "1,234 rows" / "1,234 values" cell
 _NAME_STYLE = ('font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
                'monospace;font-size:.92em;')
+_EXTENT_STYLE = ('color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,'
+                 'Consolas,monospace;font-size:.85em;')
 
 
 def _count_label(n: int, noun: str) -> str:
@@ -1067,13 +1079,20 @@ def _count_label(n: int, noun: str) -> str:
     return f'<span style="{_COUNT_STYLE}">{n:,} {noun if n == 1 else _plural(noun)}</span>'
 
 
-def _summary_row(label: str, tally_html: str, dist_html: str,
+def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
                  *, total: bool = False) -> str:
-    """One table row: label cell, tally cell, distribution cell."""
+    """One table row: label, tally, min-extent, distribution, max-extent cells."""
     td = _TD_TOTAL if total else _TD
+    td_dist = _TD_DIST_TOTAL if total else _TD_DIST
+    td_extl = _TD_EXTL_TOTAL if total else _TD_EXTL
+    td_extr = _TD_EXTR_TOTAL if total else _TD_EXTR
+    lo_html = f'<span style="{_EXTENT_STYLE}">{escape(lo)}</span>' if lo else ''
+    hi_html = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
     return (f'<tr><td style="{td}">{label}</td>'
             f'<td style="{td}">{tally_html}</td>'
-            f'<td style="{td}">{dist_html}</td></tr>')
+            f'<td style="{td_extl}">{lo_html}</td>'
+            f'<td style="{td_dist}">{dist_html}</td>'
+            f'<td style="{td_extr}">{hi_html}</td></tr>')
 
 
 def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any]) -> str:
@@ -1098,6 +1117,21 @@ def _distribution_strip(values: list[Any], present: list[Any],
         return spark(present, bins=_choose_bins(len(present)),
                      color=color, **opts)
     return proportion(values, **opts)
+
+
+def _spark_extent(present: list[Any]) -> tuple[str, str]:
+    """Formatted min and max strings for a pavement column's axis-label cells.
+
+    Returns ``('', '')`` when *present* is empty or is not a pavement column
+    (categorical columns get a proportion strip and have no numeric axis).
+    Uses the same projection and formatter as `spark` so the values match
+    what appears in the hover tooltips.
+    """
+    if not present or not _pavement_column(present):
+        return '', ''
+    projected, vfmt = _project(list(present))
+    fmt_v = vfmt or fmt
+    return fmt_v(min(projected)), fmt_v(max(projected))
 
 
 class Summary:
@@ -1215,20 +1249,26 @@ def summary(
                        f'{n_cols:,} by {n_rows:,}</span>')
         rows.append(_summary_row(
             shape_label,
-            _tally_strip(keys, 'row', opts), '', total=True))
+            _tally_strip(keys, 'row', opts), '', '', '', total=True))
         for name, values in zip(names, columns):
             present = [v for v in values if not _is_missing(v)]
+            lo, hi = _spark_extent(present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
                 _tally_strip(values, 'entry', opts),
-                _distribution_strip(values, present, color, opts)))
+                lo,
+                _distribution_strip(values, present, color, opts),
+                hi))
     else:
         values = list(data)
         present = [v for v in values if not _is_missing(v)]
+        lo, hi = _spark_extent(present)
         rows.append(_summary_row(
             _count_label(len(values), 'entry'),
             _tally_strip(values, 'entry', opts),
-            _distribution_strip(values, present, color, opts)))
+            lo,
+            _distribution_strip(values, present, color, opts),
+            hi))
 
     table = (f'<table class={quoteattr(class_)} '
              f'style="border-collapse:collapse;font-family:inherit;">'
