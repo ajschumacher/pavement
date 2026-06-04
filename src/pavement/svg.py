@@ -49,7 +49,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from xml.sax.saxutils import escape, quoteattr
 
-from ._geometry import fmt, pct, resolve_show_box, row_spec, ValueFormat
+from ._geometry import box_edge_spans, fmt, pct, row_spec, ValueFormat
 from .core import _is_missing, pavement_stats, proportion_stats, tally_stats
 
 __all__ = ["spark", "tally", "proportion", "summary", "Summary"]
@@ -450,31 +450,20 @@ def spark(
 
     # All the value strokes share their styling, so it lives once on a
     # parent <g> and each line is just coordinates — keeps a dense rug
-    # compact. The two long box edges run along the value axis at each side;
+    # compact. The long box edges run along the value axis at each side;
     # then one tick per distinct value, reaching past the box as a whisker
     # where the value repeats (and closing the box ends at the extremes).
     # A hoverable tick pairs its visible mark with a transparent hit-area
     # inside a <g class="pvtick">, so CSS can thicken the mark on hover.
-    # The two long box edges (perpendicular to the ticks) are dropped for a
-    # rug by default, so it reads like a plain rug rather than a one-row box.
     #
-    # By default a binned spark draws each bin's edge only over the bins that
-    # hold data strictly inside them — a closed segment marks a bin whose mass
-    # is spread between its borders, and a gap marks one whose mass sits on the
-    # value lines, so spread and clumping read straight off the outline. An
-    # explicit show_box=True overrides that with the complete box: the two
-    # edges run unbroken across the whole value range, rug or binned, for when
-    # a solid outline is wanted regardless of where the mass falls.
+    # `box_edge_spans` resolves where the long edges go (shared with every
+    # other backend): by default each populated bin closes over itself and
+    # gaps open where the mass clumps onto a value line; show_box=True forces
+    # one unbroken span; show_box=False (and, by default, a rug) draws none.
     marks: list[str] = []
-    if resolve_show_box(show_box, bins):
-        if show_box is True:
-            marks += [stroke_line(*pt(side, value_low), *pt(side, value_high))
-                      for side in (position - half, position + half)]
-        else:
-            for b in spec.bins:
-                if b.inside > 0:
-                    marks += [stroke_line(*pt(side, b.low), *pt(side, b.high))
-                              for side in (position - half, position + half)]
+    for low, high in box_edge_spans(spec, show_box):
+        marks += [stroke_line(*pt(side, low), *pt(side, high))
+                  for side in (position - half, position + half)]
     for t in spec.ticks:
         a = pt(position - t.reach, t.value)
         b = pt(position + t.reach, t.value)

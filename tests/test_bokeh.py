@@ -34,9 +34,9 @@ def _box_segments(fig):
 
 def test_glyphs_are_fills_ticks_box():
     # One row -> one quad renderer (its bins), one tick segment, one box
-    # segment.
+    # segment. Spread data (a point inside every bin) keeps the box edges.
     fig = figure()
-    rends = pavement_glyphs(fig, [1, 2, 3, 4, 5], bins=4)
+    rends = pavement_glyphs(fig, list(range(9)), bins=4)
     assert type(rends["fills"].glyph).__name__ == "Quad"
     assert type(rends["ticks"].glyph).__name__ == "Segment"
     assert type(rends["box"].glyph).__name__ == "Segment"
@@ -57,6 +57,16 @@ def test_glyphs_show_box_true_keeps_box_on_rug():
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 2, 3, 5], bins=None, show_box=True)
     assert type(rends["box"].glyph).__name__ == "Segment"
+
+
+def test_glyphs_box_gaps_over_bins_without_interior():
+    # Default (auto): each populated bin contributes its two long edges, so
+    # spread data closes every bin while data on its own bin edges draws none.
+    fig = figure()
+    spread = pavement_glyphs(fig, list(range(9)), bins=4)
+    assert len(spread["box"].data_source.data["x0"]) == 8  # 4 bins x 2 edges
+    on_edges = pavement_glyphs(figure(), [0, 1, 2, 3, 4], bins=4)
+    assert on_edges["box"] is None  # all values on bin edges -> no box
 
 
 def test_glyphs_drop_fill_when_alpha_zero():

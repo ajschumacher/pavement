@@ -242,18 +242,47 @@ def box_edges(position: float, half: float, low: float, high: float,
     return edges
 
 
-def resolve_show_box(show_box: bool | None, bins: int | None) -> bool:
-    """Whether to draw a row's box edges (the long sides parallel to the
-    value axis), given the *show_box* override and the row's *bins*.
+def box_edge_spans(spec: RowSpec,
+                   show_box: bool | None) -> list[tuple[float, float]]:
+    """The value-axis ``(low, high)`` spans over which to draw a row's two long
+    box edges (the borders parallel to the value axis), given the public
+    *show_box* setting. Every backend resolves the box the same way through
+    this, so an SVG spark, a matplotlib plot, and an interactive figure all
+    open and close the box at the same places.
 
-    The two long edges are what visually distinguish a binned pavement from
-    a plain rug: dropping them leaves only the value ticks, so a rug
-    (``bins=None``) reads like an ordinary rug plot and the presence of the
-    box signals "these are quantiles, not raw points". So the default
-    (``show_box=None``) draws the box for a binned row and omits it for a
-    rug; an explicit ``True``/``False`` overrides that either way.
+    - ``False``: no edges.
+    - ``True``: one span covering the row's whole value extent — the complete,
+      unbroken box, whatever the data does.
+    - ``None`` (the default): one span per bin that holds a data point strictly
+      inside it, so the box closes where values are spread out and opens into a
+      gap where the mass clumps onto a value line. A rug yields no spans (its
+      bins, between consecutive data points, have no strict interior), so it
+      reads like a plain rug; a binned row whose every value lands on a bin
+      edge likewise yields none. This relies on the interior counts `row_spec`
+      computes from *data* — without *data*, every bin reports zero interior
+      and the auto box is empty.
+
+    The SVG and matplotlib backends lay these spans out in their own coordinate
+    space; `long_box_edges` maps them to screen-space segments for the rest.
     """
-    return bins is not None if show_box is None else show_box
+    if show_box is False:
+        return []
+    if show_box is True:
+        return [(spec.value_low, spec.value_high)]
+    return [(b.low, b.high) for b in spec.bins if b.inside > 0]
+
+
+def long_box_edges(
+    spec: RowSpec, show_box: bool | None,
+) -> list[tuple[float, float, float, float]]:
+    """A row's long box edges as screen-space ``(x0, y0, x1, y1)`` segments —
+    one pair (the two sides) per span from `box_edge_spans`, which carries the
+    *show_box* logic. Empty when no edges are drawn."""
+    edges: list[tuple[float, float, float, float]] = []
+    for low, high in box_edge_spans(spec, show_box):
+        edges.extend(box_edges(spec.position, spec.half, low, high,
+                               spec.orientation))
+    return edges
 
 
 def bin_corners(low: float, high: float, position: float, half: float,

@@ -16,7 +16,9 @@ def _bokeh_backend():
 
 
 def test_elements_returns_fill_ticks_box():
-    els = pavement_elements([1, 2, 3, 4, 5])
+    # show_box=True forces the complete box (two unbroken edges); the auto
+    # box (default) is exercised by the gap tests below.
+    els = pavement_elements([1, 2, 3, 4, 5], show_box=True)
     assert set(els) == {"fill", "ticks", "box"}
     assert isinstance(els["fill"], hv.Rectangles)
     assert isinstance(els["ticks"], hv.Segments)
@@ -35,6 +37,16 @@ def test_elements_rug_drops_box_by_default():
     assert len(els["ticks"]) == 4  # one per distinct value
     forced = pavement_elements([1, 2, 2, 3, 5], bins=None, show_box=True)
     assert len(forced["box"]) == 2
+
+
+def test_elements_box_gaps_over_bins_without_interior():
+    # Default (auto): each bin contributes its two edges only where it holds a
+    # data point strictly inside it. Spread data closes the whole box; data
+    # sitting on its own bin edges opens it completely.
+    spread = pavement_elements(list(range(9)), bins=4)
+    assert len(spread["box"]) == 8           # 4 bins x 2 edges, fully closed
+    on_edges = pavement_elements([0, 1, 2, 3, 4], bins=4)
+    assert len(on_edges["box"]) == 0         # all on bin edges -> no edges
 
 
 def test_plot_rug_renders_with_empty_box():

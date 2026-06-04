@@ -25,7 +25,7 @@ from matplotlib.transforms import blended_transform_factory
 
 from matplotlib.figure import Figure
 
-from ._geometry import broadcast, normalize_rows, resolve_show_box, row_spec
+from ._geometry import box_edge_spans, broadcast, normalize_rows, row_spec
 from .core import pavement_stats, pavement_stats2d
 
 __all__ = [
@@ -48,10 +48,11 @@ def draw_pavement(
     width: float = 0.6,
     whisker_extent: float = 0.1,
     show_whiskers: bool = False,
-    show_box: bool = True,
+    show_box: bool | None = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | None = None,
     box_props: Mapping[str, Any] | None = None,
+    data: Sequence[float] | None = None,
     ax: Axes | None = None,
 ) -> dict[str, Any]:
     """
@@ -82,11 +83,17 @@ def draw_pavement(
         which controls outlier cutoffs on the value axis.
     show_whiskers : bool, default: False
         If False, suppress the whisker marks even at repeated values.
-    show_box : bool, default: True
-        Whether to draw the two long box edges (the borders parallel to
-        the value axis, perpendicular to the value ticks). Set False to
-        drop them, leaving only the ticks — a plain rug. The higher-level
-        `plot` turns this off by default for a rug (``bins=None``).
+    show_box : bool or None, default: True
+        How to draw the long box edges (the borders parallel to the value
+        axis, perpendicular to the value ticks). ``True`` (the default here)
+        draws the complete box — both edges unbroken across the value range.
+        ``False`` drops them, leaving only the ticks (a plain rug). ``None``
+        is the auto mode: each bin contributes its edges only where it holds
+        a data point strictly inside it, so the box closes where values are
+        spread and gaps open where the mass clumps onto a value line — which
+        needs *data* to be given (without it the auto box is empty). The
+        higher-level `plot` passes ``None`` by default, so a binned pavement
+        gaps and a rug shows no box.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis. 'vertical' puts values on the
         y-axis (matplotlib's boxplot default); 'horizontal' puts them
@@ -105,6 +112,11 @@ def draw_pavement(
         properties (facecolor, alpha, hatch, ...). It defaults to no
         edge, so it doesn't double the box outline. If None (the
         default), no background is drawn.
+    data : sequence of float, optional
+        The raw values *values* was computed from. Only the auto box
+        (``show_box=None``) uses it — to count how many points fall strictly
+        inside each bin and so decide which bin edges to draw. Without it the
+        auto box is empty; ``show_box`` True/False ignore it.
     ax : matplotlib Axes, optional
         Axes to draw on. Defaults to ``plt.gca()``.
 
@@ -117,8 +129,9 @@ def draw_pavement(
           or ``None`` if *box_props* was not given.
         - ``"ticks"``: one tick per distinct quantile value, extended
           into a whisker where the value repeats.
-        - ``"box"``: the two long edges of the box, or ``None`` when
-          *show_box* is False.
+        - ``"box"``: the long box edges (one `~matplotlib.collections.LineCollection`
+          of every drawn edge segment), or ``None`` when no edge is drawn —
+          ``show_box`` False, or the auto box finds no bin with interior data.
 
     Raises
     ------
@@ -139,7 +152,7 @@ def draw_pavement(
     if ax is None:
         ax = plt.gca()
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers)
+                    whisker_extent, show_whiskers, data=data)
     # 'perp' draws the ticks (across the row); 'along' the box edges (down
     # the value axis). They swap roles with orientation.
     perp, along = (ax.hlines, ax.vlines) if orientation == 'vertical' \
@@ -166,11 +179,23 @@ def draw_pavement(
         [position - t.reach for t in spec.ticks],
         [position + t.reach for t in spec.ticks],
         **props)
-    # The two long box edges run along the value axis (perpendicular to the
-    # ticks). Dropping them leaves only the ticks, so a rug reads like a
-    # plain rug plot rather than a one-row box.
-    artists['box'] = along([pos_lo, pos_hi], spec.value_low, spec.value_high,
-                           **props) if show_box else None
+    # The long box edges run along the value axis (perpendicular to the
+    # ticks). `box_edge_spans` decides where: the auto box (show_box None,
+    # with data) closes each populated bin and gaps open where the mass
+    # clumps onto a value line; True forces one unbroken span; False (and a
+    # rug, whose bins have no interior) draws none — leaving a plain rug. Each
+    # span draws both sides, gathered into one LineCollection.
+    spans = box_edge_spans(spec, show_box)
+    if spans:
+        sides, lows, highs = [], [], []
+        for low, high in spans:
+            for side in (pos_lo, pos_hi):
+                sides.append(side)
+                lows.append(low)
+                highs.append(high)
+        artists['box'] = along(sides, lows, highs, **props)
+    else:
+        artists['box'] = None
     return artists
 
 
@@ -339,9 +364,9 @@ def plot(
         artists.append(draw_pavement(
             values, position=pos, width=width,
             whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-            show_box=resolve_show_box(show_box, b),
+            show_box=show_box,
             orientation=orientation, line_props=row_line or None,
-            box_props=bp, ax=ax))
+            box_props=bp, data=dataset, ax=ax))
     if labelled:
         set_ticks = ax.set_xticks if orientation == 'vertical' else ax.set_yticks
         set_ticks(list(positions), [str(label) for label in labels])
@@ -474,9 +499,9 @@ def spark(
     draw_pavement(
         values, position=position, width=width,
         whisker_extent=whisker_extent, show_whiskers=show_whiskers,
-        show_box=resolve_show_box(show_box, bins),
+        show_box=show_box,
         orientation=orientation, line_props=row_line or None,
-        box_props=box_props, ax=ax)
+        box_props=box_props, data=data, ax=ax)
     # Fit the view tightly to the drawn geometry. The perpendicular extent
     # is the largest tick reach (a whisker, where present, else the box
     # half-width); the value extent is the box span.
@@ -677,10 +702,11 @@ def margin(
         width=box_size,
         whisker_extent=whisker_extent,
         show_whiskers=show_whiskers,
-        show_box=resolve_show_box(show_box, bins),
+        show_box=show_box,
         orientation=orientation,
         line_props=props,
         box_props=bprops,
+        data=data,
         ax=ax,
     )
     if placement == 'inside' and expand_margins:
