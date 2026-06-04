@@ -228,7 +228,7 @@ def spark(
     bins: int | None = 4,
     orientation: Literal['vertical', 'horizontal'] = 'horizontal',
     width: float = 0.6,
-    whisker_extent: float = 0.1,
+    whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     show_box: bool | None = None,
     color: str | None = None,
@@ -275,7 +275,7 @@ def spark(
         Box thickness across the row. As with `pavement.matplotlib.spark`
         only its ratio to *whisker_extent* matters — the geometry is
         stretched to fill the SVG.
-    whisker_extent : float, default: 0.1
+    whisker_extent : float, default: 0.05
         How far whisker marks reach beyond the box at repeated values.
     show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.

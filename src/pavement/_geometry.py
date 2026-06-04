@@ -113,7 +113,7 @@ def row_spec(
     position: float = 1,
     width: float = 0.6,
     orientation: Orientation = "vertical",
-    whisker_extent: float = 0.1,
+    whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     value_format: ValueFormat | None = None,
     data: Sequence[float] | None = None,

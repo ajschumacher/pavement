@@ -46,7 +46,7 @@ def draw_pavement(
     values: Sequence[float],
     position: float = 1,
     width: float = 0.6,
-    whisker_extent: float = 0.1,
+    whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     show_box: bool | None = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
@@ -77,7 +77,7 @@ def draw_pavement(
     width : float, default: 0.6
         Total thickness of the box outline (perpendicular to the
         value axis).
-    whisker_extent : float, default: 0.1
+    whisker_extent : float, default: 0.05
         How far the whisker marks extend beyond the box, perpendicular
         to the value axis. Unrelated to matplotlib's ``boxplot(whis=)``,
         which controls outlier cutoffs on the value axis.
@@ -207,7 +207,7 @@ def plot(
     labels: Sequence[Hashable] | None = None,
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
-    whisker_extent: float = 0.1,
+    whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     show_box: bool | None = None,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
@@ -263,7 +263,7 @@ def plot(
         Thickness of each row's box outline. A scalar applies to
         every row; a sequence sets each row's width individually and
         must have length equal to the number of rows.
-    whisker_extent : float, default: 0.1
+    whisker_extent : float, default: 0.05
         How far the whisker marks extend beyond the box, perpendicular
         to the value axis. Unrelated to matplotlib's ``boxplot(whis=)``,
         which controls outlier cutoffs on the value axis.
@@ -384,7 +384,7 @@ def spark(
     bins: int | None = 4,
     orientation: Literal['vertical', 'horizontal'] = 'horizontal',
     width: float = 0.6,
-    whisker_extent: float = 0.1,
+    whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     show_box: bool | None = None,
     color: str | None = None,
@@ -428,7 +428,7 @@ def spark(
         Thickness of the box outline, perpendicular to the value axis.
         Only its ratio to *whisker_extent* matters — the figure is
         scaled to fit whatever is drawn.
-    whisker_extent : float, default: 0.1
+    whisker_extent : float, default: 0.05
         How far whisker marks extend beyond the box at repeated values.
     show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
@@ -680,7 +680,11 @@ def margin(
         # both render at the same physical thickness.
         aspect = ax.bbox.height / ax.bbox.width
         box_size, box_pad = size * aspect, pad * aspect
-    whisker_extent = 0.3 * box_size
+    # Match the package-wide whisker proportion: the spark defaults reach
+    # whisker_extent past the box *half*-width, a ratio of 0.05/(0.6/2) = 1/6.
+    # Here the box thickness is box_size (its half is box_size/2), so
+    # box_size/12 gives that same 1/6-of-the-half reach.
+    whisker_extent = box_size / 12
     # Place the box. The far edge is the axes-fraction 1.0 side
     # (top/right); into_axes points from that edge toward the interior.
     far_edge = side in ('top', 'right')
