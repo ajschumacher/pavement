@@ -1089,8 +1089,8 @@ _EXTENT_STYLE = ('color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,'
 # the text columns (name, extents) contract gracefully on smaller screens via
 # clamp(), while always providing a horizontal-scroll fallback.
 _SVG_ASPECT = 140.0 / 30.0   # horizontal strip viewBox width:height ratio
-_TALLY_SCALE = 0.75           # tally strips: 75% of base height (narrower)
-_DIST_SCALE = 1.30            # distribution strips: 130% of base height (wider)
+_TALLY_WIDTH_SCALE = 0.75    # tally strips: 75% of natural width (narrower)
+_DIST_WIDTH_SCALE = 1.30     # distribution strips: 130% of natural width (wider)
 _SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
 _NAME_COL_WIDTH = 'clamp(6em, 25vw, 14em)'
 _EXT_COL_WIDTH = 'clamp(3.5em, 7vw, 6em)'
@@ -1122,16 +1122,31 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
             f'<td style="{td_extr}">{hi_html}</td></tr>')
 
 
-def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any]) -> str:
+def _set_strip_width(svg: str, width: str) -> str:
+    """Patch an inline SVG strip's width from ``width:auto`` to *width*.
+
+    All summary strips are rendered with ``width:auto`` (so they size
+    naturally to their height × aspect ratio when used standalone). Inside
+    the summary table we override this to an explicit em value so the tally
+    and distribution columns can have different widths while keeping the same
+    height.
+    """
+    return svg.replace('width:auto;', f'width:{width};', 1)
+
+
+def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any],
+                 *, strip_width: str | None = None) -> str:
     """A column's (or the whole frame's) tally strip — empty if there is
     nothing to count (a zero-length column)."""
     if not values:
         return ''
-    return tally(values, noun=noun, **opts)
+    svg = tally(values, noun=noun, **opts)
+    return _set_strip_width(svg, strip_width) if strip_width else svg
 
 
 def _distribution_strip(values: list[Any], present: list[Any],
-                        color: str, opts: dict[str, Any]) -> str:
+                        color: str, opts: dict[str, Any],
+                        *, strip_width: str | None = None) -> str:
     """A column's distribution strip: a pavement spark when its present values
     are an ordered family a pavement can draw (numbers, ``Decimal``, or
     ``date``/``datetime``), otherwise a proportion strip. Empty when the column
@@ -1141,9 +1156,11 @@ def _distribution_strip(values: list[Any], present: list[Any],
     if not present:
         return ''
     if _pavement_column(present):
-        return spark(present, bins=_choose_bins(len(present)),
-                     color=color, **opts)
-    return proportion(values, **opts)
+        svg = spark(present, bins=_choose_bins(len(present)),
+                    color=color, **opts)
+    else:
+        svg = proportion(values, **opts)
+    return _set_strip_width(svg, strip_width) if strip_width else svg
 
 
 def _fmt_extent(value: float) -> str:
@@ -1315,8 +1332,11 @@ def summary(
     proportion : The categorical distribution strip.
     spark : The numeric distribution sparkline.
     """
-    # Scale tally and distribution strip heights independently so their columns
-    # have distinct, fixed widths. Non-em heights fall back to the base value.
+    # Compute explicit strip widths from the base height and the SVG aspect
+    # ratio. All strips keep the same height; tally columns are 75% as wide
+    # as their natural size, distribution columns 130% — achieved by patching
+    # width:auto on the generated SVGs rather than by changing their heights.
+    # Non-em heights skip the fixed-layout path (can't compute em widths).
     h_em: float | None = None
     if isinstance(height, str) and height.endswith('em'):
         try:
@@ -1324,18 +1344,14 @@ def summary(
         except ValueError:
             pass
     if h_em is not None:
-        h_tally = f'{h_em * _TALLY_SCALE:.2f}em'
-        h_dist = f'{h_em * _DIST_SCALE:.2f}em'
-        w_tally = f'{h_em * _TALLY_SCALE * _SVG_ASPECT:.2f}em'
-        w_dist = f'{h_em * _DIST_SCALE * _SVG_ASPECT:.2f}em'
+        w_tally = f'{h_em * _SVG_ASPECT * _TALLY_WIDTH_SCALE:.2f}em'
+        w_dist = f'{h_em * _SVG_ASPECT * _DIST_WIDTH_SCALE:.2f}em'
         fixed_layout = True
     else:
-        h_tally = h_dist = height
+        w_tally = w_dist = None
         fixed_layout = False
 
-    tally_opts = {'height': h_tally, 'hover': hover, 'highlight': highlight}
-    dist_opts = {'height': h_dist, 'hover': hover, 'highlight': highlight}
-
+    opts = {'height': height, 'hover': hover, 'highlight': highlight}
     columns_data = _as_columns(data)
     rows: list[str] = []
 
@@ -1350,15 +1366,17 @@ def summary(
                        f'{n_cols:,} by {n_rows:,}</span>')
         rows.append(_summary_row(
             shape_label,
-            _tally_strip(keys, 'row', tally_opts), '', '', '', total=True))
+            _tally_strip(keys, 'row', opts, strip_width=w_tally),
+            '', '', '', total=True))
         for name, values in zip(names, columns):
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
-                _tally_strip(values, 'entry', tally_opts),
+                _tally_strip(values, 'entry', opts, strip_width=w_tally),
                 lo,
-                _distribution_strip(values, present, color, dist_opts),
+                _distribution_strip(values, present, color, opts,
+                                    strip_width=w_dist),
                 hi))
     else:
         values = list(data)
@@ -1366,9 +1384,10 @@ def summary(
         lo, hi = _column_extent(values, present)
         rows.append(_summary_row(
             _count_label(len(values), 'entry'),
-            _tally_strip(values, 'entry', tally_opts),
+            _tally_strip(values, 'entry', opts, strip_width=w_tally),
             lo,
-            _distribution_strip(values, present, color, dist_opts),
+            _distribution_strip(values, present, color, opts,
+                                strip_width=w_dist),
             hi))
 
     if fixed_layout:

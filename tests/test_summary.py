@@ -378,10 +378,10 @@ def test_summary_class_is_on_the_table():
 
 def test_summary_height_is_passed_to_strips():
     out = str(summary([1, 2, 3], height="2.5em"))
-    # Tally and distribution get independently scaled heights (75% and 130%
-    # of the base height), not the base value itself.
-    assert "height:1.88em" in out   # tally: 2.5 × 0.75, rounded to 2 dp
-    assert "height:3.25em" in out   # distribution: 2.5 × 1.30
+    # All strips keep the same height; widths differ (75% tally, 130% dist).
+    assert out.count("height:2.5em") >= 2           # base height on every strip
+    assert "width:8.75em" in out    # tally: 2.5 × (140/30) × 0.75
+    assert "width:15.17em" in out   # distribution: 2.5 × (140/30) × 1.30
 
 
 def test_summary_hover_false_omits_titles():
