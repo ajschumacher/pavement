@@ -91,16 +91,20 @@ def test_one_fill_trace_per_bin():
 
 
 def test_box_hover_is_band_and_range():
-    fills = [t for t in pavement_traces([1, 2, 3, 4, 5], bins=4)
+    # A box that holds data strictly inside it hovers its value range,
+    # percentile band, and the share inside — the shared layout.
+    interior = [t for t in pavement_traces([1, 2, 3, 4, 5, 6, 7, 8], bins=4)
+                if t.fill == "toself"]
+    assert interior[1].text == "2.5 to 4.5<br>p25 to p50<br>25% (2 of 8 values)"
+    # An empty box (here every value sits on a quantile edge, so the boxes hold
+    # none) drops the band, which would otherwise read as a misleading "pNN to
+    # pNN" over a gap: just the value range and a zero count.
+    empty = [t for t in pavement_traces([1, 2, 3, 4, 5], bins=4)
              if t.fill == "toself"]
-    # Each box hovers (anywhere inside) its value range, percentile band, and
-    # the share of values falling strictly inside it — the same layout as the
-    # other backends. With one value per quantile, every value is on a tick,
-    # so the boxes hold none.
-    assert fills[0].text == "1 to 2<br>p0 to p25<br>0% (0 of 5 values)"
-    assert fills[-1].text == "4 to 5<br>p75 to p100<br>0% (0 of 5 values)"
-    assert fills[0].hoveron == "fills"
-    assert fills[0].hovertemplate == "%{text}<extra></extra>"
+    assert empty[0].text == "1 to 2<br>0% (0 of 5 values)"
+    assert empty[-1].text == "4 to 5<br>0% (0 of 5 values)"
+    assert empty[0].hoveron == "fills"
+    assert empty[0].hovertemplate == "%{text}<extra></extra>"
 
 
 def test_tick_hover_is_single_quantile_and_value():
@@ -125,18 +129,18 @@ def test_named_hover_leads_with_name():
 def test_value_format_customizes_value_strings():
     # A custom value_format reformats the value strings in both hover
     # layers (box ranges and tick values); the percentiles are unchanged.
-    traces = pavement_traces([1, 2, 3, 4, 5], bins=4,
+    traces = pavement_traces([1, 2, 3, 4, 5, 6, 7, 8], bins=4,
                              value_format=lambda v: f"${v:.2f}")
     fill = next(t for t in traces if t.fill == "toself")
     ticks = _tick_trace(traces)
-    assert fill.text == "$1.00 to $2.00<br>p0 to p25<br>0% (0 of 5 values)"
-    assert list(ticks.text)[0] == "$1.00<br>p0<br>20% (1 of 5 values)"
+    assert fill.text == "$1.00 to $2.50<br>p0 to p25<br>12% (1 of 8 values)"
+    assert list(ticks.text)[0] == "$1.00<br>p0<br>12% (1 of 8 values)"
 
 
 def test_value_format_threads_through_plot():
-    fig = plot([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
+    fig = plot([1, 2, 3, 4, 5, 6, 7, 8], bins=4, value_format=lambda v: f"${v:.2f}")
     fills = _fill_traces(fig)
-    assert fills[0].text == "$1.00 to $2.00<br>p0 to p25<br>0% (0 of 5 values)"
+    assert fills[0].text == "$1.00 to $2.50<br>p0 to p25<br>12% (1 of 8 values)"
 
 
 def test_horizontal_swaps_axes():

@@ -9,7 +9,8 @@ from pavement._geometry import (
     broadcast,
     complete_color_map,
     fmt,
-    hover_fields,
+    hover_bins,
+    hover_html,
     long_box_edges,
     normalize_rows,
     pct,
@@ -298,9 +299,24 @@ def test_resolve_colors_length_mismatch():
         resolve_colors(["a", "b"], 3, _palette)
 
 
-def test_hover_fields():
-    assert hover_fields(False) == ["values", "quantiles", "counts"]
-    assert hover_fields(True) == ["group", "values", "quantiles", "counts"]
+def test_hover_html_joins_non_empty_escaped():
+    # Non-empty lines, in order, joined by <br>; empties (here a dropped band)
+    # fall out rather than leaving a blank row, and the content is HTML-escaped
+    # while the <br> separators stay literal.
+    assert hover_html("a", "1 to 2", "", "0% (0 of 5)") == \
+        "a<br>1 to 2<br>0% (0 of 5)"
+    assert hover_html(None, "x", "p0 to p25", "") == "x<br>p0 to p25"
+    assert hover_html("a < b & c") == "a &lt; b &amp; c"
+
+
+def test_hover_bins_drops_zero_width_gaps_for_a_rug():
+    # A pavement draws every bin; a rug drops the zero-width "bins" at its
+    # repeated values (which coincide with the tick lines), keeping just the
+    # gaps between distinct values.
+    spec = row_spec(pavement_stats([1, 1, 2, 2, 5], bins=None), data=[1, 1, 2, 2, 5])
+    assert len(hover_bins(spec, rug=False)) == len(spec.bins)
+    gaps = hover_bins(spec, rug=True)
+    assert [(b.low, b.high) for b in gaps] == [(1, 2), (2, 5)]
 
 
 def test_complete_color_map_fills_and_skips_used():

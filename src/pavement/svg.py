@@ -50,7 +50,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from xml.sax.saxutils import escape, quoteattr
 
-from ._geometry import box_edge_spans, fmt, pct, row_spec, ValueFormat
+from ._geometry import box_edge_spans, fmt, hover_bins, pct, row_spec, ValueFormat
 from .core import _is_missing, pavement_stats, proportion_stats, tally_stats
 
 __all__ = ["spark", "tally", "proportion", "summary", "Summary"]
@@ -454,39 +454,61 @@ def spark(
                 f'width="{_num(abs(x1 - x0))}" height="{_num(abs(y1 - y0))}" '
                 f'{extra}>{child}</rect>')
 
-    if bins is not None:
-        # Equal-mass bins: a translucent (or invisible) rect each, spanning
-        # the box thickness. Drawn first so they sit behind the lines, and
-        # they double as hover targets — the value-range/percentile/count
-        # tooltip and the CSS highlight both attach here.
-        for b in spec.bins:
-            x0, y0 = pt(position - half, b.low)
-            x1, y1 = pt(position + half, b.high)
-            bin_text = b.value_range + chr(10) + b.band + chr(10) + b.count
-            title = f'<title>{escape(bin_text)}</title>' if hover else ''
-            parts.append(rect(
-                x0, y0, x1, y1, cls=' class="pvbin"',
-                extra=f'fill="{fill_paint}" fill-opacity="{_num(rest_opacity)}" '
-                      f'pointer-events="all"', child=title))
-    elif color is not None:
-        # A rug (one tick per point) has no meaningful bins to hover, but
-        # a requested color still fills the box as a single background.
-        x0, y0 = pt(position - half, value_low)
-        x1, y1 = pt(position + half, value_high)
-        parts.append(rect(
-            x0, y0, x1, y1,
-            extra=f'fill="{fill_paint}" fill-opacity="{_num(fill_alpha)}" '
-                  f'pointer-events="none"'))
-
     # Whether each value line is individually hoverable. While the ticks
     # stay few enough to be worth hovering one by one (binned sparks
     # always are; a small rug is, a dense one isn't), each gets a
     # transparent wide hit-area and a value tooltip; a denser rug skips
     # this and leans on the whole-spark summary instead. Counting the
     # ticks (distinct values) rather than the raw data keeps repeats from
-    # inflating the total.
+    # inflating the total. (Defined here because the rug's gap boxes below
+    # appear under the same condition.)
     per_tick_hover = hover and (
         tick_hover_limit is None or len(spec.ticks) <= tick_hover_limit)
+
+    # A rug, read value by value, also gets the boxes between its lines — the
+    # gaps between consecutive distinct values — as hover targets, just like a
+    # pavement's bins; a dense rug (ticks past the limit) keeps only its
+    # whole-spark summary instead, to stay light.
+    rug_gap_boxes = bins is None and per_tick_hover
+
+    if bins is not None or rug_gap_boxes:
+        # Equal-mass bins — or, for a rug, the boxes spanning the gaps between
+        # distinct values: a translucent (or invisible) rect each, spanning the
+        # box thickness. Drawn first so they sit behind the lines, and they
+        # double as hover targets — the value-range/percentile/count tooltip
+        # and the CSS highlight both attach here. A rug's gap boxes carry a
+        # zero interior count (nothing falls strictly between two adjacent
+        # values), but they make a wide stretch as easy to hover as a value
+        # line is hard to hit; `hover_bins` drops the zero-width bins at a
+        # rug's repeated values, which coincide with the tick lines.
+        for b in hover_bins(spec, bins is None):
+            x0, y0 = pt(position - half, b.low)
+            x1, y1 = pt(position + half, b.high)
+            # value range, then the percentile band, then the count — the
+            # shared order; but an empty box (a rug gap, or a bin whose mass
+            # sits on its edges) drops the band, which would otherwise read as
+            # a misleading "pNN to pNN" over a stretch holding no data. Mirrors
+            # the tick label's conditional percentile.
+            lines = [b.value_range]
+            if b.band and (b.inside or not b.count):
+                lines.append(b.band)
+            if b.count:
+                lines.append(b.count)
+            title = (f'<title>{escape(chr(10).join(lines))}</title>'
+                     if hover else '')
+            parts.append(rect(
+                x0, y0, x1, y1, cls=' class="pvbin"',
+                extra=f'fill="{fill_paint}" fill-opacity="{_num(rest_opacity)}" '
+                      f'pointer-events="all"', child=title))
+    elif color is not None:
+        # A rug with no gap boxes (dense, or per-tick hover disabled) but a
+        # requested color still fills the box as a single background.
+        x0, y0 = pt(position - half, value_low)
+        x1, y1 = pt(position + half, value_high)
+        parts.append(rect(
+            x0, y0, x1, y1,
+            extra=f'fill="{fill_paint}" fill-opacity="{_num(fill_alpha)}" '
+                  f'pointer-events="none"'))
 
     # All the value strokes share their styling, so it lives once on a
     # parent <g> and each line is just coordinates — keeps a dense rug

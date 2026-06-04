@@ -52,7 +52,8 @@ from .core import pavement_stats
 from ._geometry import (
     bin_corners,
     broadcast,
-    hover_fields,
+    hover_bins,
+    hover_html,
     long_box_edges,
     normalize_rows,
     resolve_colors,
@@ -63,13 +64,13 @@ from ._geometry import (
 
 __all__ = ["pavement_elements", "plot", "with_marginals"]
 
-# Hover dimensions carrying the display strings shown verbatim by every
-# backend: a quantile (band for a box, single level for a tick), a value
-# (range for a box, single value for a tick), and a count ("N of M values"
-# inside the box / on the tick). Fills also keep numeric low/high for the
-# plotly hover geometry (not shown).
-_FILL_VDIMS = ["low", "high", "quantiles", "values", "counts"]
-_TICK_VDIMS = ["quantiles", "values", "counts"]
+# Hover dimensions. Each fill and tick carries a single ``hover`` string (the
+# row name, value, percentile, and count, line-break separated with the empty
+# lines dropped — see `hover_html`), the one field every backend's tooltip
+# reads. Fills also keep numeric low/high for the plotly hover geometry (which
+# samples the value axis to label each point; not shown).
+_FILL_VDIMS = ["low", "high", "hover"]
+_TICK_VDIMS = ["hover"]
 
 
 # Each backend names the same style differently; map them so one call
@@ -111,37 +112,45 @@ def _row_geometry(
     group: Hashable | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
+    rug: bool = False,
 ) -> tuple[list[tuple], list[tuple], list[tuple]]:
     """Build the (fill, tick, box-edge) tuples for one row.
 
     Returns ``(fills, ticks, edges)``. A fill is
-    ``(x0, y0, x1, y1, low, high, quantiles, values, counts[, group])``; a
-    tick is ``(x0, y0, x1, y1, quantiles, values, counts[, group])``; an edge
-    is ``(x0, y0, x1, y1)``. *quantiles*, *values*, and *counts* are display
-    strings shared verbatim by every backend's hover; *low*/*high* stay
-    numeric for the plotly hover geometry. The shared `row_spec` does the
-    binning, the one-tick-per-distinct-value (tassel) logic, and (from
-    *data*) the per-bin/per-tick value counts.
+    ``(x0, y0, x1, y1, low, high, hover)``; a tick is
+    ``(x0, y0, x1, y1, hover)``; an edge is ``(x0, y0, x1, y1)``. *hover* is the
+    composed tooltip string (the row name, value, percentile, and count, with
+    empty lines dropped — see `hover_html`), shown verbatim by every backend;
+    *low*/*high* stay numeric for the plotly hover geometry. The shared
+    `row_spec` does the binning, the one-tick-per-distinct-value (tassel)
+    logic, and (from *data*) the per-bin/per-tick value counts.
     """
     spec = row_spec(values, position, width, orientation,
                     tassel_extent, show_tassels, value_format, data=data)
-    extra = () if group is None else (group,)
+    name = None if group is None else str(group)
 
     # Fills: one borderless rectangle per equal-mass bin, a hover target
-    # reading as a value range, a percentile band, and a value share.
+    # reading as a value range, a percentile band, and a value share. A rug
+    # instead hovers the gaps between its distinct values (`hover_bins` drops
+    # the zero-width bins at repeated points), so it gets the same easy hover
+    # targets between its lines. An empty box (a rug gap, or a bin whose mass
+    # sits on its edges) drops the band, which would otherwise read as a
+    # misleading "pNN to pNN" over a stretch holding no data; low/high stay for
+    # the plotly hover geometry.
     fills: list[tuple] = []
-    for b in spec.bins:
+    for b in hover_bins(spec, rug):
         (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
                                          orientation)
-        fills.append((x0, y0, x1, y1, b.low, b.high, b.band, b.value_range,
-                      b.count, *extra))
+        band = b.band if (b.inside or not b.count) else ""
+        hover = hover_html(name, b.value_range, band, b.count)
+        fills.append((x0, y0, x1, y1, b.low, b.high, hover))
 
     # Ticks: one per distinct value, reaching past the box as a tassel
     # where it repeats. A line hover reads as a single quantile and value.
     ticks: list[tuple] = []
     for t in spec.ticks:
         seg = tick_segment(position, t.reach, t.value, orientation)
-        ticks.append((*seg, t.quantile, t.value_str, t.count, *extra))
+        ticks.append((*seg, hover_html(name, t.value_str, t.quantile, t.count)))
 
     # Box edges: each populated bin closes over itself and a gap opens where
     # the mass clumps onto a value line; show_box True forces one unbroken
@@ -197,8 +206,8 @@ def pavement_elements(
         Direction of the value axis. 'vertical' puts values on the
         y-axis; 'horizontal' puts them on the x-axis.
     group : hashable, optional
-        If given, added as a ``group`` value dimension on the fills and
-        ticks so it shows on hover and can drive coloring.
+        If given, the row name; it leads each fill's and tick's composed
+        ``hover`` string.
     value_format : callable, optional
         Function mapping a value to its hover display string, e.g.
         ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
@@ -210,13 +219,12 @@ def pavement_elements(
         Maps component name to the unstyled HoloViews element:
 
         - ``"fill"``: a `holoviews.Rectangles` of the equal-mass bins,
-          with value dimensions ``low``, ``high``, ``quantiles``,
-          ``values``, ``counts`` (and ``group`` if given). Meant to be
-          drawn borderless, as a hover target behind the lines.
+          with value dimensions ``low``, ``high``, and ``hover`` (the
+          composed tooltip string). Meant to be drawn borderless, as a
+          hover target behind the lines.
         - ``"ticks"``: a `holoviews.Segments`, one tick per distinct
           quantile value (extended into a tassel where the value
-          repeats), with value dimensions ``quantiles``, ``values``,
-          ``counts`` (and ``group`` if given).
+          repeats), with value dimension ``hover``.
         - ``"box"``: a `holoviews.Segments` of the two long box edges.
 
     See Also
@@ -229,12 +237,10 @@ def pavement_elements(
     fills, ticks, edges = _row_geometry(
         values, position, width, orientation,
         tassel_extent, show_tassels, show_box,
-        group, value_format, data=data)
-    fill_vdims = _FILL_VDIMS if group is None else [*_FILL_VDIMS, "group"]
-    tick_vdims = _TICK_VDIMS if group is None else [*_TICK_VDIMS, "group"]
+        group, value_format, data=data, rug=bins is None)
     return {
-        "fill": hv.Rectangles(fills, vdims=fill_vdims),
-        "ticks": hv.Segments(ticks, vdims=tick_vdims),
+        "fill": hv.Rectangles(fills, vdims=_FILL_VDIMS),
+        "ticks": hv.Segments(ticks, vdims=_TICK_VDIMS),
         "box": hv.Segments(edges),
     }
 
@@ -258,9 +264,9 @@ def _style(element: Any, role: str, color: str, fill_alpha: float,
     # sets the template; binding it to every row's fill and ticks (not
     # just one) is finished by `_bokeh_hover_hook` at render time.
     if hover and backend == "bokeh" and role in ("fill", "ticks"):
-        has_group = any(d.name == "group" for d in element.vdims)
-        opts["hover_tooltips"] = "<br>".join(
-            f"@{f}" for f in hover_fields(has_group))
+        # The composed ``hover`` field, rendered as raw HTML so its line breaks
+        # show (and so empty lines, already dropped, leave no blank row).
+        opts["hover_tooltips"] = "@hover{safe}"
     return element.opts(**opts)
 
 
@@ -277,7 +283,7 @@ def _bokeh_hover_hook(plot: Any, element: Any) -> None:
     tool to every glyph carrying the hover columns — each row's bin fills
     (`~holoviews.Rectangles`) and quantile ticks (`~holoviews.Segments`),
     so the whole pavement hovers, boxes and value lines alike. The box
-    edges carry no ``values`` column, so they stay non-hovering, matching
+    edges carry no ``hover`` column, so they stay non-hovering, matching
     the other backends. Any duplicate hover tools the merge left are
     dropped. Idempotent, so it is safe if the hook runs more than once.
     """
@@ -288,7 +294,7 @@ def _bokeh_hover_hook(plot: Any, element: Any) -> None:
         return
     targets = [r for r in fig.renderers
                if isinstance(r, GlyphRenderer)
-               and "values" in getattr(r.data_source, "data", {})]
+               and "hover" in getattr(r.data_source, "data", {})]
     hovers[0].renderers = targets
     for extra in hovers[1:]:
         fig.tools.remove(extra)
@@ -309,7 +315,6 @@ _HOVER_SAMPLES = 80
 
 def _plotly_hover_layer(
     fill: Any,
-    group: Hashable | None,
     orientation: str,
 ) -> Any:
     """An invisible Scatter line carrying per-bin hover text, for plotly.
@@ -318,9 +323,9 @@ def _plotly_hover_layer(
     hold hover, and its plotly Scatter exposes no tooltip control. So for
     plotly we overlay a dense line of invisible markers down the row's
     value axis (the bins stack along it at one position) and use a render
-    hook to inject a hovertemplate and each marker's bin's value range,
-    percentile band, and value share as customdata — the same display
-    strings, in the same order, as bokeh's glyph hover.
+    hook to inject a hovertemplate and each marker's bin's composed hover
+    text (value range, percentile band, value share — empties dropped) as
+    per-point ``text``, the same display string bokeh's glyph hover shows.
 
     The hook finds its own trace by matching the markers' value-axis
     coordinates (distinctive per row) against either trace axis —
@@ -333,9 +338,7 @@ def _plotly_hover_layer(
     """
     low = fill.dimension_values("low")
     high = fill.dimension_values("high")
-    quantiles = fill.dimension_values("quantiles")
-    values = fill.dimension_values("values")
-    counts = fill.dimension_values("counts")
+    texts = fill.dimension_values("hover")
     if len(low) == 0:
         return hv.Scatter([])
     # The bins stack along the value axis at a single position; sample
@@ -350,12 +353,12 @@ def _plotly_hover_layer(
     edges = np.append(low, high[-1])  # contiguous bin edges
     which = np.clip(np.searchsorted(edges, samples, side="right") - 1,
                     0, len(low) - 1)
-    fields = hover_fields(group is not None)
-    prefix = [str(group)] if group is not None else []
-    # customdata order must match hover_fields: group?, value, percentile, count.
-    customdata = [prefix + [values[i], quantiles[i], counts[i]] for i in which]
-    template = "<br>".join(
-        f"%{{customdata[{k}]}}" for k in range(len(fields))) + "<extra></extra>"
+    # Each sample carries its bin's already-composed hover text verbatim (name,
+    # value, percentile, count — empties dropped), shown the same way the
+    # dedicated plotly backend does it: per-point text, so an empty box's
+    # missing band leaves no blank line.
+    text = [texts[i] for i in which]
+    template = "%{text}<extra></extra>"
     constant = np.full(_HOVER_SAMPLES, position)
     points = (samples, constant) if orientation == "horizontal" \
         else (constant, samples)
@@ -369,7 +372,7 @@ def _plotly_hover_layer(
                 continue
             if matches(_decode_plotly_array(trace.get("x"))) or \
                     matches(_decode_plotly_array(trace.get("y"))):
-                trace["customdata"] = customdata
+                trace["text"] = text
                 trace["hovertemplate"] = template
                 trace["hoverinfo"] = "text"
                 trace["showlegend"] = False
@@ -544,7 +547,7 @@ def plot(
         # bokeh hovers the glyphs directly; plotly draws them as
         # non-hoverable shapes, so add an invisible marker layer there.
         if hover and hv.Store.current_backend == "plotly":
-            parts.append(_plotly_hover_layer(els["fill"], group, orientation))
+            parts.append(_plotly_hover_layer(els["fill"], orientation))
         rows[label] = hv.Overlay(parts)
 
     if n == 1:

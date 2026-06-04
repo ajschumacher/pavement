@@ -64,8 +64,12 @@ def test_summary_rugs_discrete_column_proportionally():
     # spanning the box as a binned pavement or a plain rug would.
     data = {"rating": [1] * 10 + [2] * 40 + [3] * 90 + [4] * 95 + [5] * 50}
     html = str(summary(data))
-    # The numeric column's spark is a rug: per-value ticks, no equal-mass bins.
-    assert 'class="pvbin"' not in html
+    # The numeric column's spark is a rug, not a binned pavement: one tick per
+    # distinct value, and its only boxes are the zero-interior gaps between
+    # those values (a binned pavement's bins would carry real interior counts).
+    assert html.count('class="pvtick"') == 5
+    gaps = re.findall(r'<rect class="pvbin".*?<title>(.*?)</title>', html, re.S)
+    assert gaps and all("(0 of" in g for g in gaps)
     # Its visible marks (.pvmark) vary in length, the signature of a frequency
     # rug — a plain rug or a pavement would draw them all full height.
     marks = re.findall(r'<line class="pvmark"[^>]*?/>', html)
@@ -82,7 +86,7 @@ def test_choose_bins_rug_limit_matches_spark_tick_hover_limit():
     # individually hoverable, so a summary rug is fully hoverable.
     from pavement.svg import spark
     out = spark(list(range(24)), bins=None)
-    assert out.count("<title>") == 24          # all hoverable at the limit
+    assert out.count('class="pvtick"') == 24    # every value hoverable at the limit
     assert _choose_bins(range(24)) is None
 
 
@@ -203,9 +207,9 @@ def test_summary_boolean_series_is_categorical():
 
 
 def test_summary_numeric_resolution_follows_distinct_count():
-    # <=24 distinct -> rug (no equal-mass bin rects); a larger spread -> bins.
+    # <=24 distinct -> rug (one tick per value); a larger spread -> bins.
     rug = str(summary(list(range(20))))
-    assert 'class="pvbin"' not in rug
+    assert rug.count('class="pvtick"') == 20    # per-value ticks, a rug
     binned = str(summary(list(range(50))))     # 50 distinct -> 4 bins
     assert binned.count('class="pvbin"') == 4
 

@@ -135,7 +135,9 @@ the data away.</p>
 <strong>{ratings.count(4)} fours</strong> (the most common),
 <strong>{ratings.count(3)} threes</strong>,
 {ratings.count(5)} fives, {ratings.count(2)} twos, and {ratings.count(1)} ones.
-Hover any line for its value, percentile, and count.</p>
+Hover any line for its value, percentile, and count — or the space between two
+lines for that gap's range (an easier target than a thin line), just like the
+boxes of a binned pavement.</p>
 {_rating_figure("Plain rug",
                 "Every distinct value is one full-height line — you can see "
                 "<em>which</em> values occur, but not how often.")}
@@ -247,7 +249,9 @@ regardless of where the values fall. The four below are the same 150 iris
              sepal_width, show_box=True)}
 {_box_figure("Rug, default",
              "The same data as a rug (<code>bins=None</code>): one line per "
-             "distinct value and no box at all, the way a rug normally reads.",
+             "distinct value and no box edges, the way a rug normally reads — "
+             "but the spaces between the lines are hover targets too, each "
+             "reading as that gap's value range (with nothing inside it).",
              sepal_width, bins=None)}
 {_box_figure("Rug, <code>show_box=True</code>",
              "A rug with the box forced on — the old always-boxed behavior, "

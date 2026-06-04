@@ -97,8 +97,10 @@ band and value range as a native `<title>` tooltip — the same hover the
 Bokeh and Plotly backends show — with a CSS `:hover` highlight, all
 without a line of JavaScript. The bin or value line under the cursor
 also highlights, so the interactivity is discoverable. A `bins=None` rug
-makes each value hoverable when there are few of them, or shows a single
-whole-spark summary when there are many (tunable with `tick_hover_limit`).
+makes each value hoverable when there are few of them — along with the
+spaces between them, so a wide gap is as easy to hover as a value line is
+hard to hit — or shows a single whole-spark summary when there are many
+(tunable with `tick_hover_limit`).
 The tooltip values format through `value_format` like the other backends
 (e.g. `value_format=lambda v: f"${v:,.2f}"`). Pass `color`, `orientation`,
 or `path="spark.svg"` / `path="spark.html"` to save.

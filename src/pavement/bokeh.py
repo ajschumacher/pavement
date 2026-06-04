@@ -76,7 +76,8 @@ from ._geometry import (
     bin_corners,
     broadcast,
     complete_color_map,
-    hover_fields,
+    hover_bins,
+    hover_html,
     long_box_edges,
     normalize_rows,
     resolve_colors,
@@ -110,6 +111,7 @@ def _row_geometry(
     show_box: bool | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
+    rug: bool = False,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, quantile ticks, and box edges.
 
@@ -133,12 +135,19 @@ def _row_geometry(
                     tassel_extent, show_tassels, value_format, data=data)
 
     # Bins: one borderless quad per equal-mass bin (left, right, bottom,
-    # top), carrying its value range, percentile band, and count for hover.
+    # top), carrying its value range, percentile band, and count for hover. A
+    # rug instead hovers the gaps between its distinct values (`hover_bins`
+    # drops the zero-width bins at repeated points), so it gets the same easy
+    # hover targets between its lines.
     bins: list[tuple[float, float, float, float, str, str, str]] = []
-    for b in spec.bins:
+    for b in hover_bins(spec, rug):
         (x0, y0), (x1, y1) = bin_corners(b.low, b.high, position, spec.half,
                                          orientation)
-        bins.append((x0, x1, y0, y1, b.band, b.value_range, b.count))
+        # An empty box (a rug gap, or a bin whose mass sits on its edges) drops
+        # its percentile band, which would otherwise read as a misleading "pNN
+        # to pNN" over a stretch holding no data.
+        band = b.band if (b.inside or not b.count) else ""
+        bins.append((x0, x1, y0, y1, band, b.value_range, b.count))
 
     # Ticks: a segment per distinct value, reaching past the box as a
     # tassel where it repeats. Hover reads as a single quantile and value.
@@ -248,39 +257,43 @@ def pavement_glyphs(
     geom = _row_geometry(values, position, width, orientation,
                          tassel_extent, show_tassels,
                          show_box, value_format,
-                         data=data)
+                         data=data, rug=bins is None)
     if color is None:
         color = _default_colors(1)[0]
-    group = None if name is None else [str(name)] * len(geom["bins"])
-    tick_group = None if name is None else [str(name)] * len(geom["ticks"])
+    name_str = None if name is None else str(name)
 
     renderers: dict[str, GlyphRenderer] = {"fills": None, "box": None}
+
+    # Each bin and tick carries a single ``hover`` string — the row name (when
+    # present), value, percentile, and count, joined by line breaks with the
+    # empty lines dropped (an empty box has no band; a single-value tick no
+    # percentile). One composed field, rather than a fixed multi-field
+    # template, is what lets those empties fall out cleanly. See `hover_html`.
 
     # Bins: one borderless filled quad each, hovering anywhere inside.
     if fill_alpha > 0:
         left, right, bottom, top, band, value_range, counts = zip(*geom["bins"])
+        hover = [hover_html(name_str, v, q, c)
+                 for v, q, c in zip(value_range, band, counts)]
         fill_data = dict(left=left, right=right, bottom=bottom, top=top,
-                         quantiles=band, values=value_range, counts=counts)
-        if group is not None:
-            fill_data["group"] = group
+                         hover=hover)
         renderers["fills"] = fig.quad(
             left="left", right="right", bottom="bottom", top="top",
             source=ColumnDataSource(fill_data),
             fill_color=color, fill_alpha=fill_alpha, line_color=None,
-            name=None if name is None else str(name))
+            name=name_str)
 
     # Ticks: a segment per distinct quantile value, hovering its single
     # quantile and value. Drawn opaque, like the box.
     x0, y0, x1, y1, quantile, value, counts = zip(*geom["ticks"])
-    tick_data = dict(x0=x0, y0=y0, x1=x1, y1=y1,
-                     quantiles=quantile, values=value, counts=counts)
-    if tick_group is not None:
-        tick_data["group"] = tick_group
+    hover = [hover_html(name_str, v, q, c)
+             for v, q, c in zip(value, quantile, counts)]
+    tick_data = dict(x0=x0, y0=y0, x1=x1, y1=y1, hover=hover)
     renderers["ticks"] = fig.segment(
         x0="x0", y0="y0", x1="x1", y1="y1",
         source=ColumnDataSource(tick_data),
         line_color=color, line_width=line_width,
-        name=None if name is None else str(name))
+        name=name_str)
 
     # Box edges: the two long sides, purely visual (no hover), same style.
     # Absent for a rug (show_box False), so only the ticks remain.
@@ -429,18 +442,15 @@ def add_pavement(
                 LegendItem(label=str(label), renderers=row_renderers))
 
     if hover:
-        # One hover tool over every bin and tick. The bins and ticks share
-        # the column names 'values', 'quantiles', and 'counts' (and 'group'
-        # when named), so a single tooltip template reads correctly off
-        # either: a hovered bin shows its value range, percentile band, and
-        # the share of values inside it; a hovered tick its value,
-        # percentile, and the share of values on it — the same layout and
-        # order as the other backends, led by the name when present.
-        has_group = n > 1
-        rows = ["@" + f for f in hover_fields(has_group)]
+        # One hover tool over every bin and tick. Both carry a single ``hover``
+        # column holding the already-composed tooltip text (name, value,
+        # percentile, count — empties dropped), rendered as raw HTML so its line
+        # breaks show: a hovered bin reads as its value range, percentile band,
+        # and the share of values inside it; a hovered tick as its value,
+        # percentile, and the share on it — led by the name when present.
         fig.add_tools(HoverTool(
             renderers=fill_renderers + tick_renderers,
-            tooltips="<br>".join(rows)))
+            tooltips="@hover{safe}"))
 
     if legend_items and show_legend:
         legend = Legend(items=legend_items, click_policy="hide")

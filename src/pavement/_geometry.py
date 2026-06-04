@@ -25,6 +25,7 @@ from __future__ import annotations
 from bisect import bisect_left, bisect_right
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
+from html import escape as _html_escape
 from typing import Any, Callable, Literal
 
 Orientation = Literal["vertical", "horizontal"]
@@ -272,6 +273,23 @@ def box_edge_spans(spec: RowSpec,
     return [(b.low, b.high) for b in spec.bins if b.inside > 0]
 
 
+def hover_bins(spec: RowSpec, rug: bool) -> list[Bin]:
+    """The bins to draw as hover targets — the boxes between the value lines.
+
+    A binned row draws every equal-mass bin, the way it always has. A rug's
+    "bins" sit between consecutive *data points*, so the ones at repeated
+    values are zero-width and coincide with the tick lines; drop those, keeping
+    just the boxes that span the gaps between distinct values. That gives a rug
+    the same easy hover targets a pavement has between its bins — handy where a
+    value line is a thin target or a gap is wide — without emitting a box per
+    duplicate point. Every backend picks its hover boxes through this, so they
+    stay consistent.
+    """
+    if rug:
+        return [b for b in spec.bins if b.low < b.high]
+    return spec.bins
+
+
 def long_box_edges(
     spec: RowSpec, show_box: bool | None,
 ) -> list[tuple[float, float, float, float]]:
@@ -375,9 +393,18 @@ def resolve_colors(color: str | Sequence[str] | None, n: int,
 # Hover layout and marginal color matching, shared across backends
 # ---------------------------------------------------------------------------
 
-def hover_fields(has_group: bool) -> list[str]:
-    """The hover field order every backend renders: group?, value, percentile, count."""
-    return (["group"] if has_group else []) + ["values", "quantiles", "counts"]
+def hover_html(*lines: str) -> str:
+    """Join the non-empty hover *lines* into one HTML-escaped, ``<br>``-separated
+    string — the single field every backend's tooltip reads.
+
+    Composing one field (rather than a fixed multi-field template) lets an empty
+    line fall out cleanly instead of leaving a blank row: an empty box drops its
+    percentile band — which would otherwise read as a misleading "pNN to pNN"
+    over a stretch holding no data — and a single-value tick drops its blank
+    percentile. The lines arrive in the shared order: group?, value, percentile,
+    count. Escaped because it is rendered as raw HTML (Bokeh's ``{safe}``); the
+    ``<br>`` separators stay literal."""
+    return "<br>".join(_html_escape(line) for line in lines if line)
 
 
 def complete_color_map(

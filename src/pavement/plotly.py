@@ -68,6 +68,7 @@ from ._geometry import (
     bin_polygon,
     broadcast,
     complete_color_map,
+    hover_bins,
     long_box_edges,
     normalize_rows,
     resolve_colors,
@@ -105,6 +106,7 @@ def _row_geometry(
     show_box: bool | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
+    rug: bool = False,
 ) -> dict[str, Any]:
     """Build one row's bin rectangles, visible lines, and tick hovers.
 
@@ -129,11 +131,18 @@ def _row_geometry(
     spec = row_spec(values, position, width, orientation,
                     tassel_extent, show_tassels, value_format, data=data)
 
-    # Bins: one borderless rectangle per equal-mass bin, as a closed polygon.
+    # Bins: one borderless rectangle per equal-mass bin, as a closed polygon. A
+    # rug instead hovers the gaps between its distinct values (`hover_bins`
+    # drops the zero-width bins at repeated points), so it gets the same easy
+    # hover targets between its lines.
     bins: list[tuple[list[float], list[float], str, str, str]] = []
-    for b in spec.bins:
+    for b in hover_bins(spec, rug):
         xs, ys = bin_polygon(b.low, b.high, position, spec.half, orientation)
-        bins.append((xs, ys, b.band, b.value_range, b.count))
+        # An empty box (a rug gap, or a bin whose mass sits on its edges) drops
+        # its percentile band, which would otherwise read as a misleading "pNN
+        # to pNN" over a stretch holding no data.
+        band = b.band if (b.inside or not b.count) else ""
+        bins.append((xs, ys, band, b.value_range, b.count))
 
     # Ticks: the quantile ticks as line segments (None lifts the pen between
     # them), plus a hover point per distinct value at the row center.
@@ -250,7 +259,7 @@ def pavement_traces(
     geom = _row_geometry(values, position, width, orientation,
                          tassel_extent, show_tassels,
                          show_box, value_format,
-                         data=data)
+                         data=data, rug=bins is None)
     if color is None:
         color = _default_colors(1)[0]
     legendgroup = name if name is not None else None
@@ -269,7 +278,10 @@ def pavement_traces(
     # need to bake an alpha into the color string (and no matplotlib).
     if fill_alpha > 0:
         for xs, ys, band, value_range, count in geom["bins"]:
-            text = "<br>".join(prefix + [value_range, band, count])
+            # An empty box's band is "" and drops out rather than leaving a
+            # blank line — the same handling as a single-value tick's percentile.
+            text = "<br>".join(s for s in prefix + [value_range, band, count]
+                               if s)
             traces.append(go.Scatter(
                 x=xs, y=ys, mode="lines", line=dict(width=0), fill="toself",
                 fillcolor=color, opacity=fill_alpha, hoveron="fills",

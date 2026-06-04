@@ -38,9 +38,28 @@ def test_spark_binned_has_one_rect_per_bin():
     assert spark([1, 2, 3, 4, 5], bins=7).count('class="pvbin"') == 7
 
 
-def test_spark_rug_has_no_bin_rects():
-    # bins=None is a rug: ticks, no equal-mass bin hover targets.
-    assert spark([1, 2, 3, 4, 5], bins=None).count('class="pvbin"') == 0
+def test_spark_rug_gap_boxes_hover_the_spaces_between_values():
+    # bins=None is a rug, but the spaces between its distinct values are still
+    # hover targets (like a pavement's bins): one box per gap, each carrying a
+    # value range and a zero interior count — an easy target where a value line
+    # is a thin one. Five distinct values -> four gaps.
+    out = spark([1, 2, 3, 4, 5], bins=None)
+    assert out.count('class="pvbin"') == 4
+    # An empty box holds no data, so it drops the percentile band (which would
+    # read as a misleading "pNN to pNN" over a gap): just a value range and a
+    # zero count.
+    gaps = re.findall(r'<rect class="pvbin".*?<title>(.*?)</title>', out, re.S)
+    assert gaps == ["1 to 2\n0% (0 of 5 values)",
+                    "2 to 3\n0% (0 of 5 values)",
+                    "3 to 4\n0% (0 of 5 values)",
+                    "4 to 5\n0% (0 of 5 values)"]
+
+
+def test_spark_rug_gap_boxes_skip_repeated_values():
+    # The zero-width "bins" at a rug's repeated values coincide with the tick
+    # lines, so they are dropped: a heavily repeated, two-distinct-value rug
+    # has just the one gap box between its two values, not one per point.
+    assert spark([1] * 40 + [2] * 40, bins=None).count('class="pvbin"') == 1
 
 
 def test_spark_rug_drops_box_edges_by_default():
@@ -106,16 +125,26 @@ def test_spark_line_color_overrides_color_for_strokes():
     assert 'fill="red"' in out               # fill still uses color
 
 
-def test_spark_colored_rug_draws_single_fill():
+def test_spark_colored_small_rug_fills_its_gap_boxes():
+    # A small rug's gap boxes carry the fill (like a pavement's bins): the
+    # color tints each, so the box reads filled while staying a hover target.
     out = spark([1, 2, 3, 4, 5], bins=None, color="teal")
+    assert out.count('class="pvbin"') == 4   # one per gap between values
+    assert 'fill="teal"' in out
+
+
+def test_spark_colored_dense_rug_draws_single_fill():
+    # A dense rug (no gap boxes, just the summary) still fills its box as one
+    # background rect when a color is requested.
+    out = spark(list(range(50)), bins=None, color="teal")
     assert out.count('class="pvbin"') == 0
     assert 'fill="teal"' in out              # one background fill rect
 
 
 def test_spark_hover_adds_band_tooltip():
-    out = spark([1, 2, 3, 4, 5], bins=4)
+    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=4)
     assert "<title>" in out
-    assert "p0 to p25" in out                # a percentile band
+    assert "p0 to p25" in out                # a percentile band (interior bin)
 
 
 def test_spark_hover_adds_value_count_line():
@@ -128,6 +157,24 @@ def test_spark_hover_adds_value_count_line():
     assert "1 to 2.5\np0 to p25\n12% (1 of 8 values)" in out  # a bin tooltip
     assert "25% (2 of 8 values)" in out                  # a fuller interior bin
     assert "1\np0\n12% (1 of 8 values)" in out           # the min, on its tick
+
+
+def test_spark_empty_bin_drops_its_band():
+    # A bin holding no data strictly inside it (here every value lands on a bin
+    # edge, so no bin has an interior) drops the percentile band from its
+    # tooltip — it would otherwise read as a misleading "pNN to pNN" over a
+    # stretch with nothing in it — keeping just the value range and zero count.
+    out = spark([0, 1, 2, 3, 4], bins=4)
+    bins = re.findall(r'<rect class="pvbin".*?<title>(.*?)</title>', out, re.S)
+    assert bins == ["0 to 1\n0% (0 of 5 values)", "1 to 2\n0% (0 of 5 values)",
+                    "2 to 3\n0% (0 of 5 values)", "3 to 4\n0% (0 of 5 values)"]
+
+
+def test_spark_interior_bin_keeps_its_band():
+    # A bin that does hold data strictly inside it keeps its percentile band:
+    # the eight-value, four-bin split puts two values inside each interior bin.
+    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=4)
+    assert "2.5 to 4.5\np25 to p50\n25% (2 of 8 values)" in out
 
 
 def test_spark_rug_tick_hover_includes_count():
@@ -143,9 +190,10 @@ def test_spark_hover_false_omits_titles():
 
 def test_spark_value_format_customizes_bin_tooltips():
     # A custom value_format reformats the value range in each bin's
-    # tooltip; the percentile band is unchanged.
-    out = spark([1, 2, 3, 4, 5], bins=4, value_format=lambda v: f"${v:.2f}")
-    assert "$1.00 to $2.00" in out
+    # tooltip; the percentile band is unchanged (shown on an interior bin).
+    out = spark([1, 2, 3, 4, 5, 6, 7, 8], bins=4,
+                value_format=lambda v: f"${v:.2f}")
+    assert "$1.00 to $2.50" in out
     assert "p0 to p25" in out
 
 
@@ -160,12 +208,13 @@ def test_spark_value_format_customizes_per_value_and_summary():
 
 def test_spark_small_rug_has_per_value_tooltips():
     # At or below tick_hover_limit, each rug value is hoverable (its
-    # percentile and value) and there is no whole-spark summary: a spark
-    # is read value-by-value or summarised, never both.
+    # percentile and value), alongside the gap boxes between values; there is
+    # no whole-spark summary — a spark is read value-by-value or summarised,
+    # never both.
     out = spark([10, 20, 30, 40, 50], bins=None)
-    assert out.count("<title>") == 5           # 5 values, no summary
+    assert out.count('class="pvtick"') == 5    # one hover per distinct value
     assert "30\np50" in out                    # the median value at p50
-    assert "values," not in out                # no summary tooltip
+    assert "values," not in out                # no whole-spark summary tooltip
 
 
 def test_spark_large_rug_has_only_summary():
@@ -184,13 +233,16 @@ def test_spark_binned_has_no_summary_tooltip():
 
 
 def test_spark_tick_hover_limit_boundary():
-    assert spark(list(range(24)), bins=None).count("<title>") == 24  # per-value
+    # At the limit every value is individually hoverable; one past it, the rug
+    # falls back to a single whole-spark summary (and drops the gap boxes).
+    assert spark(list(range(24)), bins=None).count('class="pvtick"') == 24
     assert spark(list(range(25)), bins=None).count("<title>") == 1   # summary
 
 
 def test_spark_tick_hover_limit_none_forces_all():
     out = spark(list(range(30)), bins=None, tick_hover_limit=None)
-    assert out.count("<title>") == 30          # every value, no summary
+    assert out.count('class="pvtick"') == 30    # every value hoverable
+    assert "values," not in out                 # still no whole-spark summary
 
 
 def test_spark_tick_hover_limit_zero_disables_per_tick():
