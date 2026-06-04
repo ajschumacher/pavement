@@ -46,8 +46,8 @@ def draw_pavement(
     values: Sequence[float],
     position: float = 1,
     width: float = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     show_box: bool | None = True,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     line_props: Mapping[str, Any] | None = None,
@@ -61,7 +61,7 @@ def draw_pavement(
     Renders one tick per distinct value perpendicular to the value
     axis and a box outline spanning ``values[0]`` to ``values[-1]``. A
     value that repeats (a sign the data is concentrated there) reaches
-    past the box as a whisker, so every line is drawn exactly once.
+    past the box as a tassel, so every line is drawn exactly once.
 
     Parameters
     ----------
@@ -77,12 +77,12 @@ def draw_pavement(
     width : float, default: 0.6
         Total thickness of the box outline (perpendicular to the
         value axis).
-    whisker_extent : float, default: 0.05
-        How far the whisker marks extend beyond the box, perpendicular
+    tassel_extent : float, default: 0.05
+        How far the tassel marks extend beyond the box, perpendicular
         to the value axis. Unrelated to matplotlib's ``boxplot(whis=)``,
         which controls outlier cutoffs on the value axis.
-    show_whiskers : bool, default: False
-        If False, suppress the whisker marks even at repeated values.
+    show_tassels : bool, default: False
+        If False, suppress the tassel marks even at repeated values.
     show_box : bool or None, default: True
         How to draw the long box edges (the borders parallel to the value
         axis, perpendicular to the value ticks). ``True`` (the default here)
@@ -102,7 +102,7 @@ def draw_pavement(
         Line2D properties (color, linewidth, linestyle, alpha, ...)
         passed through to the underlying ``Axes.vlines`` /
         ``Axes.hlines`` calls. Applied uniformly to the quantile ticks
-        (whiskers included) and box edges. Defaults to
+        (tassels included) and box edges. Defaults to
         ``{'color': 'black', 'linewidth': 1.0}``; partial overrides
         merge on top of that default (e.g. passing ``{'linewidth': 2}``
         keeps lines black).
@@ -128,7 +128,7 @@ def draw_pavement(
         - ``"fill"``: the background `~matplotlib.patches.Rectangle`,
           or ``None`` if *box_props* was not given.
         - ``"ticks"``: one tick per distinct quantile value, extended
-          into a whisker where the value repeats.
+          into a tassel where the value repeats.
         - ``"box"``: the long box edges (one `~matplotlib.collections.LineCollection`
           of every drawn edge segment), or ``None`` when no edge is drawn —
           ``show_box`` False, or the auto box finds no bin with interior data.
@@ -152,7 +152,7 @@ def draw_pavement(
     if ax is None:
         ax = plt.gca()
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers, data=data)
+                    tassel_extent, show_tassels, data=data)
     # 'perp' draws the ticks (across the row); 'along' the box edges (down
     # the value axis). They swap roles with orientation.
     perp, along = (ax.hlines, ax.vlines) if orientation == 'vertical' \
@@ -172,7 +172,7 @@ def draw_pavement(
         artists['fill'] = ax.add_patch(
             Rectangle(xy, w, h, **{'edgecolor': 'none', **box_props}))
     # One tick per distinct value, reaching `reach` to either side of the
-    # row center — past the box (a whisker) where the value repeats, so
+    # row center — past the box (a tassel) where the value repeats, so
     # every line is drawn exactly once.
     artists['ticks'] = perp(
         [t.value for t in spec.ticks],
@@ -207,8 +207,8 @@ def plot(
     labels: Sequence[Hashable] | None = None,
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     show_box: bool | None = None,
     orientation: Literal['vertical', 'horizontal'] = 'vertical',
     value_label: str | None = None,
@@ -263,12 +263,12 @@ def plot(
         Thickness of each row's box outline. A scalar applies to
         every row; a sequence sets each row's width individually and
         must have length equal to the number of rows.
-    whisker_extent : float, default: 0.05
-        How far the whisker marks extend beyond the box, perpendicular
+    tassel_extent : float, default: 0.05
+        How far the tassel marks extend beyond the box, perpendicular
         to the value axis. Unrelated to matplotlib's ``boxplot(whis=)``,
         which controls outlier cutoffs on the value axis.
-    show_whiskers : bool, default: False
-        If False, suppress whisker marks at repeated quantile values.
+    show_tassels : bool, default: False
+        If False, suppress tassel marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw each row's two long box edges (the borders
         parallel to the value axis). None (the default) draws them for a
@@ -363,7 +363,7 @@ def plot(
         values = pavement_stats(dataset, bins=b, weights=w)
         artists.append(draw_pavement(
             values, position=pos, width=width,
-            whisker_extent=whisker_extent, show_whiskers=show_whiskers,
+            tassel_extent=tassel_extent, show_tassels=show_tassels,
             show_box=show_box,
             orientation=orientation, line_props=row_line or None,
             box_props=bp, data=dataset, ax=ax))
@@ -384,8 +384,8 @@ def spark(
     bins: int | None = 4,
     orientation: Literal['vertical', 'horizontal'] = 'horizontal',
     width: float = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     show_box: bool | None = None,
     color: str | None = None,
     fill_alpha: float = 0.3,
@@ -402,7 +402,7 @@ def spark(
 
     A spark is a pavement stripped to its ink: one row drawn on its own
     figure, with no axes, ticks, labels, or surrounding whitespace, so
-    the box and whiskers run right to the edges of the image. The main
+    the box and tassels run right to the edges of the image. The main
     use is to save a small PNG and drop it inline in text, sized to sit
     among words like one of Tufte's sparklines.
 
@@ -426,12 +426,12 @@ def spark(
         inline strip; 'vertical' runs them bottom-to-top.
     width : float, default: 0.6
         Thickness of the box outline, perpendicular to the value axis.
-        Only its ratio to *whisker_extent* matters — the figure is
+        Only its ratio to *tassel_extent* matters — the figure is
         scaled to fit whatever is drawn.
-    whisker_extent : float, default: 0.05
-        How far whisker marks extend beyond the box at repeated values.
-    show_whiskers : bool, default: False
-        Whether to draw whisker marks at repeated quantile values.
+    tassel_extent : float, default: 0.05
+        How far tassel marks extend beyond the box at repeated values.
+    show_tassels : bool, default: False
+        Whether to draw tassel marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw the two long box edges. None (the default) draws
         them when binned and omits them for a rug (``bins=None``), so a
@@ -498,15 +498,15 @@ def spark(
     position = 1.0
     draw_pavement(
         values, position=position, width=width,
-        whisker_extent=whisker_extent, show_whiskers=show_whiskers,
+        tassel_extent=tassel_extent, show_tassels=show_tassels,
         show_box=show_box,
         orientation=orientation, line_props=row_line or None,
         box_props=box_props, data=data, ax=ax)
     # Fit the view tightly to the drawn geometry. The perpendicular extent
-    # is the largest tick reach (a whisker, where present, else the box
+    # is the largest tick reach (a tassel, where present, else the box
     # half-width); the value extent is the box span.
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers)
+                    tassel_extent, show_tassels)
     reach = max(t.reach for t in spec.ticks)
     value_extent = (spec.value_high - spec.value_low) or 1.0
     pos_extent = 2 * reach
@@ -546,7 +546,7 @@ def margin(
     pad: float = 0.03,
     size: float = 0.04,
     expand_margins: bool = True,
-    show_whiskers: bool = False,
+    show_tassels: bool = False,
     show_box: bool | None = None,
     line_props: Mapping[str, Any] | None = None,
     box_props: Mapping[str, Any] | None = None,
@@ -608,8 +608,8 @@ def margin(
         perpendicular axis so the strip does not overlap the data.
         No effect for 'outside' placements. Mirrors the argument of
         the same name on seaborn's ``rugplot``.
-    show_whiskers : bool, default: False
-        Whether to draw whisker marks at repeated quantile values.
+    show_tassels : bool, default: False
+        Whether to draw tassel marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw the two long box edges. None (the default) draws
         them when binned and omits them for a rug (``bins=None``), so a
@@ -680,11 +680,11 @@ def margin(
         # both render at the same physical thickness.
         aspect = ax.bbox.height / ax.bbox.width
         box_size, box_pad = size * aspect, pad * aspect
-    # Match the package-wide whisker proportion: the spark defaults reach
-    # whisker_extent past the box *half*-width, a ratio of 0.05/(0.6/2) = 1/6.
+    # Match the package-wide tassel proportion: the spark defaults reach
+    # tassel_extent past the box *half*-width, a ratio of 0.05/(0.6/2) = 1/6.
     # Here the box thickness is box_size (its half is box_size/2), so
     # box_size/12 gives that same 1/6-of-the-half reach.
-    whisker_extent = box_size / 12
+    tassel_extent = box_size / 12
     # Place the box. The far edge is the axes-fraction 1.0 side
     # (top/right); into_axes points from that edge toward the interior.
     far_edge = side in ('top', 'right')
@@ -704,8 +704,8 @@ def margin(
         values,
         position=position,
         width=box_size,
-        whisker_extent=whisker_extent,
-        show_whiskers=show_whiskers,
+        tassel_extent=tassel_extent,
+        show_tassels=show_tassels,
         show_box=show_box,
         orientation=orientation,
         line_props=props,
@@ -715,11 +715,11 @@ def margin(
     )
     if placement == 'inside' and expand_margins:
         # Reserve room so the strip doesn't sit on top of the data:
-        # the strip's own inward footprint (pad + box + whisker) plus
+        # the strip's own inward footprint (pad + box + tassel) plus
         # another pad of breathing room on the data side, matching the
         # strip's gap from the frame edge. ax.margins(m) leaves
         # m/(1+2m) of the view empty per side; invert that to cover it.
-        footprint = min(2*box_pad + box_size + whisker_extent, 0.45)
+        footprint = min(2*box_pad + box_size + tassel_extent, 0.45)
         required = footprint / (1 - 2*footprint)
         mx, my = ax.margins()
         if axis == 'x':
@@ -728,10 +728,10 @@ def margin(
             ax.margins(x=max(mx, required))
     if (axis == 'x' and side == 'top' and placement == 'outside'
             and ax.get_title()):
-        # Lift the title above the marginal (box + whiskers) so they
+        # Lift the title above the marginal (box + tassels) so they
         # don't overlap. Setting _autotitlepos stops matplotlib's
         # auto title positioning from clobbering this on the next draw.
-        marginal_top = 1 + box_pad + box_size + whisker_extent
+        marginal_top = 1 + box_pad + box_size + tassel_extent
         ax.title.set_y(max(ax.title.get_position()[1], marginal_top + 0.04))
         ax._autotitlepos = False
     return result

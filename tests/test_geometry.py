@@ -126,20 +126,20 @@ def test_row_spec_count_noun_singular_for_one_value():
 
 def test_row_spec_default_reach_is_half():
     spec = row_spec([1, 2, 3, 4, 5], width=0.6)
-    assert all(t.reach == 0.3 for t in spec.ticks)  # no repeats -> no whisker
+    assert all(t.reach == 0.3 for t in spec.ticks)  # no repeats -> no tassel
 
 
-def test_row_spec_repeated_value_is_one_tick_with_whisker():
+def test_row_spec_repeated_value_is_one_tick_with_tassel():
     # 0 lands on several quantile edges: one tick, reaching past the box.
-    spec = row_spec([0, 0, 0, 1, 2], width=0.6, whisker_extent=0.1, show_whiskers=True)
+    spec = row_spec([0, 0, 0, 1, 2], width=0.6, tassel_extent=0.1, show_tassels=True)
     assert len(spec.ticks) == 3  # one per distinct value
     assert max(t.reach for t in spec.ticks) > 0.3
     # the repeated value's quantile reads as a span
     assert " to " in {t.value: t.quantile for t in spec.ticks}[0]
 
 
-def test_row_spec_show_whiskers_false_keeps_half():
-    spec = row_spec([0, 0, 0, 1, 2], width=0.6, show_whiskers=False)
+def test_row_spec_show_tassels_false_keeps_half():
+    spec = row_spec([0, 0, 0, 1, 2], width=0.6, show_tassels=False)
     assert all(t.reach == 0.3 for t in spec.ticks)
 
 

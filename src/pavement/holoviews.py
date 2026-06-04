@@ -15,7 +15,7 @@ each bin's value range, percentile band, and value share), and two `holoviews.Se
 — the quantile ticks and the box edges. Keeping the lines separate from
 the fill means the ticks and box share one consistent style; a repeated
 quantile value (data piled up) simply extends its own tick into a
-whisker, so every line is drawn exactly once. The ticks carry their own
+tassel, so every line is drawn exactly once. The ticks carry their own
 hover, like a rug plot's.
 
 The headline function is `plot`, which mirrors the matplotlib backend's
@@ -106,8 +106,8 @@ def _row_geometry(
     position: float,
     width: float,
     orientation: Literal["vertical", "horizontal"],
-    whisker_extent: float,
-    show_whiskers: bool,
+    tassel_extent: float,
+    show_tassels: bool,
     show_box: bool | None,
     group: Hashable | None,
     value_format: ValueFormat | None,
@@ -122,11 +122,11 @@ def _row_geometry(
     composed tooltip string (the row name, value, percentile, and count, with
     empty lines dropped — see `hover_html`), shown verbatim by every backend;
     *low*/*high* stay numeric for the plotly hover geometry. The shared
-    `row_spec` does the binning, the one-tick-per-distinct-value (whisker)
+    `row_spec` does the binning, the one-tick-per-distinct-value (tassel)
     logic, and (from *data*) the per-bin/per-tick value counts.
     """
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers, value_format, data=data)
+                    tassel_extent, show_tassels, value_format, data=data)
     name = None if group is None else str(group)
 
     # Fills: one borderless rectangle per equal-mass bin, a hover target
@@ -145,7 +145,7 @@ def _row_geometry(
         hover = hover_html(name, b.value_range, band, b.count)
         fills.append((x0, y0, x1, y1, b.low, b.high, hover))
 
-    # Ticks: one per distinct value, reaching past the box as a whisker
+    # Ticks: one per distinct value, reaching past the box as a tassel
     # where it repeats. A line hover reads as a single quantile and value.
     ticks: list[tuple] = []
     for t in spec.ticks:
@@ -166,8 +166,8 @@ def pavement_elements(
     weights: Sequence[float] | None = None,
     position: float = 1,
     width: float = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     group: Hashable | None = None,
@@ -193,10 +193,10 @@ def pavement_elements(
         Center of the row on the axis perpendicular to the value axis.
     width : float, default: 0.6
         Thickness of the row.
-    whisker_extent : float, default: 0.05
-        How far whisker marks extend beyond the box at repeated values.
-    show_whiskers : bool, default: False
-        Whether to draw whisker marks at repeated quantile values.
+    tassel_extent : float, default: 0.05
+        How far tassel marks extend beyond the box at repeated values.
+    show_tassels : bool, default: False
+        Whether to draw tassel marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw the two long box edges. None (the default) draws
         them when binned and omits them for a rug (``bins=None``), so a rug
@@ -223,7 +223,7 @@ def pavement_elements(
           composed tooltip string). Meant to be drawn borderless, as a
           hover target behind the lines.
         - ``"ticks"``: a `holoviews.Segments`, one tick per distinct
-          quantile value (extended into a whisker where the value
+          quantile value (extended into a tassel where the value
           repeats), with value dimension ``hover``.
         - ``"box"``: a `holoviews.Segments` of the two long box edges.
 
@@ -236,7 +236,7 @@ def pavement_elements(
     values = pavement_stats(data, bins=bins, weights=weights)
     fills, ticks, edges = _row_geometry(
         values, position, width, orientation,
-        whisker_extent, show_whiskers, show_box,
+        tassel_extent, show_tassels, show_box,
         group, value_format, data=data, rug=bins is None)
     return {
         "fill": hv.Rectangles(fills, vdims=_FILL_VDIMS),
@@ -390,8 +390,8 @@ def plot(
     labels: Sequence[Hashable] | None = None,
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
@@ -411,7 +411,7 @@ def plot(
     object that renders through any backend.
 
     A single dataset returns a `holoviews.Overlay` (the bins, plus any
-    whiskers). Multiple rows return a `holoviews.NdOverlay` keyed by
+    tassels). Multiple rows return a `holoviews.NdOverlay` keyed by
     *labels*, which gives a legend and a consistent per-row color cycle;
     in tidy form this is the "split by category" case. Either result is
     a plain HoloViews object, so it composes with the framework: overlay
@@ -442,10 +442,10 @@ def plot(
         mix None with integers. See `pavement.pavement_stats`.
     widths : float or sequence of float, default: 0.6
         Thickness of each row.
-    whisker_extent : float, default: 0.05
-        How far whisker marks extend beyond the box.
-    show_whiskers : bool, default: False
-        Whether to draw whisker marks at repeated quantile values.
+    tassel_extent : float, default: 0.05
+        How far tassel marks extend beyond the box.
+    show_tassels : bool, default: False
+        Whether to draw tassel marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw each row's two long box edges. None (the default)
         draws them for a binned row and omits them for a rug
@@ -538,7 +538,7 @@ def plot(
         group = label if n > 1 else None
         els = pavement_elements(
             dataset, bins=b, weights=w, position=pos, width=width,
-            whisker_extent=whisker_extent, show_whiskers=show_whiskers,
+            tassel_extent=tassel_extent, show_tassels=show_tassels,
             show_box=show_box, orientation=orientation, group=group,
             value_format=value_format)
         # Fill behind (hover target), then the box edges, then the ticks.
@@ -629,7 +629,7 @@ def with_marginals(
         value to give crowded categories more room.
     **kwargs
         Forwarded to `plot` for both marginals (e.g. *bins*,
-        *color*, *fill_alpha*, *show_whiskers*, *show_legend*,
+        *color*, *fill_alpha*, *show_tassels*, *show_legend*,
         *value_format*).
         *orientation* is set automatically and must not be passed;
         *show_legend* defaults to False here but may be overridden.

@@ -309,13 +309,13 @@ def test_spark_geometry_runs_flush_to_value_edges():
     assert max(xs) == pytest.approx(140)
 
 
-def test_spark_whisker_reaches_full_height():
-    # A repeated value makes a whisker that spans the whole viewBox
+def test_spark_tassel_reaches_full_height():
+    # A repeated value makes a tassel that spans the whole viewBox
     # height (y = 0 to 30), while the box edges stay inset.
     out = spark([0, 0, 0, 1, 2, 3], bins=5, hover=False)
     group = re.search(r'pointer-events="none">(.*?)</g>', out, re.S).group(1)
     ys = [float(v) for v in re.findall(r'y[12]="([-\d.]+)"', group)]
-    assert min(ys) == pytest.approx(0)       # whisker tip at the edge
+    assert min(ys) == pytest.approx(0)       # tassel tip at the edge
     assert max(ys) == pytest.approx(30)
 
 
@@ -417,10 +417,10 @@ def test_spark_proportional_requires_rug():
         spark([1, 2, 3, 4], bins=4, proportional_representation=True)
 
 
-def test_spark_proportional_rejects_whiskers():
+def test_spark_proportional_rejects_tassels():
     with pytest.raises(ValueError):
         spark([1, 2, 3, 4], bins=None, proportional_representation=True,
-              show_whiskers=True)
+              show_tassels=True)
 
 
 def test_spark_proportional_off_leaves_lines_full():

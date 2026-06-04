@@ -195,9 +195,9 @@ sepal_width = [
     3.2, 3.3, 3.0, 2.5, 3.0, 3.4, 3.0,
 ]
 
-# Bigger than the inline strips above, with whiskers on, so the closed edges
-# and the gaps (and the whisker at a clumped value) read clearly.
-_BOX_OPTS = dict(bins=8, show_whiskers=True, height="2.6em")
+# Bigger than the inline strips above, with tassels on, so the closed edges
+# and the gaps (and the tassel at a clumped value) read clearly.
+_BOX_OPTS = dict(bins=8, show_tassels=True, height="2.6em")
 
 
 def _box_figure(title: str, note: str, values: list, **overrides: object) -> str:
@@ -225,7 +225,7 @@ its value range, percentile, and count.</p>
              "end to end.", spread_values)}
 {_box_figure("A clump in the middle",
              "A heavy spike of one repeated value gives the central bins no "
-             "interior: the box opens into a gap there (with a whisker at the "
+             "interior: the box opens into a gap there (with a tassel at the "
              "repeated value) while the spread-out flanks stay closed.",
              clumped_middle)}
 {_box_figure("Only a few values",

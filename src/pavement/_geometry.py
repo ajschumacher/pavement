@@ -88,7 +88,7 @@ class Bin:
 class Tick:
     """One quantile tick: a value plus how far it reaches and its hover."""
     value: float          # value-axis position of the tick
-    reach: float          # half-extent on the perpendicular axis (a whisker
+    reach: float          # half-extent on the perpendicular axis (a tassel
                           # when it exceeds the row half-width)
     quantile: str         # percentile hover string ("p25" or "p25 to p50")
     value_str: str        # value hover string
@@ -114,8 +114,8 @@ def row_spec(
     position: float = 1,
     width: float = 0.6,
     orientation: Orientation = "vertical",
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     value_format: ValueFormat | None = None,
     data: Sequence[float] | None = None,
 ) -> RowSpec:
@@ -125,8 +125,8 @@ def row_spec(
     *values* is the output of `pavement.core.pavement_stats`: ``bins + 1``
     ascending quantile values, or every data point for a rug. There is one
     bin per consecutive pair, and one tick per *distinct* value — a tick
-    whose value repeats reaches past the box as a whisker, so every line is
-    drawn exactly once rather than stacking a whisker on a bin border.
+    whose value repeats reaches past the box as a tassel, so every line is
+    drawn exactly once rather than stacking a tassel on a bin border.
 
     *value_format* maps a value to its hover display string (a bin's value
     range, a tick's value); it defaults to `fmt`. The quantile/percent
@@ -188,7 +188,7 @@ def row_spec(
         while j + 1 < len(values) and values[j + 1] == values[i]:
             j += 1
         repeated = j > i
-        reach = half + (whisker_extent if show_whiskers and repeated else 0)
+        reach = half + (tassel_extent if show_tassels and repeated else 0)
         if not n_bins:
             quantile = ""
         elif repeated:
@@ -222,7 +222,7 @@ def place(perp: float, value: float,
 
 def tick_segment(position: float, reach: float, value: float,
                  orientation: Orientation) -> tuple[float, float, float, float]:
-    """A tick/whisker segment crossing the value axis at *value*.
+    """A tick/tassel segment crossing the value axis at *value*.
 
     Runs perpendicular to the value axis, ``reach`` to each side of
     *position*. Returns ``(x0, y0, x1, y1)``.

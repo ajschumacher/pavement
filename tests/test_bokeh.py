@@ -138,9 +138,9 @@ def test_horizontal_swaps_axes():
     assert list(v["left"]) == list(h["bottom"])
 
 
-def test_repeated_value_makes_a_whisker():
+def test_repeated_value_makes_a_tassel():
     # Heavy repetition piles several quantile edges onto one value, whose
-    # tick reaches past the box as a whisker.
+    # tick reaches past the box as a tassel.
     fig = figure()
     rends = pavement_glyphs(fig, [0, 0, 0, 0, 1, 2, 3], bins=4, width=0.6)
     data = rends["ticks"].data_source.data

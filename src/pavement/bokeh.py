@@ -22,7 +22,7 @@ hover and drops onto any figure:
 - one borderless filled `quad <bokeh.plotting.figure.quad>` per equal-mass bin,
   hovering its value range, percentile band, and the share of values inside it;
 - a `segment <bokeh.plotting.figure.segment>` of quantile ticks (reaching past
-  the box into a whisker where a value repeats, so every line is drawn once),
+  the box into a tassel where a value repeats, so every line is drawn once),
   each hovering its value, percentile, and the share of values on it —
   the rug-style read; and
 - a `segment <bokeh.plotting.figure.segment>` of the two box edges, purely
@@ -106,8 +106,8 @@ def _row_geometry(
     position: float,
     width: float,
     orientation: Literal["vertical", "horizontal"],
-    whisker_extent: float,
-    show_whiskers: bool,
+    tassel_extent: float,
+    show_tassels: bool,
     show_box: bool | None,
     value_format: ValueFormat | None,
     data: Sequence[float] | None = None,
@@ -122,17 +122,17 @@ def _row_geometry(
       p25", "X to Y", "P% (N of M values)").
     - ``ticks``: one ``(x0, y0, x1, y1, quantile, value, count)`` per distinct
       quantile value — a segment crossing the value axis, plus its rug-style
-      hover strings. A repeated value reaches past the box as a whisker and
+      hover strings. A repeated value reaches past the box as a tassel and
       reads as a span ("p25 to p50"), so every line is drawn exactly once.
     - ``box``: the two long box edges as ``(x0, y0, x1, y1)`` segments,
       spanning the full value range — empty when *show_box* is False.
 
     The shared `row_spec` does the binning, the one-tick-per-distinct-value
-    (whisker) logic, and (from *data*) the per-bin/per-tick value counts;
+    (tassel) logic, and (from *data*) the per-bin/per-tick value counts;
     this lays the result out the way Bokeh's glyphs want.
     """
     spec = row_spec(values, position, width, orientation,
-                    whisker_extent, show_whiskers, value_format, data=data)
+                    tassel_extent, show_tassels, value_format, data=data)
 
     # Bins: one borderless quad per equal-mass bin (left, right, bottom,
     # top), carrying its value range, percentile band, and count for hover. A
@@ -150,7 +150,7 @@ def _row_geometry(
         bins.append((x0, x1, y0, y1, band, b.value_range, b.count))
 
     # Ticks: a segment per distinct value, reaching past the box as a
-    # whisker where it repeats. Hover reads as a single quantile and value.
+    # tassel where it repeats. Hover reads as a single quantile and value.
     ticks: list[tuple[float, float, float, float, str, str, str]] = []
     for t in spec.ticks:
         x0, y0, x1, y1 = tick_segment(position, t.reach, t.value, orientation)
@@ -172,8 +172,8 @@ def pavement_glyphs(
     weights: Sequence[float] | None = None,
     position: float = 1,
     width: float = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     color: str | None = None,
@@ -207,10 +207,10 @@ def pavement_glyphs(
         Center of the row on the axis perpendicular to the value axis.
     width : float, default: 0.6
         Thickness of the row.
-    whisker_extent : float, default: 0.05
-        How far whisker marks extend beyond the box at repeated values.
-    show_whiskers : bool, default: False
-        Whether to draw whisker marks at repeated quantile values.
+    tassel_extent : float, default: 0.05
+        How far tassel marks extend beyond the box at repeated values.
+    show_tassels : bool, default: False
+        Whether to draw tassel marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw the two long box edges. None (the default) draws
         them when binned and omits them for a rug (``bins=None``), so a rug
@@ -255,7 +255,7 @@ def pavement_glyphs(
     data = list(data)
     values = pavement_stats(data, bins=bins, weights=weights)
     geom = _row_geometry(values, position, width, orientation,
-                         whisker_extent, show_whiskers,
+                         tassel_extent, show_tassels,
                          show_box, value_format,
                          data=data, rug=bins is None)
     if color is None:
@@ -315,8 +315,8 @@ def add_pavement(
     labels: Sequence[Hashable] | None = None,
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     color: str | Sequence[str] | None = None,
@@ -359,10 +359,10 @@ def add_pavement(
         integers. See `pavement.pavement_stats`.
     widths : float or sequence of float, default: 0.6
         Thickness of each row.
-    whisker_extent : float, default: 0.05
-        How far whisker marks extend beyond the box.
-    show_whiskers : bool, default: False
-        Whether to draw whisker marks at repeated quantile values.
+    tassel_extent : float, default: 0.05
+        How far tassel marks extend beyond the box.
+    show_tassels : bool, default: False
+        Whether to draw tassel marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw each row's two long box edges. None (the default)
         draws them for a binned row and omits them for a rug
@@ -426,7 +426,7 @@ def add_pavement(
         name = label if n > 1 else None
         rends = pavement_glyphs(
             fig, dataset, bins=b, weights=w, position=pos, width=width,
-            whisker_extent=whisker_extent, show_whiskers=show_whiskers,
+            tassel_extent=tassel_extent, show_tassels=show_tassels,
             show_box=show_box, orientation=orientation, color=col,
             fill_alpha=fill_alpha, line_width=line_width, name=name,
             value_format=value_format)
@@ -498,8 +498,8 @@ def plot(
     labels: Sequence[Hashable] | None = None,
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
-    whisker_extent: float = 0.05,
-    show_whiskers: bool = False,
+    tassel_extent: float = 0.05,
+    show_tassels: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
     value_label: str = "value",
@@ -541,10 +541,10 @@ def plot(
         `pavement.pavement_stats`.
     widths : float or sequence of float, default: 0.6
         Thickness of each row.
-    whisker_extent : float, default: 0.05
-        How far whisker marks extend beyond the box.
-    show_whiskers : bool, default: False
-        Whether to draw whisker marks at repeated quantile values.
+    tassel_extent : float, default: 0.05
+        How far tassel marks extend beyond the box.
+    show_tassels : bool, default: False
+        Whether to draw tassel marks at repeated quantile values.
     show_box : bool or None, default: None
         Whether to draw each row's two long box edges. None (the default)
         draws them for a binned row and omits them for a rug
@@ -617,7 +617,7 @@ def plot(
     add_pavement(
         fig, data, weights=weights, positions=positions,
         categories=categories, labels=labels, bins=bins, widths=widths,
-        whisker_extent=whisker_extent, show_whiskers=show_whiskers,
+        tassel_extent=tassel_extent, show_tassels=show_tassels,
         show_box=show_box, orientation=orientation, color=color,
         fill_alpha=fill_alpha, line_width=line_width, hover=hover,
         value_format=value_format, show_legend=show_legend)
@@ -697,7 +697,7 @@ def with_marginals(
         Thickness of each marginal strip in pixels.
     **kwargs
         Forwarded to `add_pavement` for both marginals (e.g. *bins*,
-        *fill_alpha*, *show_whiskers*, *whisker_extent*, *line_width*,
+        *fill_alpha*, *show_tassels*, *tassel_extent*, *line_width*,
         *value_format*). *orientation*, *color*, and *show_legend* are
         managed here.
 
