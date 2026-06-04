@@ -13,11 +13,12 @@ import pavement
 from pavement.svg import (
     Summary,
     _choose_bins,
+    _column_extent,
+    _crop_value,
+    _fmt_extent,
     _is_numeric,
     _plural,
     _row_key,
-    _column_extent,
-    _crop_value,
     summary,
 )
 
@@ -175,6 +176,51 @@ def test_summary_numeric_resolution_follows_distinct_count():
     assert 'class="pvbin"' not in rug
     binned = str(summary(list(range(50))))     # 50 distinct -> 4 bins
     assert binned.count('class="pvbin"') == 4
+
+
+# ---------------------------------------------------------------------------
+# Extent number formatter
+# ---------------------------------------------------------------------------
+
+def test_fmt_extent_whole_numbers_use_commas():
+    assert _fmt_extent(100_000) == "100,000"
+    assert _fmt_extent(1_234_567) == "1,234,567"
+
+
+def test_fmt_extent_small_numbers_unchanged():
+    assert _fmt_extent(3) == "3"
+    assert _fmt_extent(-42) == "-42"
+
+
+def test_fmt_extent_fractional_uses_commas_when_short():
+    assert _fmt_extent(1234.5) == "1,234.5"
+
+
+def test_fmt_extent_comma_repr_at_16_chars_fits():
+    # "1,000,000,000,000" is exactly 17 chars (too long), "999,999,999,999" is 15 (fine).
+    assert _fmt_extent(999_999_999_999) == "999,999,999,999"
+
+
+def test_fmt_extent_falls_back_to_sci_notation_when_too_long():
+    # 10^18 comma-formatted is "1,000,000,000,000,000,000" (25 chars) → scientific.
+    result = _fmt_extent(1e18)
+    assert len(result) <= 16
+    assert "e" in result.lower()
+
+
+def test_fmt_extent_scientific_uses_max_sig_figs_in_16_chars():
+    # Should squeeze in more precision than the 3-sig-fig default fmt.
+    result = _fmt_extent(1.23456789e18)
+    assert len(result) <= 16
+    assert result != "1.23e+18"   # should have more sig figs than :.3g
+
+
+def test_fmt_extent_used_for_numeric_column_extent():
+    # user_id-style integers should display as "100,000" not "1e+05".
+    lo, hi = _column_extent(list(range(100_000, 100_010)),
+                            list(range(100_000, 100_010)))
+    assert lo == "100,000"
+    assert hi == "100,009"
 
 
 # ---------------------------------------------------------------------------

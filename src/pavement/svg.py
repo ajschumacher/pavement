@@ -42,6 +42,7 @@ Examples
 from __future__ import annotations
 
 import datetime as _dt
+import math
 import numbers
 from collections.abc import Iterable, Sequence
 from decimal import Decimal
@@ -1119,6 +1120,32 @@ def _distribution_strip(values: list[Any], present: list[Any],
     return proportion(values, **opts)
 
 
+def _fmt_extent(value: float) -> str:
+    """Format a number for an extent label: favour compact comma notation.
+
+    Unlike the default `fmt` (which caps at 3 significant figures), this
+    tries to show the value in a human-readable form within 16 characters:
+
+    1. **Comma notation** — ``"100,000"`` for whole numbers, ``"1,234.5"``
+       for fractional ones — when the result fits in 16 characters.
+    2. **Scientific notation** with as many significant figures as fit in
+       16 characters when comma notation is too long (e.g. ``"1.23456789e+20"``).
+
+    Non-finite values (``inf``, ``nan``) fall back to `fmt`.
+    """
+    v = float(value)
+    if not math.isfinite(v):
+        return fmt(v)
+    candidate = f"{int(v):,}" if v == int(v) else f"{v:,}"
+    if len(candidate) <= 16:
+        return candidate
+    for sig in range(15, 0, -1):
+        s = f"{v:.{sig}g}"
+        if len(s) <= 16:
+            return s
+    return fmt(v)
+
+
 _EXTENT_CROP = 16   # max display length for a categorical extent label
 
 
@@ -1153,7 +1180,7 @@ def _column_extent(values: list[Any], present: list[Any]) -> tuple[str, str]:
         return '', ''
     if _pavement_column(present):
         projected, vfmt = _project(list(present))
-        fmt_v = vfmt or fmt
+        fmt_v = vfmt or _fmt_extent
         return fmt_v(min(projected)), fmt_v(max(projected))
     # Categorical: most common first, least common last in proportion_stats.
     items = proportion_stats(values)['counts']
