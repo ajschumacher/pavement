@@ -163,7 +163,7 @@ def pavement_glyphs(
     weights: Sequence[float] | None = None,
     position: float = 1,
     width: float = 0.6,
-    whisker_extent: float = 0.1,
+    whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
@@ -198,7 +198,7 @@ def pavement_glyphs(
         Center of the row on the axis perpendicular to the value axis.
     width : float, default: 0.6
         Thickness of the row.
-    whisker_extent : float, default: 0.1
+    whisker_extent : float, default: 0.05
         How far whisker marks extend beyond the box at repeated values.
     show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
@@ -302,7 +302,7 @@ def add_pavement(
     labels: Sequence[Hashable] | None = None,
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
-    whisker_extent: float = 0.1,
+    whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
@@ -346,7 +346,7 @@ def add_pavement(
         integers. See `pavement.pavement_stats`.
     widths : float or sequence of float, default: 0.6
         Thickness of each row.
-    whisker_extent : float, default: 0.1
+    whisker_extent : float, default: 0.05
         How far whisker marks extend beyond the box.
     show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
@@ -488,7 +488,7 @@ def plot(
     labels: Sequence[Hashable] | None = None,
     bins: int | None | Sequence[int | None] = 4,
     widths: float | Sequence[float] = 0.6,
-    whisker_extent: float = 0.1,
+    whisker_extent: float = 0.05,
     show_whiskers: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
@@ -531,7 +531,7 @@ def plot(
         `pavement.pavement_stats`.
     widths : float or sequence of float, default: 0.6
         Thickness of each row.
-    whisker_extent : float, default: 0.1
+    whisker_extent : float, default: 0.05
         How far whisker marks extend beyond the box.
     show_whiskers : bool, default: False
         Whether to draw whisker marks at repeated quantile values.
