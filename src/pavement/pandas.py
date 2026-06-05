@@ -17,6 +17,8 @@ won't clash), putting the pavement strips a method away::
     s.pave()                        # a Series summarizes as one row
     s.pave.spark()                  # the column helpers take no column name
 
+    summary(df["score"].groupby(df["team"]))  # one row per group
+
 ``df.pave()`` and ``.summary()`` return the same `pavement.summary` result (a
 `Summary`, which renders inline in Jupyter). The single-column helpers return
 the svg string of the matching `pavement.svg` glyph, wrapped so it *also*

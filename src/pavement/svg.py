@@ -1153,6 +1153,35 @@ def _as_columns(data: Any) -> tuple[list[Any], list[list[Any]]] | None:
     return None
 
 
+def _format_group_key(key: Any) -> str:
+    """String label for a groupby key: join tuple keys with `` / ``."""
+    if isinstance(key, tuple):
+        return ' / '.join(str(k) for k in key)
+    return str(key)
+
+
+def _as_grouped_series(
+        data: Any) -> tuple[Any, list[str], list[list[Any]]] | None:
+    """If *data* is a pandas ``SeriesGroupBy``, return ``(name, keys, columns)``.
+
+    *name* is the Series name (may be ``None``); *keys* are the group labels
+    (multi-key tuples joined with `` / ``); *columns* are the per-group value
+    lists.  Returns ``None`` for anything that isn't a SeriesGroupBy.
+    """
+    obj = getattr(data, 'obj', None)
+    if obj is None or hasattr(obj, 'columns'):
+        return None
+    if not hasattr(data, 'ngroups'):
+        return None
+    name = getattr(obj, 'name', None)
+    keys: list[str] = []
+    columns: list[list[Any]] = []
+    for key, group in data:
+        keys.append(_format_group_key(key))
+        columns.append(list(group))
+    return name, keys, columns
+
+
 # Inline styles, so the table is self-contained: it leans on none of the host
 # page's CSS and — unlike a <style> block — injects nothing global, which
 # matters for a fragment dropped into a notebook cell (and rendered again and
@@ -1393,6 +1422,12 @@ def summary(
       rows), its tally treats each *whole row* as the entity (so "duplicate"
       means a duplicated row and "missing" a row that is entirely blank), and
       its distribution cell is empty (a frame has no single distribution).
+    - **A pandas SeriesGroupBy** — e.g. ``df["score"].groupby(df["team"])``.
+      Renders one row per group, under a top row showing the series name and
+      group count; the top row's tally and distribution cover all values
+      across every group, giving a global view above the per-group breakdown.
+      Multi-key groupby (grouped by several columns) labels each group with
+      its key components joined by `` / ``.
     - **A Series or 1D sequence** — a pandas ``Series``, a list, a numpy
       array, etc. Renders a single row. A bare sequence has no accessible
       name, so where a column name would go it shows the entry count instead
@@ -1406,7 +1441,7 @@ def summary(
 
     Parameters
     ----------
-    data : DataFrame, dict, Series, or sequence
+    data : DataFrame, SeriesGroupBy, dict, Series, or sequence
         The thing to summarize (see above).
     color : str, default: the tally's dark blue
         CSS color tinting the numeric distribution sparks, so they match the
@@ -1468,10 +1503,40 @@ def summary(
         fixed_layout = False
 
     opts = {'height': height, 'hover': hover, 'highlight': highlight}
-    columns_data = _as_columns(data)
+    grouped = _as_grouped_series(data)
+    columns_data = None if grouped is not None else _as_columns(data)
     rows: list[str] = []
 
-    if columns_data is not None:
+    if grouped is not None:
+        series_name, group_keys, columns = grouped
+        all_values = [v for col in columns for v in col]
+        all_present = [v for v in all_values if not _is_missing(v)]
+        n_groups = len(group_keys)
+        count_part = _count_label(n_groups, 'group')
+        if series_name is not None:
+            header_label = (f'<span style="{_NAME_STYLE}">'
+                            f'{escape(str(series_name))}</span> {count_part}')
+        else:
+            header_label = count_part
+        lo, hi = _column_extent(all_values, all_present)
+        rows.append(_summary_row(
+            header_label,
+            _tally_strip(all_values, 'entry', opts, strip_width=w_tally),
+            lo,
+            _distribution_strip(all_values, all_present, color, opts,
+                                strip_width=w_dist),
+            hi, total=True))
+        for key, values in zip(group_keys, columns):
+            present = [v for v in values if not _is_missing(v)]
+            lo, hi = _column_extent(values, present)
+            rows.append(_summary_row(
+                f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
+                _tally_strip(values, 'entry', opts, strip_width=w_tally),
+                lo,
+                _distribution_strip(values, present, color, opts,
+                                    strip_width=w_dist),
+                hi))
+    elif columns_data is not None:
         names, columns = columns_data
         n_rows = len(columns[0]) if columns else 0
         # The frame as a whole: "N by M" shape label on the left, a tally
