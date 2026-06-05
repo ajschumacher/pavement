@@ -496,3 +496,76 @@ def test_summary_numpy_integer_array_is_numeric():
     out = str(summary(np.arange(50)))             # np.int64 values
     assert 'class="pavement-spark"' in out
     assert out.count('class="pvbin"') == 4        # 50 distinct -> 4 bins
+
+
+# ---------------------------------------------------------------------------
+# pandas SeriesGroupBy
+# ---------------------------------------------------------------------------
+
+def test_summary_groupby_one_row_per_group():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"team": ["a", "a", "b", "b", "b"], "score": [1, 2, 3, 4, 5]})
+    out = str(summary(df["score"].groupby(df["team"])))
+    # Header row + 2 group rows -> 3 tally strips.
+    assert out.count('class="pavement-tally"') == 3
+    assert ">a<" in out
+    assert ">b<" in out
+
+
+def test_summary_groupby_header_shows_series_name_and_group_count():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"team": list("abc"), "score": [10, 20, 30]})
+    out = str(summary(df["score"].groupby(df["team"])))
+    assert "score" in out
+    assert "3 groups" in out
+
+
+def test_summary_groupby_singular_group_noun():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"team": ["a", "a"], "score": [1, 2]})
+    out = str(summary(df["score"].groupby(df["team"])))
+    assert "1 group" in out
+    assert "1 groups" not in out
+
+
+def test_summary_groupby_unnamed_series_shows_only_group_count():
+    pd = pytest.importorskip("pandas")
+    s = pd.Series([1, 2, 3, 4], name=None)
+    keys = pd.Series(["x", "x", "y", "y"])
+    out = str(summary(s.groupby(keys)))
+    assert "2 groups" in out
+
+
+def test_summary_groupby_header_tally_covers_all_values():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"k": ["a", "a", "b", "b"], "v": [1, 1, 2, None]})
+    out = str(summary(df["v"].groupby(df["k"])))
+    titles = _titles(out)
+    # Header tally: 4 total entries (1 missing), noun is "entry/entries".
+    assert any("of 4 entries" in t for t in titles)
+
+
+def test_summary_groupby_header_has_distribution():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"k": list("aabb"), "v": [1, 2, 3, 4]})
+    out = str(summary(df["v"].groupby(df["k"])))
+    # Numeric values -> spark in both the header and each group row.
+    assert out.count('class="pavement-spark"') == 3   # header + 2 groups
+
+
+def test_summary_groupby_multi_key_labels_joined_with_slash():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({
+        "region": ["N", "N", "S", "S"],
+        "dept": ["eng", "eng", "mkt", "mkt"],
+        "v": [1, 2, 3, 4],
+    })
+    out = str(summary(df["v"].groupby([df["region"], df["dept"]])))
+    assert "N / eng" in out
+    assert "S / mkt" in out
+
+
+def test_summary_groupby_is_wellformed_xml():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"k": list("aabbc"), "v": [1, 2, None, 4, 5]})
+    _wellformed(str(summary(df["v"].groupby(df["k"]))))
