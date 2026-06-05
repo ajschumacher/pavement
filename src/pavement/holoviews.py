@@ -98,6 +98,13 @@ def _default_colors(n: int) -> list[str]:
     backend, since this cycle is backend-independent.
     """
     palette = list(hv.Cycle().values)
+    if not palette:
+        # hv.Cycle() is empty until a backend is loaded. Without this guard
+        # the modulo below raises an opaque ZeroDivisionError for any input.
+        raise RuntimeError(
+            "no active HoloViews extension; call hv.extension('bokeh') "
+            "(or 'plotly'/'matplotlib') before building a pavement plot"
+        )
     return [palette[i % len(palette)] for i in range(n)]
 
 
