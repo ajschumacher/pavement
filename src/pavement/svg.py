@@ -1304,8 +1304,13 @@ def _drag_script(table_id: str) -> str:
         't.addEventListener("dragend",function(){if(d)d.style.opacity="";d=null;});'
         't.addEventListener("dragover",function(e){'
         'if(!d)return;var r=e.target.closest(sel);if(!r||r===d)return;'
-        'e.preventDefault();var b=r.getBoundingClientRect();'
+        'e.preventDefault();e.dataTransfer.dropEffect="move";'
+        'var b=r.getBoundingClientRect();'
         'd.parentNode.insertBefore(d,e.clientY-b.top<b.height/2?r:r.nextSibling);});'
+        # Accept the drop so the browser does not play its "snap back to the
+        # start" animation of the drag image (the default when no drop target
+        # claims it); the row is already in place from dragover.
+        't.addEventListener("drop",function(e){e.preventDefault();});'
         '}());</script>'
     )
 
