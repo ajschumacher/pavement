@@ -54,6 +54,20 @@ def test_plot_rug_renders_with_empty_box():
     hv.renderer("bokeh").get_plot(plot([1, 2, 2, 3, 5], bins=None))
 
 
+def test_plot_without_active_extension_raises_clear_error(monkeypatch):
+    # hv.Cycle().values is empty until a backend is loaded; mimic that here
+    # (the real failure happens in a fresh process, since extension state is
+    # process-global). Without the guard this is an opaque ZeroDivisionError.
+    import pavement.holoviews as phv
+
+    class _EmptyCycle:
+        values: list = []
+
+    monkeypatch.setattr(phv.hv, "Cycle", _EmptyCycle)
+    with pytest.raises(RuntimeError, match="no active HoloViews extension"):
+        phv.plot([1, 2, 3, 4], bins=2)
+
+
 def test_elements_one_tick_per_distinct_value_with_tassel():
     # Heavy repetition collapses several quantile edges onto one value.
     els = pavement_elements([0, 0, 0, 0, 1, 2, 3], bins=4)
