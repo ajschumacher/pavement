@@ -1182,6 +1182,29 @@ def _as_grouped_series(
     return name, keys, columns
 
 
+def _as_grouped_frame(
+        data: Any) -> tuple[list[str], list[list[Any]]] | None:
+    """If *data* is a pandas ``DataFrameGroupBy``, return ``(keys, row_key_lists)``.
+
+    *keys* are the group labels; *row_key_lists* is a list of per-group row-key
+    sequences (the same ``_row_key`` values used by the plain DataFrame path).
+    Returns ``None`` for anything that isn't a DataFrameGroupBy.
+    """
+    obj = getattr(data, 'obj', None)
+    if obj is None or not hasattr(obj, 'columns'):
+        return None
+    if not hasattr(data, 'ngroups'):
+        return None
+    keys: list[str] = []
+    row_key_lists: list[list[Any]] = []
+    for key, sub_df in data:
+        keys.append(_format_group_key(key))
+        col_lists = [list(sub_df[c]) for c in sub_df.columns]
+        row_keys = [_row_key(row) for row in zip(*col_lists)] if col_lists else []
+        row_key_lists.append(row_keys)
+    return keys, row_key_lists
+
+
 # Inline styles, so the table is self-contained: it leans on none of the host
 # page's CSS and — unlike a <style> block — injects nothing global, which
 # matters for a fragment dropped into a notebook cell (and rendered again and
@@ -1422,6 +1445,11 @@ def summary(
       rows), its tally treats each *whole row* as the entity (so "duplicate"
       means a duplicated row and "missing" a row that is entirely blank), and
       its distribution cell is empty (a frame has no single distribution).
+    - **A pandas DataFrameGroupBy** — e.g. ``df.groupby("team")``. Renders
+      one row per group under a top row showing the group and column counts;
+      each row's tally treats whole rows as the entity (same as the plain
+      DataFrame header), so "duplicate" means a duplicated row within that
+      group. Distribution cells are empty (no single column to show).
     - **A pandas SeriesGroupBy** — e.g. ``df["score"].groupby(df["team"])``.
       Renders one row per group, under a top row showing the series name and
       group count; the top row's tally and distribution cover all values
@@ -1441,7 +1469,7 @@ def summary(
 
     Parameters
     ----------
-    data : DataFrame, SeriesGroupBy, dict, Series, or sequence
+    data : DataFrame, DataFrameGroupBy, SeriesGroupBy, dict, Series, or sequence
         The thing to summarize (see above).
     color : str, default: the tally's dark blue
         CSS color tinting the numeric distribution sparks, so they match the
@@ -1503,11 +1531,30 @@ def summary(
         fixed_layout = False
 
     opts = {'height': height, 'hover': hover, 'highlight': highlight}
-    grouped = _as_grouped_series(data)
-    columns_data = None if grouped is not None else _as_columns(data)
+    grouped_frame = _as_grouped_frame(data)
+    grouped = None if grouped_frame is not None else _as_grouped_series(data)
+    columns_data = (None if (grouped_frame is not None or grouped is not None)
+                    else _as_columns(data))
     rows: list[str] = []
 
-    if grouped is not None:
+    if grouped_frame is not None:
+        group_keys, row_key_lists = grouped_frame
+        n_groups = len(group_keys)
+        n_cols = len(getattr(getattr(data, 'obj', None), 'columns', []))
+        all_row_keys = [rk for rks in row_key_lists for rk in rks]
+        shape_label = (f'<span style="{_COUNT_STYLE}">'
+                       f'{n_groups:,} {"group" if n_groups == 1 else "groups"}, '
+                       f'{n_cols:,} {"column" if n_cols == 1 else "columns"}</span>')
+        rows.append(_summary_row(
+            shape_label,
+            _tally_strip(all_row_keys, 'row', opts, strip_width=w_tally),
+            '', '', '', total=True))
+        for key, row_keys in zip(group_keys, row_key_lists):
+            rows.append(_summary_row(
+                f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
+                _tally_strip(row_keys, 'row', opts, strip_width=w_tally),
+                '', '', ''))
+    elif grouped is not None:
         series_name, group_keys, columns = grouped
         all_values = [v for col in columns for v in col]
         all_present = [v for v in all_values if not _is_missing(v)]
