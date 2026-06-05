@@ -1160,26 +1160,50 @@ def _format_group_key(key: Any) -> str:
     return str(key)
 
 
-def _as_grouped_series(
-        data: Any) -> tuple[Any, list[str], list[list[Any]]] | None:
-    """If *data* is a pandas ``SeriesGroupBy``, return ``(name, keys, columns)``.
+_GROUPBY_SERIES = 'series'
+_GROUPBY_FRAME = 'frame'
 
-    *name* is the Series name (may be ``None``); *keys* are the group labels
-    (multi-key tuples joined with `` / ``); *columns* are the per-group value
-    lists.  Returns ``None`` for anything that isn't a SeriesGroupBy.
+
+def _detect_groupby(
+        data: Any,
+) -> tuple[str, Any, list[str], list[Any]] | None:
+    """Classify *data* as a GroupBy if it iterates as ``(key, group)`` pairs.
+
+    Returns ``(kind, extra, keys, groups)`` or ``None``:
+
+    - *kind* is ``'series'`` (SeriesGroupBy) or ``'frame'`` (DataFrameGroupBy).
+    - *extra* is the Series name for ``'series'`` (may be ``None``), or the
+      column count for ``'frame'``.
+    - *keys* is the list of formatted group-key strings.
+    - *groups* is the list of group objects (one per key).
+
+    Detection is based on the groups themselves — a DataFrame group means a
+    DataFrameGroupBy; anything else is treated as a SeriesGroupBy — so it
+    is robust across different pandas versions and access patterns.
+
+    The ``ngroups`` attribute gates the check: plain sequences, dicts, and
+    DataFrames don't have it, so they fall through to other paths.
     """
-    obj = getattr(data, 'obj', None)
-    if obj is None or hasattr(obj, 'columns'):
-        return None
     if not hasattr(data, 'ngroups'):
         return None
-    name = getattr(obj, 'name', None)
     keys: list[str] = []
-    columns: list[list[Any]] = []
+    groups: list[Any] = []
     for key, group in data:
         keys.append(_format_group_key(key))
-        columns.append(list(group))
-    return name, keys, columns
+        groups.append(group)
+    if not groups:
+        # Empty GroupBy: fall back to obj to determine kind.
+        obj = getattr(data, 'obj', None)
+        if obj is not None and hasattr(obj, 'columns'):
+            n_cols = len(list(obj.columns))
+            return _GROUPBY_FRAME, n_cols, [], []
+        name = getattr(getattr(data, 'obj', None), 'name', None)
+        return _GROUPBY_SERIES, name, [], []
+    if hasattr(groups[0], 'columns'):
+        n_cols = len(list(groups[0].columns))
+        return _GROUPBY_FRAME, n_cols, keys, groups
+    name = getattr(groups[0], 'name', None)
+    return _GROUPBY_SERIES, name, keys, groups
 
 
 # Inline styles, so the table is self-contained: it leans on none of the host
@@ -1422,6 +1446,11 @@ def summary(
       rows), its tally treats each *whole row* as the entity (so "duplicate"
       means a duplicated row and "missing" a row that is entirely blank), and
       its distribution cell is empty (a frame has no single distribution).
+    - **A pandas DataFrameGroupBy** — e.g. ``df.groupby("team")``. Renders
+      one row per group under a top row showing the group and column counts;
+      each row's tally treats whole rows as the entity (same as the plain
+      DataFrame header), so "duplicate" means a duplicated row within that
+      group. Distribution cells are empty (no single column to show).
     - **A pandas SeriesGroupBy** — e.g. ``df["score"].groupby(df["team"])``.
       Renders one row per group, under a top row showing the series name and
       group count; the top row's tally and distribution cover all values
@@ -1441,7 +1470,7 @@ def summary(
 
     Parameters
     ----------
-    data : DataFrame, SeriesGroupBy, dict, Series, or sequence
+    data : DataFrame, DataFrameGroupBy, SeriesGroupBy, dict, Series, or sequence
         The thing to summarize (see above).
     color : str, default: the tally's dark blue
         CSS color tinting the numeric distribution sparks, so they match the
@@ -1503,12 +1532,34 @@ def summary(
         fixed_layout = False
 
     opts = {'height': height, 'hover': hover, 'highlight': highlight}
-    grouped = _as_grouped_series(data)
-    columns_data = None if grouped is not None else _as_columns(data)
+    groupby = _detect_groupby(data)
+    columns_data = None if groupby is not None else _as_columns(data)
     rows: list[str] = []
 
-    if grouped is not None:
-        series_name, group_keys, columns = grouped
+    if groupby is not None and groupby[0] == _GROUPBY_FRAME:
+        _, n_cols, group_keys, sub_dfs = groupby
+        row_key_lists = []
+        for sub_df in sub_dfs:
+            col_lists = [list(sub_df[c]) for c in sub_df.columns]
+            rks = [_row_key(row) for row in zip(*col_lists)] if col_lists else []
+            row_key_lists.append(rks)
+        n_groups = len(group_keys)
+        all_row_keys = [rk for rks in row_key_lists for rk in rks]
+        shape_label = (f'<span style="{_COUNT_STYLE}">'
+                       f'{n_groups:,} {"group" if n_groups == 1 else "groups"}, '
+                       f'{n_cols:,} {"column" if n_cols == 1 else "columns"}</span>')
+        rows.append(_summary_row(
+            shape_label,
+            _tally_strip(all_row_keys, 'row', opts, strip_width=w_tally),
+            '', '', '', total=True))
+        for key, row_keys in zip(group_keys, row_key_lists):
+            rows.append(_summary_row(
+                f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
+                _tally_strip(row_keys, 'row', opts, strip_width=w_tally),
+                '', '', ''))
+    elif groupby is not None:  # _GROUPBY_SERIES
+        _, series_name, group_keys, series_groups = groupby
+        columns = [list(g) for g in series_groups]
         all_values = [v for col in columns for v in col]
         all_present = [v for v in all_values if not _is_missing(v)]
         n_groups = len(group_keys)
