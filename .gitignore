@@ -7,24 +7,11 @@ examples/.ipynb_checkpoints/
 .claude/
 .python-version
 
-# Output of examples/holoviews_demo.py
-holoviews_*.png
-holoviews_marginals*.html
-
-# Output of examples/plotly_demo.py
-plotly_*.html
-
-# Output of examples/bokeh_demo.py
-bokeh_*.html
-
-# Output of examples/value_format_demo.py
-value_format_demo.html
-
-# Output of examples/column_summary_demo.py
-column_summary_demo.html
-
-# Output of examples/summary_demo.py
+# Generated HTML outputs from examples/ scripts
+svg_demo.html
 summary_demo.html
-
-# Output of examples/box_edges_demo.py
 box_edges_demo.html
+value_format_demo.html
+interactive_demo.html
+pandas_polars_demo.html
+rug_borderless_demo.html

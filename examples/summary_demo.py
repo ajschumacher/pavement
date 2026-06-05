@@ -278,6 +278,13 @@ try:
 <p>The call is the same — <code>pavement.summary(df)</code> — for a real
 <code>DataFrame</code>. Numeric columns become sparks, the species and the
 boolean flag become proportion strips.</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">import pandas as pd
+import pavement
+
+df = pd.DataFrame({{...}})
+pavement.summary(df)</pre>
+</details>
 {pavement.summary(iris_like)}
 """
 except ImportError:
@@ -309,6 +316,16 @@ try:
 <p>Raw numpy arrays work too — no pandas or polars needed.
 <code>datetime64</code> columns land on a time axis; <code>timedelta64</code>
 columns show durations (e.g. <em>00:01</em> for one minute).</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">import numpy as np
+import pavement
+
+data = {{
+    "event_time": np.array([...], dtype="datetime64[s]"),
+    "response_delay": np.array([...], dtype="timedelta64[s]"),
+}}
+pavement.summary(data)</pre>
+</details>
 {pavement.summary(events)}
 """
 except ImportError:
@@ -361,13 +378,24 @@ the dates). Durations too: <code>session_duration</code> shows timedeltas on a
 duration axis (e.g. <em>1d 02:00</em>). Categorical columns get a
 <strong>proportion</strong> strip, and <code>legacy_field</code> shows what an
 almost-all-missing column looks like.</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">import pavement
+
+pavement.summary(df)        # dict of lists, pandas/polars DataFrame, or any mapping</pre>
+</details>
 {pavement.summary(people)}
 
 <h2>A single Series</h2>
 <p>Pass one sequence and you get a single row. A bare list has no name, so the
 label shows the value count instead. Numeric values give a spark:</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">pavement.summary(daily_signups)   # a bare list — label shows value count</pre>
+</details>
 {pavement.summary(daily_signups)}
 <p>…and categorical values give a proportion strip:</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">pavement.summary(survey)          # a list of strings</pre>
+</details>
 {pavement.summary(survey)}
 {pandas_section}{numpy_section}{frequency_rug_section}{box_section}
 <h2>In a notebook</h2>
@@ -379,7 +407,9 @@ own. And for pandas or polars, <code>import pavement.pandas</code> (or
 <code>df.pave()</code>, <code>df.pave.spark("age")</code>,
 <code>df.pave.tally("plan")</code> — or
 <code>pavement.pandas.enable_repr()</code> to make the summary every
-DataFrame's default preview.</p>
+DataFrame's default preview. See
+<a href="pandas_polars_demo.html">pandas_polars_demo.html</a> for a full
+walkthrough.</p>
 
 </body></html>
 """
