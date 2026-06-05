@@ -1,0 +1,20 @@
+/* Live example embeds */
+.example-frame {
+  width: 100%;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.3rem;
+  background: var(--md-default-bg-color);
+  margin: 0.6rem 0 1.4rem 0;
+}
+
+/* The README hero <h1> holds an inline pavement-spark SVG. Material's image
+   reset forces height:auto, and the spark declares only a viewBox with
+   preserveAspectRatio="none", so without an explicit size the <img> falls back
+   to the default ~300x150 box and stretches vertically. Pin its height and let
+   the 140:30 viewBox ratio set the width. */
+.md-typeset h1 img {
+  height: 1.3em;
+  width: auto;
+  aspect-ratio: 140 / 30;
+  vertical-align: middle;
+}

@@ -43,6 +43,10 @@ all = ["pavement[matplotlib,bokeh,plotly,holoviews]"]
 # optional conveniences, not backends, and stay out of `all`.
 pandas = ["pandas"]
 polars = ["polars"]
+# Documentation site (MkDocs Material + API docs auto-generated from docstrings).
+# mkdocstrings reads the source statically, so the rendering backends are not
+# required to build the docs.
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.26", "ruff"]
 
 [project.urls]
 Homepage = "https://github.com/ajschumacher/pavement"

@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>pavement — .pave accessor for pandas and polars</title>
+<style>
+  body { max-width: 54rem; margin: 3rem auto; padding: 0 1.5rem;
+          font: 17px/1.6 Georgia, serif; color: #1a1a1a; background: #fbfaf7; }
+  h1 { font-size: 1.7rem; margin-bottom: 0.2rem; }
+  h2 { font-size: 1.2rem; margin-top: 2.4rem; }
+  h3 { font-size: 1rem; margin: 1.8rem 0 0.4rem; color: #333; }
+  .sub { color: #777; font-style: italic; margin-top: 0; }
+  p { max-width: 50rem; }
+  code { font-family: Menlo, monospace; font-size: 0.85em;
+          background: #f0eee8; padding: 0.05em 0.3em; border-radius: 3px; }
+  .output { margin-bottom: 0.6rem; font-size: 1.1em; }
+</style></head><body>
+
+<h1>The <code>.pave</code> accessor</h1>
+<p class="sub">One import, then <code>.pave</code> is available on every
+DataFrame and Series — no need to call <code>pavement.summary</code> by name.</p>
+
+<h2>pandas</h2><p>Import <code>pavement.pandas</code> once — that registers the <code>.pave</code> accessor on every pandas <code>DataFrame</code> and <code>Series</code>.</p><h3>df.pave() — whole-frame summary</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>import pavement.pandas       # registers .pave
+
+df.pave()</code></pre></details><div class="output"><div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">4 by 300</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 300 distinct, 0 duplicate, 0 missing of 300 rows" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 300 distinct, 0 duplicate, 0 missing of 300 rows</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="140" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+100% (300 of 300 rows)
+(300 appearing once)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">user_id</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 300 distinct, 0 duplicate, 0 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 300 distinct, 0 duplicate, 0 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="140" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+100% (300 of 300 entries)
+(300 appearing once)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">100,000</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 300 values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>pavement sparkline of 300 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="8.43" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p0 to p6
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="8.43" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p6 to p12
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="17.32" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p12 to p19
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="26.22" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p19 to p25
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="34.88" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p25 to p31
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="43.55" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p31 to p38
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="52.44" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p38 to p44
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="61.34" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p44 to p50
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="70" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p50 to p56
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="78.66" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p56 to p62
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="87.56" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p62 to p69
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="96.45" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p69 to p75
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="105.12" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p75 to p81
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="113.78" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p81 to p88
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="122.68" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p88 to p94
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="131.57" y="0" width="8.43" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p94 to p100
+6% (17 of 300 values)</title></rect><g stroke="#2166ac" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="8.43" y2="0"/><line x1="0" y1="30" x2="8.43" y2="30"/><line x1="8.43" y1="0" x2="17.32" y2="0"/><line x1="8.43" y1="30" x2="17.32" y2="30"/><line x1="17.32" y1="0" x2="26.22" y2="0"/><line x1="17.32" y1="30" x2="26.22" y2="30"/><line x1="26.22" y1="0" x2="34.88" y2="0"/><line x1="26.22" y1="30" x2="34.88" y2="30"/><line x1="34.88" y1="0" x2="43.55" y2="0"/><line x1="34.88" y1="30" x2="43.55" y2="30"/><line x1="43.55" y1="0" x2="52.44" y2="0"/><line x1="43.55" y1="30" x2="52.44" y2="30"/><line x1="52.44" y1="0" x2="61.34" y2="0"/><line x1="52.44" y1="30" x2="61.34" y2="30"/><line x1="61.34" y1="0" x2="70" y2="0"/><line x1="61.34" y1="30" x2="70" y2="30"/><line x1="70" y1="0" x2="78.66" y2="0"/><line x1="70" y1="30" x2="78.66" y2="30"/><line x1="78.66" y1="0" x2="87.56" y2="0"/><line x1="78.66" y1="30" x2="87.56" y2="30"/><line x1="87.56" y1="0" x2="96.45" y2="0"/><line x1="87.56" y1="30" x2="96.45" y2="30"/><line x1="96.45" y1="0" x2="105.12" y2="0"/><line x1="96.45" y1="30" x2="105.12" y2="30"/><line x1="105.12" y1="0" x2="113.78" y2="0"/><line x1="105.12" y1="30" x2="113.78" y2="30"/><line x1="113.78" y1="0" x2="122.68" y2="0"/><line x1="113.78" y1="30" x2="122.68" y2="30"/><line x1="122.68" y1="0" x2="131.57" y2="0"/><line x1="122.68" y1="30" x2="131.57" y2="30"/><line x1="131.57" y1="0" x2="140" y2="0"/><line x1="131.57" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>1e+05
+p0
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="8.43" y1="0" x2="8.43" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="8.43" y1="0" x2="8.43" y2="30"><title>1e+05
+p6
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="17.32" y1="0" x2="17.32" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="17.32" y1="0" x2="17.32" y2="30"><title>1e+05
+p12
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="26.22" y1="0" x2="26.22" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="26.22" y1="0" x2="26.22" y2="30"><title>1e+05
+p19
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="34.88" y1="0" x2="34.88" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="34.88" y1="0" x2="34.88" y2="30"><title>1e+05
+p25
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="43.55" y1="0" x2="43.55" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="43.55" y1="0" x2="43.55" y2="30"><title>1e+05
+p31
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="52.44" y1="0" x2="52.44" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="52.44" y1="0" x2="52.44" y2="30"><title>1e+05
+p38
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="61.34" y1="0" x2="61.34" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="61.34" y1="0" x2="61.34" y2="30"><title>1e+05
+p44
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="70" y1="0" x2="70" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="70" y1="0" x2="70" y2="30"><title>1e+05
+p50
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="78.66" y1="0" x2="78.66" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="78.66" y1="0" x2="78.66" y2="30"><title>1e+05
+p56
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="87.56" y1="0" x2="87.56" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="87.56" y1="0" x2="87.56" y2="30"><title>1e+05
+p62
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="96.45" y1="0" x2="96.45" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="96.45" y1="0" x2="96.45" y2="30"><title>1e+05
+p69
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="105.12" y1="0" x2="105.12" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="105.12" y1="0" x2="105.12" y2="30"><title>1e+05
+p75
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="113.78" y1="0" x2="113.78" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="113.78" y1="0" x2="113.78" y2="30"><title>1e+05
+p81
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="122.68" y1="0" x2="122.68" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="122.68" y1="0" x2="122.68" y2="30"><title>1e+05
+p88
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="131.57" y1="0" x2="131.57" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="131.57" y1="0" x2="131.57" y2="30"><title>1e+05
+p94
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>1e+05
+p100
+&lt;1% (1 of 300 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">100,299</span></div></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">plan</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 3 distinct, 266 duplicate, 31 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 3 distinct, 266 duplicate, 31 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="3" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+1% (3 of 300 entries)
+(0 appearing once)</title></rect><rect class="tvbox" x="3" y="0" width="122.7" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+89% (266 of 300 entries)</title></rect><rect class="tvbox" x="125.7" y="0" width="14.3" height="30" fill="#b2182b" pointer-events="all"><title>missing
+10% (31 of 300 entries)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">free</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-proportion" role="img" aria-label="value proportions of 269 values across 3 distinct values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>value proportions of 269 values across 3 distinct values</desc><style>.pavement-proportion .tvbox{transition:filter .1s ease}.pavement-proportion .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="70.26" height="30" fill="#2166ac" pointer-events="all"><title>free
+50% (135 of 269 values)</title></rect><rect class="tvbox" x="70.26" y="0" width="51" height="30" fill="#92c5de" pointer-events="all"><title>pro
+36% (98 of 269 values)</title></rect><rect class="tvbox" x="121.26" y="0" width="18.74" height="30" fill="#2166ac" pointer-events="all"><title>team
+13% (36 of 269 values)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">team</span></div></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">age</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 51 distinct, 230 duplicate, 19 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 51 distinct, 230 duplicate, 19 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="23.8" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+17% (51 of 300 entries)
+(9 appearing once)</title></rect><rect class="tvbox" x="23.8" y="0" width="107.33" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+77% (230 of 300 entries)</title></rect><rect class="tvbox" x="131.13" y="0" width="8.87" height="30" fill="#b2182b" pointer-events="all"><title>missing
+6% (19 of 300 entries)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">8</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 281 values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>pavement sparkline of 281 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="30.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>8 to 21
+p0 to p6
+4% (12 of 281 values)</title></rect><rect class="pvbin" x="30.33" y="0" width="9.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>21 to 25
+p6 to p12
+5% (15 of 281 values)</title></rect><rect class="pvbin" x="39.67" y="0" width="9.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>25 to 29
+p12 to p19
+5% (15 of 281 values)</title></rect><rect class="pvbin" x="49" y="0" width="4.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>29 to 31
+p19 to p25
+3% (9 of 281 values)</title></rect><rect class="pvbin" x="53.67" y="0" width="7" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>31 to 34
+p25 to p31
+3% (9 of 281 values)</title></rect><rect class="pvbin" x="60.67" y="0" width="4.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>34 to 36
+p31 to p38
+2% (6 of 281 values)</title></rect><rect class="pvbin" x="65.33" y="0" width="4.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>36 to 38
+p38 to p44
+4% (11 of 281 values)</title></rect><rect class="pvbin" x="70" y="0" width="0" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>38 to 38
+0% (0 of 281 values)</title></rect><rect class="pvbin" x="70" y="0" width="7" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>38 to 41
+p50 to p56
+6% (17 of 281 values)</title></rect><rect class="pvbin" x="77" y="0" width="2.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>41 to 42
+0% (0 of 281 values)</title></rect><rect class="pvbin" x="79.33" y="0" width="4.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>42 to 44
+p62 to p69
+3% (9 of 281 values)</title></rect><rect class="pvbin" x="84" y="0" width="2.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>44 to 45
+0% (0 of 281 values)</title></rect><rect class="pvbin" x="86.33" y="0" width="9.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>45 to 49
+p75 to p81
+5% (15 of 281 values)</title></rect><rect class="pvbin" x="95.67" y="0" width="7" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>49 to 52
+p81 to p88
+4% (11 of 281 values)</title></rect><rect class="pvbin" x="102.67" y="0" width="7" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>52 to 55
+p88 to p94
+4% (12 of 281 values)</title></rect><rect class="pvbin" x="109.67" y="0" width="30.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>55 to 68
+p94 to p100
+5% (14 of 281 values)</title></rect><g stroke="#2166ac" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="30.33" y2="0"/><line x1="0" y1="30" x2="30.33" y2="30"/><line x1="30.33" y1="0" x2="39.67" y2="0"/><line x1="30.33" y1="30" x2="39.67" y2="30"/><line x1="39.67" y1="0" x2="49" y2="0"/><line x1="39.67" y1="30" x2="49" y2="30"/><line x1="49" y1="0" x2="53.67" y2="0"/><line x1="49" y1="30" x2="53.67" y2="30"/><line x1="53.67" y1="0" x2="60.67" y2="0"/><line x1="53.67" y1="30" x2="60.67" y2="30"/><line x1="60.67" y1="0" x2="65.33" y2="0"/><line x1="60.67" y1="30" x2="65.33" y2="30"/><line x1="65.33" y1="0" x2="70" y2="0"/><line x1="65.33" y1="30" x2="70" y2="30"/><line x1="70" y1="0" x2="77" y2="0"/><line x1="70" y1="30" x2="77" y2="30"/><line x1="79.33" y1="0" x2="84" y2="0"/><line x1="79.33" y1="30" x2="84" y2="30"/><line x1="86.33" y1="0" x2="95.67" y2="0"/><line x1="86.33" y1="30" x2="95.67" y2="30"/><line x1="95.67" y1="0" x2="102.67" y2="0"/><line x1="95.67" y1="30" x2="102.67" y2="30"/><line x1="102.67" y1="0" x2="109.67" y2="0"/><line x1="102.67" y1="30" x2="109.67" y2="30"/><line x1="109.67" y1="0" x2="140" y2="0"/><line x1="109.67" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>8
+p0
+&lt;1% (1 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="30.33" y1="0" x2="30.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="30.33" y1="0" x2="30.33" y2="30"><title>21
+p6
+2% (6 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="39.67" y1="0" x2="39.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="39.67" y1="0" x2="39.67" y2="30"><title>25
+p12
+1% (3 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="49" y1="0" x2="49" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="49" y1="0" x2="49" y2="30"><title>29
+p19
+1% (3 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="53.67" y1="0" x2="53.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="53.67" y1="0" x2="53.67" y2="30"><title>31
+p25
+4% (10 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="60.67" y1="0" x2="60.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="60.67" y1="0" x2="60.67" y2="30"><title>34
+p31
+3% (9 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="65.33" y1="0" x2="65.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="65.33" y1="0" x2="65.33" y2="30"><title>36
+p38
+5% (13 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="70" y1="0" x2="70" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="70" y1="0" x2="70" y2="30"><title>38
+p44 to p50
+7% (19 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="77" y1="0" x2="77" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="77" y1="0" x2="77" y2="30"><title>41
+p56
+5% (13 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="79.33" y1="0" x2="79.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="79.33" y1="0" x2="79.33" y2="30"><title>42
+p62
+5% (13 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="84" y1="0" x2="84" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="84" y1="0" x2="84" y2="30"><title>44
+p69
+4% (12 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="86.33" y1="0" x2="86.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="86.33" y1="0" x2="86.33" y2="30"><title>45
+p75
+2% (6 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="95.67" y1="0" x2="95.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="95.67" y1="0" x2="95.67" y2="30"><title>49
+p81
+2% (7 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="102.67" y1="0" x2="102.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="102.67" y1="0" x2="102.67" y2="30"><title>52
+p88
+2% (6 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="109.67" y1="0" x2="109.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="109.67" y1="0" x2="109.67" y2="30"><title>55
+p94
+1% (4 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>68
+p100
+&lt;1% (1 of 281 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">68</span></div></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">purchases</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 240 distinct, 60 duplicate, 0 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 240 distinct, 60 duplicate, 0 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="112" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+80% (240 of 300 entries)
+(191 appearing once)</title></rect><rect class="tvbox" x="112" y="0" width="28" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+20% (60 of 300 entries)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">0.1</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 300 values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>pavement sparkline of 300 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="1.48" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>0.1 to 1.9
+p0 to p6
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="1.48" y="0" width="1.56" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1.9 to 3.8
+p6 to p12
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="3.04" y="0" width="1.81" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>3.8 to 6
+p12 to p19
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="4.84" y="0" width="1.19" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>6 to 7.45
+p19 to p25
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="6.03" y="0" width="1.85" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>7.45 to 9.7
+p25 to p31
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="7.88" y="0" width="2.95" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>9.7 to 13.3
+p31 to p38
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="10.83" y="0" width="1.89" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>13.3 to 15.6
+p38 to p44
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="12.72" y="0" width="2.95" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>15.6 to 19.2
+p44 to p50
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="15.67" y="0" width="2.87" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>19.2 to 22.7
+p50 to p56
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="18.55" y="0" width="5.09" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>22.7 to 28.9
+p56 to p62
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="23.63" y="0" width="5.58" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>28.9 to 35.7
+p62 to p69
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="29.21" y="0" width="7.71" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>35.7 to 45.1
+p69 to p75
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="36.93" y="0" width="5.58" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>45.1 to 51.9
+p75 to p81
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="42.51" y="0" width="13.46" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>51.9 to 68.3
+p81 to p88
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="55.97" y="0" width="15.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>68.3 to 87.4
+p88 to p94
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="71.64" y="0" width="68.36" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>87.4 to 171
+p94 to p100
+6% (17 of 300 values)</title></rect><g stroke="#2166ac" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="1.48" y2="0"/><line x1="0" y1="30" x2="1.48" y2="30"/><line x1="1.48" y1="0" x2="3.04" y2="0"/><line x1="1.48" y1="30" x2="3.04" y2="30"/><line x1="3.04" y1="0" x2="4.84" y2="0"/><line x1="3.04" y1="30" x2="4.84" y2="30"/><line x1="4.84" y1="0" x2="6.03" y2="0"/><line x1="4.84" y1="30" x2="6.03" y2="30"/><line x1="6.03" y1="0" x2="7.88" y2="0"/><line x1="6.03" y1="30" x2="7.88" y2="30"/><line x1="7.88" y1="0" x2="10.83" y2="0"/><line x1="7.88" y1="30" x2="10.83" y2="30"/><line x1="10.83" y1="0" x2="12.72" y2="0"/><line x1="10.83" y1="30" x2="12.72" y2="30"/><line x1="12.72" y1="0" x2="15.67" y2="0"/><line x1="12.72" y1="30" x2="15.67" y2="30"/><line x1="15.67" y1="0" x2="18.55" y2="0"/><line x1="15.67" y1="30" x2="18.55" y2="30"/><line x1="18.55" y1="0" x2="23.63" y2="0"/><line x1="18.55" y1="30" x2="23.63" y2="30"/><line x1="23.63" y1="0" x2="29.21" y2="0"/><line x1="23.63" y1="30" x2="29.21" y2="30"/><line x1="29.21" y1="0" x2="36.93" y2="0"/><line x1="29.21" y1="30" x2="36.93" y2="30"/><line x1="36.93" y1="0" x2="42.51" y2="0"/><line x1="36.93" y1="30" x2="42.51" y2="30"/><line x1="42.51" y1="0" x2="55.97" y2="0"/><line x1="42.51" y1="30" x2="55.97" y2="30"/><line x1="55.97" y1="0" x2="71.64" y2="0"/><line x1="55.97" y1="30" x2="71.64" y2="30"/><line x1="71.64" y1="0" x2="140" y2="0"/><line x1="71.64" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>0.1
+p0
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="1.48" y1="0" x2="1.48" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="1.48" y1="0" x2="1.48" y2="30"><title>1.9
+p6
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="3.04" y1="0" x2="3.04" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="3.04" y1="0" x2="3.04" y2="30"><title>3.8
+p12
+1% (2 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="4.84" y1="0" x2="4.84" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="4.84" y1="0" x2="4.84" y2="30"><title>6
+p19
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="6.03" y1="0" x2="6.03" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="6.03" y1="0" x2="6.03" y2="30"><title>7.45
+p25
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="7.88" y1="0" x2="7.88" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="7.88" y1="0" x2="7.88" y2="30"><title>9.7
+p31
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="10.83" y1="0" x2="10.83" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="10.83" y1="0" x2="10.83" y2="30"><title>13.3
+p38
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="12.72" y1="0" x2="12.72" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="12.72" y1="0" x2="12.72" y2="30"><title>15.6
+p44
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="15.67" y1="0" x2="15.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="15.67" y1="0" x2="15.67" y2="30"><title>19.2
+p50
+1% (2 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="18.55" y1="0" x2="18.55" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="18.55" y1="0" x2="18.55" y2="30"><title>22.7
+p56
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="23.63" y1="0" x2="23.63" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="23.63" y1="0" x2="23.63" y2="30"><title>28.9
+p62
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="29.21" y1="0" x2="29.21" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="29.21" y1="0" x2="29.21" y2="30"><title>35.7
+p69
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="36.93" y1="0" x2="36.93" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="36.93" y1="0" x2="36.93" y2="30"><title>45.1
+p75
+1% (2 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="42.51" y1="0" x2="42.51" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="42.51" y1="0" x2="42.51" y2="30"><title>51.9
+p81
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="55.97" y1="0" x2="55.97" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="55.97" y1="0" x2="55.97" y2="30"><title>68.3
+p88
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="71.64" y1="0" x2="71.64" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="71.64" y1="0" x2="71.64" y2="30"><title>87.4
+p94
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>171
+p100
+&lt;1% (1 of 300 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">170.7</span></div></td></tr></table></div></div><h3>df.pave.spark(column) — one column's sparkline</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>df.pave.spark(&quot;age&quot;)</code></pre></details><div class="output"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 281 values" style="overflow:visible;height:1em;width:auto;vertical-align:-0.15em;"><desc>pavement sparkline of 281 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.13}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="53.67" height="30" fill="currentColor" fill-opacity="0" pointer-events="all"><title>8 to 31
+p0 to p25
+22% (63 of 281 values)</title></rect><rect class="pvbin" x="53.67" y="0" width="16.33" height="30" fill="currentColor" fill-opacity="0" pointer-events="all"><title>31 to 38
+p25 to p50
+17% (48 of 281 values)</title></rect><rect class="pvbin" x="70" y="0" width="16.33" height="30" fill="currentColor" fill-opacity="0" pointer-events="all"><title>38 to 45
+p50 to p75
+23% (64 of 281 values)</title></rect><rect class="pvbin" x="86.33" y="0" width="53.67" height="30" fill="currentColor" fill-opacity="0" pointer-events="all"><title>45 to 68
+p75 to p100
+25% (69 of 281 values)</title></rect><g stroke="currentColor" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="53.67" y2="0"/><line x1="0" y1="30" x2="53.67" y2="30"/><line x1="53.67" y1="0" x2="70" y2="0"/><line x1="53.67" y1="30" x2="70" y2="30"/><line x1="70" y1="0" x2="86.33" y2="0"/><line x1="70" y1="30" x2="86.33" y2="30"/><line x1="86.33" y1="0" x2="140" y2="0"/><line x1="86.33" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>8
+p0
+&lt;1% (1 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="53.67" y1="0" x2="53.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="53.67" y1="0" x2="53.67" y2="30"><title>31
+p25
+4% (10 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="70" y1="0" x2="70" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="70" y1="0" x2="70" y2="30"><title>38
+p50
+7% (19 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="86.33" y1="0" x2="86.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="86.33" y1="0" x2="86.33" y2="30"><title>45
+p75
+2% (6 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>68
+p100
+&lt;1% (1 of 281 values)</title></line></g></g></svg></div><h3>df.pave.tally(column) — distinct / duplicate / missing</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>df.pave.tally(&quot;plan&quot;)</code></pre></details><div class="output"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 3 distinct, 266 duplicate, 31 missing of 300 entries" style="overflow:visible;height:1em;width:auto;vertical-align:-0.15em;"><desc>column tally: 3 distinct, 266 duplicate, 31 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="3" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+1% (3 of 300 entries)
+(0 appearing once)</title></rect><rect class="tvbox" x="3" y="0" width="122.7" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+89% (266 of 300 entries)</title></rect><rect class="tvbox" x="125.7" y="0" width="14.3" height="30" fill="#b2182b" pointer-events="all"><title>missing
+10% (31 of 300 entries)</title></rect></svg></div><h3>df.pave.proportion(column) — value-counts strip</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>df.pave.proportion(&quot;plan&quot;)</code></pre></details><div class="output"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-proportion" role="img" aria-label="value proportions of 269 values across 3 distinct values" style="overflow:visible;height:1em;width:auto;vertical-align:-0.15em;"><desc>value proportions of 269 values across 3 distinct values</desc><style>.pavement-proportion .tvbox{transition:filter .1s ease}.pavement-proportion .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="70.26" height="30" fill="#2166ac" pointer-events="all"><title>free
+50% (135 of 269 values)</title></rect><rect class="tvbox" x="70.26" y="0" width="51" height="30" fill="#92c5de" pointer-events="all"><title>pro
+36% (98 of 269 values)</title></rect><rect class="tvbox" x="121.26" y="0" width="18.74" height="30" fill="#2166ac" pointer-events="all"><title>team
+13% (36 of 269 values)</title></rect></svg></div><h3>Series.pave() — a single-row summary</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>df[&#x27;age&#x27;].pave()</code></pre></details><div class="output"><div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">300 entries</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 51 distinct, 230 duplicate, 19 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 51 distinct, 230 duplicate, 19 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="23.8" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+17% (51 of 300 entries)
+(9 appearing once)</title></rect><rect class="tvbox" x="23.8" y="0" width="107.33" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+77% (230 of 300 entries)</title></rect><rect class="tvbox" x="131.13" y="0" width="8.87" height="30" fill="#b2182b" pointer-events="all"><title>missing
+6% (19 of 300 entries)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">8</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 281 values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>pavement sparkline of 281 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="30.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>8 to 21
+p0 to p6
+4% (12 of 281 values)</title></rect><rect class="pvbin" x="30.33" y="0" width="9.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>21 to 25
+p6 to p12
+5% (15 of 281 values)</title></rect><rect class="pvbin" x="39.67" y="0" width="9.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>25 to 29
+p12 to p19
+5% (15 of 281 values)</title></rect><rect class="pvbin" x="49" y="0" width="4.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>29 to 31
+p19 to p25
+3% (9 of 281 values)</title></rect><rect class="pvbin" x="53.67" y="0" width="7" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>31 to 34
+p25 to p31
+3% (9 of 281 values)</title></rect><rect class="pvbin" x="60.67" y="0" width="4.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>34 to 36
+p31 to p38
+2% (6 of 281 values)</title></rect><rect class="pvbin" x="65.33" y="0" width="4.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>36 to 38
+p38 to p44
+4% (11 of 281 values)</title></rect><rect class="pvbin" x="70" y="0" width="0" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>38 to 38
+0% (0 of 281 values)</title></rect><rect class="pvbin" x="70" y="0" width="7" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>38 to 41
+p50 to p56
+6% (17 of 281 values)</title></rect><rect class="pvbin" x="77" y="0" width="2.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>41 to 42
+0% (0 of 281 values)</title></rect><rect class="pvbin" x="79.33" y="0" width="4.67" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>42 to 44
+p62 to p69
+3% (9 of 281 values)</title></rect><rect class="pvbin" x="84" y="0" width="2.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>44 to 45
+0% (0 of 281 values)</title></rect><rect class="pvbin" x="86.33" y="0" width="9.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>45 to 49
+p75 to p81
+5% (15 of 281 values)</title></rect><rect class="pvbin" x="95.67" y="0" width="7" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>49 to 52
+p81 to p88
+4% (11 of 281 values)</title></rect><rect class="pvbin" x="102.67" y="0" width="7" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>52 to 55
+p88 to p94
+4% (12 of 281 values)</title></rect><rect class="pvbin" x="109.67" y="0" width="30.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>55 to 68
+p94 to p100
+5% (14 of 281 values)</title></rect><g stroke="#2166ac" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="30.33" y2="0"/><line x1="0" y1="30" x2="30.33" y2="30"/><line x1="30.33" y1="0" x2="39.67" y2="0"/><line x1="30.33" y1="30" x2="39.67" y2="30"/><line x1="39.67" y1="0" x2="49" y2="0"/><line x1="39.67" y1="30" x2="49" y2="30"/><line x1="49" y1="0" x2="53.67" y2="0"/><line x1="49" y1="30" x2="53.67" y2="30"/><line x1="53.67" y1="0" x2="60.67" y2="0"/><line x1="53.67" y1="30" x2="60.67" y2="30"/><line x1="60.67" y1="0" x2="65.33" y2="0"/><line x1="60.67" y1="30" x2="65.33" y2="30"/><line x1="65.33" y1="0" x2="70" y2="0"/><line x1="65.33" y1="30" x2="70" y2="30"/><line x1="70" y1="0" x2="77" y2="0"/><line x1="70" y1="30" x2="77" y2="30"/><line x1="79.33" y1="0" x2="84" y2="0"/><line x1="79.33" y1="30" x2="84" y2="30"/><line x1="86.33" y1="0" x2="95.67" y2="0"/><line x1="86.33" y1="30" x2="95.67" y2="30"/><line x1="95.67" y1="0" x2="102.67" y2="0"/><line x1="95.67" y1="30" x2="102.67" y2="30"/><line x1="102.67" y1="0" x2="109.67" y2="0"/><line x1="102.67" y1="30" x2="109.67" y2="30"/><line x1="109.67" y1="0" x2="140" y2="0"/><line x1="109.67" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>8
+p0
+&lt;1% (1 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="30.33" y1="0" x2="30.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="30.33" y1="0" x2="30.33" y2="30"><title>21
+p6
+2% (6 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="39.67" y1="0" x2="39.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="39.67" y1="0" x2="39.67" y2="30"><title>25
+p12
+1% (3 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="49" y1="0" x2="49" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="49" y1="0" x2="49" y2="30"><title>29
+p19
+1% (3 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="53.67" y1="0" x2="53.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="53.67" y1="0" x2="53.67" y2="30"><title>31
+p25
+4% (10 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="60.67" y1="0" x2="60.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="60.67" y1="0" x2="60.67" y2="30"><title>34
+p31
+3% (9 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="65.33" y1="0" x2="65.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="65.33" y1="0" x2="65.33" y2="30"><title>36
+p38
+5% (13 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="70" y1="0" x2="70" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="70" y1="0" x2="70" y2="30"><title>38
+p44 to p50
+7% (19 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="77" y1="0" x2="77" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="77" y1="0" x2="77" y2="30"><title>41
+p56
+5% (13 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="79.33" y1="0" x2="79.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="79.33" y1="0" x2="79.33" y2="30"><title>42
+p62
+5% (13 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="84" y1="0" x2="84" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="84" y1="0" x2="84" y2="30"><title>44
+p69
+4% (12 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="86.33" y1="0" x2="86.33" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="86.33" y1="0" x2="86.33" y2="30"><title>45
+p75
+2% (6 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="95.67" y1="0" x2="95.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="95.67" y1="0" x2="95.67" y2="30"><title>49
+p81
+2% (7 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="102.67" y1="0" x2="102.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="102.67" y1="0" x2="102.67" y2="30"><title>52
+p88
+2% (6 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="109.67" y1="0" x2="109.67" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="109.67" y1="0" x2="109.67" y2="30"><title>55
+p94
+1% (4 of 281 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>68
+p100
+&lt;1% (1 of 281 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">68</span></div></td></tr></table></div></div><h3><code>enable_repr()</code> — make summary the default display</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>import pavement.pandas
+
+pavement.pandas.enable_repr()
+# From this point on, displaying any DataFrame or Series in a
+# notebook cell shows pavement.summary instead of the default repr.
+
+pavement.pandas.disable_repr()  # restore the original display</code></pre></details><p>Call once at the top of a notebook to make <code>pavement.summary</code> every DataFrame's default cell preview. Strictly opt-in — a plain <code>import pavement.pandas</code> only adds the <code>.pave</code> accessor, nothing else.</p>
+
+<h2>polars</h2><p>The API is identical — import <code>pavement.polars</code> instead. Polars uses a plugin namespace rather than a pandas accessor, but the call shapes are the same.</p><h3>df.pave() — whole-frame summary</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>import pavement.polars       # registers .pave namespace
+
+df.pave()</code></pre></details><div class="output"><div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">4 by 300</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 300 distinct, 0 duplicate, 0 missing of 300 rows" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 300 distinct, 0 duplicate, 0 missing of 300 rows</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="140" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+100% (300 of 300 rows)
+(300 appearing once)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">user_id</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 300 distinct, 0 duplicate, 0 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 300 distinct, 0 duplicate, 0 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="140" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+100% (300 of 300 entries)
+(300 appearing once)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">100,000</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 300 values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>pavement sparkline of 300 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="8.43" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p0 to p6
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="8.43" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p6 to p12
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="17.32" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p12 to p19
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="26.22" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p19 to p25
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="34.88" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p25 to p31
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="43.55" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p31 to p38
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="52.44" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p38 to p44
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="61.34" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p44 to p50
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="70" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p50 to p56
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="78.66" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p56 to p62
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="87.56" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p62 to p69
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="96.45" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p69 to p75
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="105.12" y="0" width="8.66" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p75 to p81
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="113.78" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p81 to p88
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="122.68" y="0" width="8.9" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p88 to p94
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="131.57" y="0" width="8.43" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1e+05 to 1e+05
+p94 to p100
+6% (17 of 300 values)</title></rect><g stroke="#2166ac" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="8.43" y2="0"/><line x1="0" y1="30" x2="8.43" y2="30"/><line x1="8.43" y1="0" x2="17.32" y2="0"/><line x1="8.43" y1="30" x2="17.32" y2="30"/><line x1="17.32" y1="0" x2="26.22" y2="0"/><line x1="17.32" y1="30" x2="26.22" y2="30"/><line x1="26.22" y1="0" x2="34.88" y2="0"/><line x1="26.22" y1="30" x2="34.88" y2="30"/><line x1="34.88" y1="0" x2="43.55" y2="0"/><line x1="34.88" y1="30" x2="43.55" y2="30"/><line x1="43.55" y1="0" x2="52.44" y2="0"/><line x1="43.55" y1="30" x2="52.44" y2="30"/><line x1="52.44" y1="0" x2="61.34" y2="0"/><line x1="52.44" y1="30" x2="61.34" y2="30"/><line x1="61.34" y1="0" x2="70" y2="0"/><line x1="61.34" y1="30" x2="70" y2="30"/><line x1="70" y1="0" x2="78.66" y2="0"/><line x1="70" y1="30" x2="78.66" y2="30"/><line x1="78.66" y1="0" x2="87.56" y2="0"/><line x1="78.66" y1="30" x2="87.56" y2="30"/><line x1="87.56" y1="0" x2="96.45" y2="0"/><line x1="87.56" y1="30" x2="96.45" y2="30"/><line x1="96.45" y1="0" x2="105.12" y2="0"/><line x1="96.45" y1="30" x2="105.12" y2="30"/><line x1="105.12" y1="0" x2="113.78" y2="0"/><line x1="105.12" y1="30" x2="113.78" y2="30"/><line x1="113.78" y1="0" x2="122.68" y2="0"/><line x1="113.78" y1="30" x2="122.68" y2="30"/><line x1="122.68" y1="0" x2="131.57" y2="0"/><line x1="122.68" y1="30" x2="131.57" y2="30"/><line x1="131.57" y1="0" x2="140" y2="0"/><line x1="131.57" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>1e+05
+p0
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="8.43" y1="0" x2="8.43" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="8.43" y1="0" x2="8.43" y2="30"><title>1e+05
+p6
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="17.32" y1="0" x2="17.32" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="17.32" y1="0" x2="17.32" y2="30"><title>1e+05
+p12
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="26.22" y1="0" x2="26.22" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="26.22" y1="0" x2="26.22" y2="30"><title>1e+05
+p19
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="34.88" y1="0" x2="34.88" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="34.88" y1="0" x2="34.88" y2="30"><title>1e+05
+p25
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="43.55" y1="0" x2="43.55" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="43.55" y1="0" x2="43.55" y2="30"><title>1e+05
+p31
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="52.44" y1="0" x2="52.44" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="52.44" y1="0" x2="52.44" y2="30"><title>1e+05
+p38
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="61.34" y1="0" x2="61.34" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="61.34" y1="0" x2="61.34" y2="30"><title>1e+05
+p44
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="70" y1="0" x2="70" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="70" y1="0" x2="70" y2="30"><title>1e+05
+p50
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="78.66" y1="0" x2="78.66" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="78.66" y1="0" x2="78.66" y2="30"><title>1e+05
+p56
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="87.56" y1="0" x2="87.56" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="87.56" y1="0" x2="87.56" y2="30"><title>1e+05
+p62
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="96.45" y1="0" x2="96.45" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="96.45" y1="0" x2="96.45" y2="30"><title>1e+05
+p69
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="105.12" y1="0" x2="105.12" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="105.12" y1="0" x2="105.12" y2="30"><title>1e+05
+p75
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="113.78" y1="0" x2="113.78" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="113.78" y1="0" x2="113.78" y2="30"><title>1e+05
+p81
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="122.68" y1="0" x2="122.68" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="122.68" y1="0" x2="122.68" y2="30"><title>1e+05
+p88
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="131.57" y1="0" x2="131.57" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="131.57" y1="0" x2="131.57" y2="30"><title>1e+05
+p94
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>1e+05
+p100
+&lt;1% (1 of 300 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">100,299</span></div></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">plan</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 3 distinct, 262 duplicate, 35 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 3 distinct, 262 duplicate, 35 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="3" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+1% (3 of 300 entries)
+(0 appearing once)</title></rect><rect class="tvbox" x="3" y="0" width="120.86" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+87% (262 of 300 entries)</title></rect><rect class="tvbox" x="123.86" y="0" width="16.14" height="30" fill="#b2182b" pointer-events="all"><title>missing
+12% (35 of 300 entries)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">free</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-proportion" role="img" aria-label="value proportions of 265 values across 3 distinct values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>value proportions of 265 values across 3 distinct values</desc><style>.pavement-proportion .tvbox{transition:filter .1s ease}.pavement-proportion .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="76.6" height="30" fill="#2166ac" pointer-events="all"><title>free
+55% (145 of 265 values)</title></rect><rect class="tvbox" x="76.6" y="0" width="36.45" height="30" fill="#92c5de" pointer-events="all"><title>pro
+26% (69 of 265 values)</title></rect><rect class="tvbox" x="113.06" y="0" width="26.94" height="30" fill="#2166ac" pointer-events="all"><title>team
+19% (51 of 265 values)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">team</span></div></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">age</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 52 distinct, 233 duplicate, 15 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 52 distinct, 233 duplicate, 15 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="24.27" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+17% (52 of 300 entries)
+(8 appearing once)</title></rect><rect class="tvbox" x="24.27" y="0" width="108.73" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+78% (233 of 300 entries)</title></rect><rect class="tvbox" x="133" y="0" width="7" height="30" fill="#b2182b" pointer-events="all"><title>missing
+5% (15 of 300 entries)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">-6</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 285 values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>pavement sparkline of 285 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="50.26" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>-6 to 22
+p0 to p6
+5% (15 of 285 values)</title></rect><rect class="pvbin" x="50.26" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>22 to 25
+p6 to p12
+3% (9 of 285 values)</title></rect><rect class="pvbin" x="55.64" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>25 to 28
+p12 to p19
+5% (15 of 285 values)</title></rect><rect class="pvbin" x="61.03" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>28 to 30
+p19 to p25
+1% (4 of 285 values)</title></rect><rect class="pvbin" x="64.62" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>30 to 33
+p25 to p31
+5% (14 of 285 values)</title></rect><rect class="pvbin" x="70" y="0" width="1.79" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>33 to 34
+0% (0 of 285 values)</title></rect><rect class="pvbin" x="71.79" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>34 to 37
+p38 to p44
+5% (15 of 285 values)</title></rect><rect class="pvbin" x="77.18" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>37 to 39
+p44 to p50
+4% (10 of 285 values)</title></rect><rect class="pvbin" x="80.77" y="0" width="1.79" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>39 to 40
+0% (0 of 285 values)</title></rect><rect class="pvbin" x="82.56" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>40 to 43
+p56 to p62
+5% (13 of 285 values)</title></rect><rect class="pvbin" x="87.95" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>43 to 45
+p62 to p69
+4% (10 of 285 values)</title></rect><rect class="pvbin" x="91.54" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>45 to 47
+p69 to p75
+3% (8 of 285 values)</title></rect><rect class="pvbin" x="95.13" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>47 to 49
+p75 to p81
+2% (5 of 285 values)</title></rect><rect class="pvbin" x="98.72" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>49 to 52
+p81 to p88
+4% (10 of 285 values)</title></rect><rect class="pvbin" x="104.1" y="0" width="7.18" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>52 to 56
+p88 to p94
+4% (12 of 285 values)</title></rect><rect class="pvbin" x="111.28" y="0" width="28.72" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>56 to 72
+p94 to p100
+5% (15 of 285 values)</title></rect><g stroke="#2166ac" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="50.26" y2="0"/><line x1="0" y1="30" x2="50.26" y2="30"/><line x1="50.26" y1="0" x2="55.64" y2="0"/><line x1="50.26" y1="30" x2="55.64" y2="30"/><line x1="55.64" y1="0" x2="61.03" y2="0"/><line x1="55.64" y1="30" x2="61.03" y2="30"/><line x1="61.03" y1="0" x2="64.62" y2="0"/><line x1="61.03" y1="30" x2="64.62" y2="30"/><line x1="64.62" y1="0" x2="70" y2="0"/><line x1="64.62" y1="30" x2="70" y2="30"/><line x1="71.79" y1="0" x2="77.18" y2="0"/><line x1="71.79" y1="30" x2="77.18" y2="30"/><line x1="77.18" y1="0" x2="80.77" y2="0"/><line x1="77.18" y1="30" x2="80.77" y2="30"/><line x1="82.56" y1="0" x2="87.95" y2="0"/><line x1="82.56" y1="30" x2="87.95" y2="30"/><line x1="87.95" y1="0" x2="91.54" y2="0"/><line x1="87.95" y1="30" x2="91.54" y2="30"/><line x1="91.54" y1="0" x2="95.13" y2="0"/><line x1="91.54" y1="30" x2="95.13" y2="30"/><line x1="95.13" y1="0" x2="98.72" y2="0"/><line x1="95.13" y1="30" x2="98.72" y2="30"/><line x1="98.72" y1="0" x2="104.1" y2="0"/><line x1="98.72" y1="30" x2="104.1" y2="30"/><line x1="104.1" y1="0" x2="111.28" y2="0"/><line x1="104.1" y1="30" x2="111.28" y2="30"/><line x1="111.28" y1="0" x2="140" y2="0"/><line x1="111.28" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>-6
+p0
+&lt;1% (1 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="50.26" y1="0" x2="50.26" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="50.26" y1="0" x2="50.26" y2="30"><title>22
+p6
+2% (6 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="55.64" y1="0" x2="55.64" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="55.64" y1="0" x2="55.64" y2="30"><title>25
+p12
+2% (7 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="61.03" y1="0" x2="61.03" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="61.03" y1="0" x2="61.03" y2="30"><title>28
+p19
+3% (9 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="64.62" y1="0" x2="64.62" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="64.62" y1="0" x2="64.62" y2="30"><title>30
+p25
+3% (8 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="70" y1="0" x2="70" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="70" y1="0" x2="70" y2="30"><title>33
+p31
+4% (10 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="71.79" y1="0" x2="71.79" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="71.79" y1="0" x2="71.79" y2="30"><title>34
+p38
+4% (10 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="77.18" y1="0" x2="77.18" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="77.18" y1="0" x2="77.18" y2="30"><title>37
+p44
+3% (9 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="80.77" y1="0" x2="80.77" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="80.77" y1="0" x2="80.77" y2="30"><title>39
+p50
+3% (9 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="82.56" y1="0" x2="82.56" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="82.56" y1="0" x2="82.56" y2="30"><title>40
+p56
+4% (11 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="87.95" y1="0" x2="87.95" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="87.95" y1="0" x2="87.95" y2="30"><title>43
+p62
+2% (7 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="91.54" y1="0" x2="91.54" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="91.54" y1="0" x2="91.54" y2="30"><title>45
+p69
+5% (13 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="95.13" y1="0" x2="95.13" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="95.13" y1="0" x2="95.13" y2="30"><title>47
+p75
+1% (4 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="98.72" y1="0" x2="98.72" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="98.72" y1="0" x2="98.72" y2="30"><title>49
+p81
+4% (11 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="104.1" y1="0" x2="104.1" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="104.1" y1="0" x2="104.1" y2="30"><title>52
+p88
+4% (10 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="111.28" y1="0" x2="111.28" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="111.28" y1="0" x2="111.28" y2="30"><title>56
+p94
+1% (4 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>72
+p100
+&lt;1% (1 of 285 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">72</span></div></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">purchases</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 239 distinct, 61 duplicate, 0 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 239 distinct, 61 duplicate, 0 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="111.53" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+80% (239 of 300 entries)
+(189 appearing once)</title></rect><rect class="tvbox" x="111.53" y="0" width="28.47" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+20% (61 of 300 entries)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">0.2</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 300 values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>pavement sparkline of 300 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="1.09" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>0.2 to 1.6
+p0 to p6
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="1.09" y="0" width="1.64" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>1.6 to 3.7
+p6 to p12
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="2.73" y="0" width="1.71" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>3.7 to 5.9
+p12 to p19
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="4.44" y="0" width="1.87" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>5.9 to 8.3
+p19 to p25
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="6.31" y="0" width="1.56" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>8.3 to 10.3
+p25 to p31
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="7.87" y="0" width="2.18" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>10.3 to 13.1
+p31 to p38
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="10.06" y="0" width="2.1" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>13.1 to 15.8
+p38 to p44
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="12.16" y="0" width="2.07" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>15.8 to 18.5
+p44 to p50
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="14.23" y="0" width="4.33" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>18.5 to 24
+p50 to p56
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="18.55" y="0" width="3.82" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>24 to 28.9
+p56 to p62
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="22.37" y="0" width="3.27" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>28.9 to 33.1
+p62 to p69
+6% (17 of 300 values)</title></rect><rect class="pvbin" x="25.65" y="0" width="6.39" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>33.1 to 41.3
+p69 to p75
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="32.04" y="0" width="9.98" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>41.3 to 54.1
+p75 to p81
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="42.02" y="0" width="9.82" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>54.1 to 66.7
+p81 to p88
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="51.84" y="0" width="19.02" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>66.7 to 91.1
+p88 to p94
+6% (18 of 300 values)</title></rect><rect class="pvbin" x="70.86" y="0" width="69.14" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>91.1 to 180
+p94 to p100
+6% (17 of 300 values)</title></rect><g stroke="#2166ac" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="1.09" y2="0"/><line x1="0" y1="30" x2="1.09" y2="30"/><line x1="1.09" y1="0" x2="2.73" y2="0"/><line x1="1.09" y1="30" x2="2.73" y2="30"/><line x1="2.73" y1="0" x2="4.44" y2="0"/><line x1="2.73" y1="30" x2="4.44" y2="30"/><line x1="4.44" y1="0" x2="6.31" y2="0"/><line x1="4.44" y1="30" x2="6.31" y2="30"/><line x1="6.31" y1="0" x2="7.87" y2="0"/><line x1="6.31" y1="30" x2="7.87" y2="30"/><line x1="7.87" y1="0" x2="10.06" y2="0"/><line x1="7.87" y1="30" x2="10.06" y2="30"/><line x1="10.06" y1="0" x2="12.16" y2="0"/><line x1="10.06" y1="30" x2="12.16" y2="30"/><line x1="12.16" y1="0" x2="14.23" y2="0"/><line x1="12.16" y1="30" x2="14.23" y2="30"/><line x1="14.23" y1="0" x2="18.55" y2="0"/><line x1="14.23" y1="30" x2="18.55" y2="30"/><line x1="18.55" y1="0" x2="22.37" y2="0"/><line x1="18.55" y1="30" x2="22.37" y2="30"/><line x1="22.37" y1="0" x2="25.65" y2="0"/><line x1="22.37" y1="30" x2="25.65" y2="30"/><line x1="25.65" y1="0" x2="32.04" y2="0"/><line x1="25.65" y1="30" x2="32.04" y2="30"/><line x1="32.04" y1="0" x2="42.02" y2="0"/><line x1="32.04" y1="30" x2="42.02" y2="30"/><line x1="42.02" y1="0" x2="51.84" y2="0"/><line x1="42.02" y1="30" x2="51.84" y2="30"/><line x1="51.84" y1="0" x2="70.86" y2="0"/><line x1="51.84" y1="30" x2="70.86" y2="30"/><line x1="70.86" y1="0" x2="140" y2="0"/><line x1="70.86" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>0.2
+p0
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="1.09" y1="0" x2="1.09" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="1.09" y1="0" x2="1.09" y2="30"><title>1.6
+p6
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="2.73" y1="0" x2="2.73" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="2.73" y1="0" x2="2.73" y2="30"><title>3.7
+p12
+1% (2 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="4.44" y1="0" x2="4.44" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="4.44" y1="0" x2="4.44" y2="30"><title>5.9
+p19
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="6.31" y1="0" x2="6.31" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="6.31" y1="0" x2="6.31" y2="30"><title>8.3
+p25
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="7.87" y1="0" x2="7.87" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="7.87" y1="0" x2="7.87" y2="30"><title>10.3
+p31
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="10.06" y1="0" x2="10.06" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="10.06" y1="0" x2="10.06" y2="30"><title>13.1
+p38
+1% (3 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="12.16" y1="0" x2="12.16" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="12.16" y1="0" x2="12.16" y2="30"><title>15.8
+p44
+1% (2 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="14.23" y1="0" x2="14.23" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="14.23" y1="0" x2="14.23" y2="30"><title>18.5
+p50
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="18.55" y1="0" x2="18.55" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="18.55" y1="0" x2="18.55" y2="30"><title>24
+p56
+1% (2 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="22.37" y1="0" x2="22.37" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="22.37" y1="0" x2="22.37" y2="30"><title>28.9
+p62
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="25.65" y1="0" x2="25.65" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="25.65" y1="0" x2="25.65" y2="30"><title>33.1
+p69
+1% (2 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="32.04" y1="0" x2="32.04" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="32.04" y1="0" x2="32.04" y2="30"><title>41.3
+p75
+0% (0 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="42.02" y1="0" x2="42.02" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="42.02" y1="0" x2="42.02" y2="30"><title>54.1
+p81
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="51.84" y1="0" x2="51.84" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="51.84" y1="0" x2="51.84" y2="30"><title>66.7
+p88
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="70.86" y1="0" x2="70.86" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="70.86" y1="0" x2="70.86" y2="30"><title>91.1
+p94
+&lt;1% (1 of 300 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>180
+p100
+&lt;1% (1 of 300 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">179.8</span></div></td></tr></table></div></div><h3>df.pave.spark(column) — one column's sparkline</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>df.pave.spark(&quot;age&quot;)</code></pre></details><div class="output"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 285 values" style="overflow:visible;height:1em;width:auto;vertical-align:-0.15em;"><desc>pavement sparkline of 285 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.13}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="64.62" height="30" fill="currentColor" fill-opacity="0" pointer-events="all"><title>-6 to 30
+p0 to p25
+23% (65 of 285 values)</title></rect><rect class="pvbin" x="64.62" y="0" width="16.15" height="30" fill="currentColor" fill-opacity="0" pointer-events="all"><title>30 to 39
+p25 to p50
+24% (68 of 285 values)</title></rect><rect class="pvbin" x="80.77" y="0" width="14.36" height="30" fill="currentColor" fill-opacity="0" pointer-events="all"><title>39 to 47
+p50 to p75
+22% (62 of 285 values)</title></rect><rect class="pvbin" x="95.13" y="0" width="44.87" height="30" fill="currentColor" fill-opacity="0" pointer-events="all"><title>47 to 72
+p75 to p100
+24% (67 of 285 values)</title></rect><g stroke="currentColor" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="64.62" y2="0"/><line x1="0" y1="30" x2="64.62" y2="30"/><line x1="64.62" y1="0" x2="80.77" y2="0"/><line x1="64.62" y1="30" x2="80.77" y2="30"/><line x1="80.77" y1="0" x2="95.13" y2="0"/><line x1="80.77" y1="30" x2="95.13" y2="30"/><line x1="95.13" y1="0" x2="140" y2="0"/><line x1="95.13" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>-6
+p0
+&lt;1% (1 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="64.62" y1="0" x2="64.62" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="64.62" y1="0" x2="64.62" y2="30"><title>30
+p25
+3% (8 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="80.77" y1="0" x2="80.77" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="80.77" y1="0" x2="80.77" y2="30"><title>39
+p50
+3% (9 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="95.13" y1="0" x2="95.13" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="95.13" y1="0" x2="95.13" y2="30"><title>47
+p75
+1% (4 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>72
+p100
+&lt;1% (1 of 285 values)</title></line></g></g></svg></div><h3>df.pave.tally(column) — distinct / duplicate / missing</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>df.pave.tally(&quot;plan&quot;)</code></pre></details><div class="output"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 3 distinct, 262 duplicate, 35 missing of 300 entries" style="overflow:visible;height:1em;width:auto;vertical-align:-0.15em;"><desc>column tally: 3 distinct, 262 duplicate, 35 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="3" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+1% (3 of 300 entries)
+(0 appearing once)</title></rect><rect class="tvbox" x="3" y="0" width="120.86" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+87% (262 of 300 entries)</title></rect><rect class="tvbox" x="123.86" y="0" width="16.14" height="30" fill="#b2182b" pointer-events="all"><title>missing
+12% (35 of 300 entries)</title></rect></svg></div><h3>df.pave.proportion(column) — value-counts strip</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>df.pave.proportion(&quot;plan&quot;)</code></pre></details><div class="output"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-proportion" role="img" aria-label="value proportions of 265 values across 3 distinct values" style="overflow:visible;height:1em;width:auto;vertical-align:-0.15em;"><desc>value proportions of 265 values across 3 distinct values</desc><style>.pavement-proportion .tvbox{transition:filter .1s ease}.pavement-proportion .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="76.6" height="30" fill="#2166ac" pointer-events="all"><title>free
+55% (145 of 265 values)</title></rect><rect class="tvbox" x="76.6" y="0" width="36.45" height="30" fill="#92c5de" pointer-events="all"><title>pro
+26% (69 of 265 values)</title></rect><rect class="tvbox" x="113.06" y="0" width="26.94" height="30" fill="#2166ac" pointer-events="all"><title>team
+19% (51 of 265 values)</title></rect></svg></div><h3>Series.pave() — a single-row summary</h3><details style="margin-bottom:1.2rem;"><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary><pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;"><code>df[&#x27;age&#x27;].pave()</code></pre></details><div class="output"><div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">300 entries</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 52 distinct, 233 duplicate, 15 missing of 300 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 52 distinct, 233 duplicate, 15 missing of 300 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="24.27" height="30" fill="#2166ac" pointer-events="all"><title>distinct
+17% (52 of 300 entries)
+(8 appearing once)</title></rect><rect class="tvbox" x="24.27" y="0" width="108.73" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
+78% (233 of 300 entries)</title></rect><rect class="tvbox" x="133" y="0" width="7" height="30" fill="#b2182b" pointer-events="all"><title>missing
+5% (15 of 300 entries)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">-6</span></div></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 285 values" style="overflow:visible;height:1.6em;width:9.71em;vertical-align:-0.15em;"><desc>pavement sparkline of 285 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="50.26" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>-6 to 22
+p0 to p6
+5% (15 of 285 values)</title></rect><rect class="pvbin" x="50.26" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>22 to 25
+p6 to p12
+3% (9 of 285 values)</title></rect><rect class="pvbin" x="55.64" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>25 to 28
+p12 to p19
+5% (15 of 285 values)</title></rect><rect class="pvbin" x="61.03" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>28 to 30
+p19 to p25
+1% (4 of 285 values)</title></rect><rect class="pvbin" x="64.62" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>30 to 33
+p25 to p31
+5% (14 of 285 values)</title></rect><rect class="pvbin" x="70" y="0" width="1.79" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>33 to 34
+0% (0 of 285 values)</title></rect><rect class="pvbin" x="71.79" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>34 to 37
+p38 to p44
+5% (15 of 285 values)</title></rect><rect class="pvbin" x="77.18" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>37 to 39
+p44 to p50
+4% (10 of 285 values)</title></rect><rect class="pvbin" x="80.77" y="0" width="1.79" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>39 to 40
+0% (0 of 285 values)</title></rect><rect class="pvbin" x="82.56" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>40 to 43
+p56 to p62
+5% (13 of 285 values)</title></rect><rect class="pvbin" x="87.95" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>43 to 45
+p62 to p69
+4% (10 of 285 values)</title></rect><rect class="pvbin" x="91.54" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>45 to 47
+p69 to p75
+3% (8 of 285 values)</title></rect><rect class="pvbin" x="95.13" y="0" width="3.59" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>47 to 49
+p75 to p81
+2% (5 of 285 values)</title></rect><rect class="pvbin" x="98.72" y="0" width="5.38" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>49 to 52
+p81 to p88
+4% (10 of 285 values)</title></rect><rect class="pvbin" x="104.1" y="0" width="7.18" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>52 to 56
+p88 to p94
+4% (12 of 285 values)</title></rect><rect class="pvbin" x="111.28" y="0" width="28.72" height="30" fill="#2166ac" fill-opacity="0.3" pointer-events="all"><title>56 to 72
+p94 to p100
+5% (15 of 285 values)</title></rect><g stroke="#2166ac" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke" pointer-events="none"><line x1="0" y1="0" x2="50.26" y2="0"/><line x1="0" y1="30" x2="50.26" y2="30"/><line x1="50.26" y1="0" x2="55.64" y2="0"/><line x1="50.26" y1="30" x2="55.64" y2="30"/><line x1="55.64" y1="0" x2="61.03" y2="0"/><line x1="55.64" y1="30" x2="61.03" y2="30"/><line x1="61.03" y1="0" x2="64.62" y2="0"/><line x1="61.03" y1="30" x2="64.62" y2="30"/><line x1="64.62" y1="0" x2="70" y2="0"/><line x1="64.62" y1="30" x2="70" y2="30"/><line x1="71.79" y1="0" x2="77.18" y2="0"/><line x1="71.79" y1="30" x2="77.18" y2="30"/><line x1="77.18" y1="0" x2="80.77" y2="0"/><line x1="77.18" y1="30" x2="80.77" y2="30"/><line x1="82.56" y1="0" x2="87.95" y2="0"/><line x1="82.56" y1="30" x2="87.95" y2="30"/><line x1="87.95" y1="0" x2="91.54" y2="0"/><line x1="87.95" y1="30" x2="91.54" y2="30"/><line x1="91.54" y1="0" x2="95.13" y2="0"/><line x1="91.54" y1="30" x2="95.13" y2="30"/><line x1="95.13" y1="0" x2="98.72" y2="0"/><line x1="95.13" y1="30" x2="98.72" y2="30"/><line x1="98.72" y1="0" x2="104.1" y2="0"/><line x1="98.72" y1="30" x2="104.1" y2="30"/><line x1="104.1" y1="0" x2="111.28" y2="0"/><line x1="104.1" y1="30" x2="111.28" y2="30"/><line x1="111.28" y1="0" x2="140" y2="0"/><line x1="111.28" y1="30" x2="140" y2="30"/><g class="pvtick"><line class="pvmark" x1="0" y1="0" x2="0" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="0" y1="0" x2="0" y2="30"><title>-6
+p0
+&lt;1% (1 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="50.26" y1="0" x2="50.26" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="50.26" y1="0" x2="50.26" y2="30"><title>22
+p6
+2% (6 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="55.64" y1="0" x2="55.64" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="55.64" y1="0" x2="55.64" y2="30"><title>25
+p12
+2% (7 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="61.03" y1="0" x2="61.03" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="61.03" y1="0" x2="61.03" y2="30"><title>28
+p19
+3% (9 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="64.62" y1="0" x2="64.62" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="64.62" y1="0" x2="64.62" y2="30"><title>30
+p25
+3% (8 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="70" y1="0" x2="70" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="70" y1="0" x2="70" y2="30"><title>33
+p31
+4% (10 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="71.79" y1="0" x2="71.79" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="71.79" y1="0" x2="71.79" y2="30"><title>34
+p38
+4% (10 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="77.18" y1="0" x2="77.18" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="77.18" y1="0" x2="77.18" y2="30"><title>37
+p44
+3% (9 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="80.77" y1="0" x2="80.77" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="80.77" y1="0" x2="80.77" y2="30"><title>39
+p50
+3% (9 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="82.56" y1="0" x2="82.56" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="82.56" y1="0" x2="82.56" y2="30"><title>40
+p56
+4% (11 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="87.95" y1="0" x2="87.95" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="87.95" y1="0" x2="87.95" y2="30"><title>43
+p62
+2% (7 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="91.54" y1="0" x2="91.54" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="91.54" y1="0" x2="91.54" y2="30"><title>45
+p69
+5% (13 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="95.13" y1="0" x2="95.13" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="95.13" y1="0" x2="95.13" y2="30"><title>47
+p75
+1% (4 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="98.72" y1="0" x2="98.72" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="98.72" y1="0" x2="98.72" y2="30"><title>49
+p81
+4% (11 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="104.1" y1="0" x2="104.1" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="104.1" y1="0" x2="104.1" y2="30"><title>52
+p88
+4% (10 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="111.28" y1="0" x2="111.28" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="111.28" y1="0" x2="111.28" y2="30"><title>56
+p94
+1% (4 of 285 values)</title></line></g><g class="pvtick"><line class="pvmark" x1="140" y1="0" x2="140" y2="30"/><line class="pvhit" stroke="transparent" stroke-width="8" pointer-events="all" x1="140" y1="0" x2="140" y2="30"><title>72
+p100
+&lt;1% (1 of 285 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">72</span></div></td></tr></table></div></div>
+
+<h2>In a notebook</h2>
+<p>In Jupyter, <code>df.pave()</code> at the end of a cell renders the summary
+table inline automatically — the result has a <code>_repr_html_</code>. And
+<code>enable_repr()</code> goes one step further: after calling it once,
+<em>any</em> DataFrame displayed in a cell shows the pavement summary instead
+of the default pandas/polars table.</p>
+
+</body></html>
