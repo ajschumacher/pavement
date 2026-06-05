@@ -9,15 +9,19 @@ that don't depend on which library it is live here, computed and tested once:
 - `SVG`, the ``str`` subclass the single-column helpers return so a glyph's
   ``<svg>`` renders inline in Jupyter while still behaving as the plain string
   everywhere else;
-- `present`, the non-missing filter the numeric spark needs; and
+- `present`, the non-missing filter the numeric spark needs;
 - `enable_summary_repr` / `disable_summary_repr`, which register or remove an
-  IPython HTML formatter that renders given types as their `pavement.summary`.
+  IPython HTML formatter that renders given types as their `pavement.summary`;
+- `_GroupByAccessor` and `_register_groupby_accessor`, shared machinery for
+  attaching a ``.pave`` descriptor to a library's GroupBy class (pandas and
+  polars both lack a public registration hook for GroupBy types).
 
 Nothing here imports pandas or polars, so it stays library-agnostic.
 """
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Iterable
 
 from .core import _is_missing
@@ -81,3 +85,34 @@ def disable_summary_repr(types: Iterable[type]) -> None:
     formatter = _html_formatter()
     for typ in types:
         formatter.pop(typ, None)
+
+
+class _GroupByAccessor:
+    """Descriptor that attaches a ``.pave`` accessor to a GroupBy class.
+
+    Pandas and polars expose no public registration hook for GroupBy types, so
+    the descriptor is set directly on the class — the same mechanism pandas
+    uses internally for ``register_dataframe_accessor``.  Accessing ``.pave``
+    on a class (not an instance) returns the accessor class itself, matching
+    the behaviour of pandas' own ``_CachedAccessor``.
+    """
+
+    def __init__(self, accessor_cls: type) -> None:
+        self._accessor_cls = accessor_cls
+
+    def __get__(self, obj: Any, cls: Any) -> Any:
+        if obj is None:
+            return self._accessor_cls
+        return self._accessor_cls(obj)
+
+
+def _register_groupby_accessor(name: str, groupby_cls: type,
+                                accessor_cls: type) -> None:
+    """Attach *accessor_cls* as a ``.pave``-style descriptor on *groupby_cls*."""
+    if hasattr(groupby_cls, name):
+        warnings.warn(
+            f"registration of accessor '{name}' on {groupby_cls.__name__} "
+            f"overrides a preexisting attribute with the same name.",
+            UserWarning, stacklevel=3,
+        )
+    setattr(groupby_cls, name, _GroupByAccessor(accessor_cls))

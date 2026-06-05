@@ -163,6 +163,67 @@ def test_disable_repr_restores_default(ipython_shell):
         fmt.lookup_by_type(pl.DataFrame)
 
 
+# ---------------------------------------------------------------------------
+# GroupBy — summary() and .pave accessor
+# ---------------------------------------------------------------------------
+
+def test_summary_on_polars_groupby():
+    df = pl.DataFrame({"k": list("aabbb"), "v": [1, 2, 3, 4, 5]})
+    out = str(summary(df.group_by("k", maintain_order=True)))
+    assert "2 groups" in out
+    assert ">a<" in out
+    assert ">b<" in out
+
+
+def test_summary_polars_groupby_header_tally_covers_all_rows():
+    df = pl.DataFrame({"k": list("aab"), "v": [1, 1, 2]})
+    titles = _titles(str(summary(df.group_by("k"))))
+    assert any("of 3 rows" in t for t in titles)
+
+
+def test_summary_polars_groupby_no_distribution_cells():
+    df = pl.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    out = str(summary(df.group_by("k")))
+    assert 'class="pavement-spark"' not in out
+    assert 'class="pavement-proportion"' not in out
+
+
+def test_summary_polars_groupby_multi_key():
+    df = pl.DataFrame({"region": list("NNSS"), "dept": ["eng","eng","mkt","mkt"],
+                       "v": [1, 2, 3, 4]})
+    out = str(summary(df.group_by("region", "dept", maintain_order=True)))
+    assert "N / eng" in out
+    assert "S / mkt" in out
+
+
+def test_summary_polars_groupby_is_wellformed_xml():
+    import xml.dom.minidom as minidom
+    df = pl.DataFrame({"k": list("aabbc"), "v": [1, 2, None, 4, 5]})
+    minidom.parseString(str(summary(df.group_by("k"))))
+
+
+def test_polars_groupby_pave_accessor_registered():
+    df = pl.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    assert hasattr(df.group_by("k"), "pave")
+
+
+def test_polars_groupby_pave_call_returns_summary():
+    df = pl.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    result = df.group_by("k").pave()
+    assert isinstance(result, Summary)
+    assert "2 groups" in str(result)
+
+
+def test_polars_groupby_pave_summary_method():
+    df = pl.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    assert isinstance(df.group_by("k").pave.summary(), Summary)
+
+
+def test_polars_groupby_pave_forwards_kwargs():
+    df = pl.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    assert "height:2.5em" in str(df.group_by("k").pave(height="2.5em"))
+
+
 def test_enable_repr_without_a_session_raises(monkeypatch):
     try:
         import IPython

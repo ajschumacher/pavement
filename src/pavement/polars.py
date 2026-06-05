@@ -2,8 +2,10 @@
 Polars integration: a ``.pave`` namespace and an opt-in summary repr.
 
 The polars counterpart of `pavement.pandas`. Importing this module registers a
-``.pave`` namespace on polars ``DataFrame`` and ``Series`` (through polars'
-``register_*_namespace`` API), putting the pavement strips a method away::
+``.pave`` namespace on polars ``DataFrame``, ``Series``, and ``GroupBy``
+(DataFrame and Series through polars' own namespace API; GroupBy via a
+compatible descriptor, since polars exposes no public registration hook for
+GroupBy types), putting the pavement strips a method away::
 
     import pavement.polars         # registers .pave
 
@@ -16,6 +18,8 @@ The polars counterpart of `pavement.pandas`. Importing this module registers a
     s = df["price"]
     s.pave()                       # a Series summarizes as one row
     s.pave.spark()                 # the column helpers take no column name
+
+    df.group_by("team").pave()     # one row per group
 
 ``df.pave()`` / ``.summary()`` return the `pavement.summary` result (a
 `Summary`, which renders inline in Jupyter); the single-column helpers return
@@ -38,8 +42,10 @@ from __future__ import annotations
 from typing import Any
 
 import polars as pl
+import polars.dataframe.group_by as _pl_gbmod
 
-from ._inline import SVG, disable_summary_repr, enable_summary_repr, present
+from ._inline import (SVG, _register_groupby_accessor,
+                       disable_summary_repr, enable_summary_repr, present)
 from .svg import proportion, spark, summary, tally
 
 
@@ -90,6 +96,24 @@ class _PaveSeries:
 
     def proportion(self, **kwargs: Any) -> SVG:
         return SVG(proportion(self._series.to_list(), **kwargs))
+
+
+class _PaveGroupBy:
+    """The ``.pave`` accessor on a polars GroupBy."""
+
+    def __init__(self, groupby: Any) -> None:
+        self._groupby = groupby
+
+    def __call__(self, **kwargs: Any) -> Any:
+        return summary(self._groupby, **kwargs)
+
+    def summary(self, **kwargs: Any) -> Any:
+        return summary(self._groupby, **kwargs)
+
+
+# Polars has no public register_groupby_namespace; attach the descriptor
+# directly on the class, the same way pandas.py handles its GroupBy types.
+_register_groupby_accessor("pave", _pl_gbmod.GroupBy, _PaveGroupBy)
 
 
 def enable_repr(series: bool = True, **summary_kwargs: Any) -> None:
