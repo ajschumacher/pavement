@@ -1169,6 +1169,9 @@ def _detect_groupby(
 ) -> tuple[str, Any, list[str], list[Any]] | None:
     """Classify *data* as a GroupBy if it iterates as ``(key, group)`` pairs.
 
+    Handles both pandas GroupBy (detected via ``ngroups``) and polars
+    ``GroupBy`` (detected via ``by`` + ``df``).
+
     Returns ``(kind, extra, keys, groups)`` or ``None``:
 
     - *kind* is ``'series'`` (SeriesGroupBy) or ``'frame'`` (DataFrameGroupBy).
@@ -1184,7 +1187,9 @@ def _detect_groupby(
     The ``ngroups`` attribute gates the check: plain sequences, dicts, and
     DataFrames don't have it, so they fall through to other paths.
     """
-    if not hasattr(data, 'ngroups'):
+    # pandas GroupBy has ``ngroups``; polars GroupBy has ``by`` and ``df``.
+    if not (hasattr(data, 'ngroups')
+            or (hasattr(data, 'by') and hasattr(data, 'df'))):
         return None
     keys: list[str] = []
     groups: list[Any] = []
@@ -1192,8 +1197,9 @@ def _detect_groupby(
         keys.append(_format_group_key(key))
         groups.append(group)
     if not groups:
-        # Empty GroupBy: fall back to obj to determine kind.
-        obj = getattr(data, 'obj', None)
+        # Empty GroupBy: fall back to the underlying object to determine kind.
+        # pandas stores it as .obj; polars stores it as .df.
+        obj = getattr(data, 'obj', None) or getattr(data, 'df', None)
         if obj is not None and hasattr(obj, 'columns'):
             n_cols = len(list(obj.columns))
             return _GROUPBY_FRAME, n_cols, [], []

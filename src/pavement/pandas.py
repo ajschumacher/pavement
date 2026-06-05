@@ -44,12 +44,12 @@ core package stays dependency-free.
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 import pandas as pd
 
-from ._inline import SVG, disable_summary_repr, enable_summary_repr, present
+from ._inline import (SVG, _GroupByAccessor, _register_groupby_accessor,
+                       disable_summary_repr, enable_summary_repr, present)
 from .svg import proportion, spark, summary, tally
 
 __all__ = ["enable_repr", "disable_repr"]
@@ -123,36 +123,6 @@ class _PaveDataFrameGroupBy:
 
     def summary(self, **kwargs: Any) -> Any:
         return summary(self._groupby, **kwargs)
-
-
-class _GroupByAccessor:
-    """Descriptor that attaches a ``.pave`` accessor to a GroupBy class.
-
-    Pandas exposes no public registration hook for GroupBy types, so we set
-    the descriptor directly on the class — the same mechanism pandas uses
-    internally for ``register_dataframe_accessor``.  Accessing ``.pave`` on
-    a class (not an instance) returns the accessor class itself, matching the
-    behaviour of pandas' own ``_CachedAccessor``.
-    """
-
-    def __init__(self, accessor_cls: type) -> None:
-        self._accessor_cls = accessor_cls
-
-    def __get__(self, obj: Any, cls: Any) -> Any:
-        if obj is None:
-            return self._accessor_cls
-        return self._accessor_cls(obj)
-
-
-def _register_groupby_accessor(name: str, groupby_cls: type,
-                                accessor_cls: type) -> None:
-    if hasattr(groupby_cls, name):
-        warnings.warn(
-            f"registration of accessor '{name}' on {groupby_cls.__name__} "
-            f"overrides a preexisting attribute with the same name.",
-            UserWarning, stacklevel=3,
-        )
-    setattr(groupby_cls, name, _GroupByAccessor(accessor_cls))
 
 
 # Register on import. pandas caches the Frame/Series accessor per object and
