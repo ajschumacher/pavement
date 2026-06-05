@@ -1,9 +1,11 @@
 """
 Pandas integration: a ``.pave`` accessor and an opt-in summary repr.
 
-Importing this module registers a ``.pave`` accessor on pandas ``DataFrame``
-and ``Series`` (through pandas' own accessor API, so it is namespaced and
-won't clash), putting the pavement strips a method away::
+Importing this module registers a ``.pave`` accessor on pandas ``DataFrame``,
+``Series``, ``SeriesGroupBy``, and ``DataFrameGroupBy`` (the first two through
+pandas' own accessor API; the GroupBy ones via a compatible descriptor, since
+pandas exposes no public registration hook for them), putting the pavement
+strips a method away::
 
     import pavement.pandas          # registers .pave
 
@@ -17,7 +19,8 @@ won't clash), putting the pavement strips a method away::
     s.pave()                        # a Series summarizes as one row
     s.pave.spark()                  # the column helpers take no column name
 
-    summary(df["score"].groupby(df["team"]))  # one row per group
+    df["score"].groupby(df["team"]).pave()   # one row per group (SeriesGroupBy)
+    df.groupby("team").pave()               # one row per group (DataFrameGroupBy)
 
 ``df.pave()`` and ``.summary()`` return the same `pavement.summary` result (a
 `Summary`, which renders inline in Jupyter). The single-column helpers return
@@ -41,6 +44,7 @@ core package stays dependency-free.
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import pandas as pd
@@ -95,11 +99,72 @@ class _PaveSeries:
         return SVG(proportion(self._series, **kwargs))
 
 
-# Register on import. pandas caches the accessor per object and warns only if
-# the name is already taken; importing this module once (the usual case) does
-# it cleanly.
+class _PaveSeriesGroupBy:
+    """The ``.pave`` accessor on a SeriesGroupBy."""
+
+    def __init__(self, groupby: Any) -> None:
+        self._groupby = groupby
+
+    def __call__(self, **kwargs: Any) -> Any:
+        return summary(self._groupby, **kwargs)
+
+    def summary(self, **kwargs: Any) -> Any:
+        return summary(self._groupby, **kwargs)
+
+
+class _PaveDataFrameGroupBy:
+    """The ``.pave`` accessor on a DataFrameGroupBy."""
+
+    def __init__(self, groupby: Any) -> None:
+        self._groupby = groupby
+
+    def __call__(self, **kwargs: Any) -> Any:
+        return summary(self._groupby, **kwargs)
+
+    def summary(self, **kwargs: Any) -> Any:
+        return summary(self._groupby, **kwargs)
+
+
+class _GroupByAccessor:
+    """Descriptor that attaches a ``.pave`` accessor to a GroupBy class.
+
+    Pandas exposes no public registration hook for GroupBy types, so we set
+    the descriptor directly on the class — the same mechanism pandas uses
+    internally for ``register_dataframe_accessor``.  Accessing ``.pave`` on
+    a class (not an instance) returns the accessor class itself, matching the
+    behaviour of pandas' own ``_CachedAccessor``.
+    """
+
+    def __init__(self, accessor_cls: type) -> None:
+        self._accessor_cls = accessor_cls
+
+    def __get__(self, obj: Any, cls: Any) -> Any:
+        if obj is None:
+            return self._accessor_cls
+        return self._accessor_cls(obj)
+
+
+def _register_groupby_accessor(name: str, groupby_cls: type,
+                                accessor_cls: type) -> None:
+    if hasattr(groupby_cls, name):
+        warnings.warn(
+            f"registration of accessor '{name}' on {groupby_cls.__name__} "
+            f"overrides a preexisting attribute with the same name.",
+            UserWarning, stacklevel=3,
+        )
+    setattr(groupby_cls, name, _GroupByAccessor(accessor_cls))
+
+
+# Register on import. pandas caches the Frame/Series accessor per object and
+# warns only if the name is already taken; importing this module once (the
+# usual case) does it cleanly.  GroupBy registration uses the same descriptor
+# mechanism, applied manually since pandas has no public API for it.
 pd.api.extensions.register_dataframe_accessor("pave")(_PaveFrame)
 pd.api.extensions.register_series_accessor("pave")(_PaveSeries)
+_register_groupby_accessor("pave", pd.core.groupby.SeriesGroupBy,
+                           _PaveSeriesGroupBy)
+_register_groupby_accessor("pave", pd.core.groupby.DataFrameGroupBy,
+                           _PaveDataFrameGroupBy)
 
 
 def enable_repr(series: bool = True, **summary_kwargs: Any) -> None:

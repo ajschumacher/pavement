@@ -40,6 +40,11 @@ the dates). Durations too: <code>session_duration</code> shows timedeltas on a
 duration axis (e.g. <em>1d 02:00</em>). Categorical columns get a
 <strong>proportion</strong> strip, and <code>legacy_field</code> shows what an
 almost-all-missing column looks like.</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">import pavement
+
+pavement.summary(df)        # dict of lists, pandas/polars DataFrame, or any mapping</pre>
+</details>
 <div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">10 by 507</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 500 distinct, 3 duplicate, 4 missing of 507 rows" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 500 distinct, 3 duplicate, 4 missing of 507 rows</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="134" height="30" fill="#2166ac" pointer-events="all"><title>distinct
 99% (500 of 507 rows)
 (497 appearing once)</title></rect><rect class="tvbox" x="134" y="0" width="3" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
@@ -520,6 +525,9 @@ p82 to p100
 <h2>A single Series</h2>
 <p>Pass one sequence and you get a single row. A bare list has no name, so the
 label shows the value count instead. Numeric values give a spark:</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">pavement.summary(daily_signups)   # a bare list — label shows value count</pre>
+</details>
 <div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">500 entries</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 146 distinct, 354 duplicate, 0 missing of 500 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 146 distinct, 354 duplicate, 0 missing of 500 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="40.88" height="30" fill="#2166ac" pointer-events="all"><title>distinct
 29% (146 of 500 entries)
 (42 appearing once)</title></rect><rect class="tvbox" x="40.88" y="0" width="99.12" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
@@ -591,6 +599,9 @@ p94
 p100
 &lt;1% (1 of 500 values)</title></line></g></g></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;">228</span></div></td></tr></table></div>
 <p>…and categorical values give a proportion strip:</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">pavement.summary(survey)          # a list of strings</pre>
+</details>
 <div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">125 entries</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 5 distinct, 120 duplicate, 0 missing of 125 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 5 distinct, 120 duplicate, 0 missing of 125 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="5.6" height="30" fill="#2166ac" pointer-events="all"><title>distinct
 4% (5 of 125 entries)
 (0 appearing once)</title></rect><rect class="tvbox" x="5.6" y="0" width="134.4" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
@@ -605,6 +616,13 @@ p100
 <p>The call is the same — <code>pavement.summary(df)</code> — for a real
 <code>DataFrame</code>. Numeric columns become sparks, the species and the
 boolean flag become proportion strips.</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">import pandas as pd
+import pavement
+
+df = pd.DataFrame({...})
+pavement.summary(df)</pre>
+</details>
 <div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">4 by 150</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 141 distinct, 9 duplicate, 0 missing of 150 rows" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 141 distinct, 9 duplicate, 0 missing of 150 rows</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="131.6" height="30" fill="#2166ac" pointer-events="all"><title>distinct
 94% (141 of 150 rows)
 (132 appearing once)</title></rect><rect class="tvbox" x="131.6" y="0" width="8.4" height="30" fill="#92c5de" pointer-events="all"><title>duplicate
@@ -695,6 +713,16 @@ p100
 <p>Raw numpy arrays work too — no pandas or polars needed.
 <code>datetime64</code> columns land on a time axis; <code>timedelta64</code>
 columns show durations (e.g. <em>00:01</em> for one minute).</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">import numpy as np
+import pavement
+
+data = {
+    "event_time": np.array([...], dtype="datetime64[s]"),
+    "response_delay": np.array([...], dtype="timedelta64[s]"),
+}
+pavement.summary(data)</pre>
+</details>
 <div style="max-width:min(100%, 54em);overflow-x:auto;"><table class="pavement-summary" style="border-collapse:collapse;font-family:inherit;table-layout:fixed;width:calc(3 * clamp(5em, 20vw, 12em) + 5.60em + 9.71em);"><colgroup><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:5.60em;"/><col style="width:clamp(5em, 20vw, 12em);"/><col style="width:9.71em;"/><col style="width:clamp(5em, 20vw, 12em);"/></colgroup><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="color:#888;">2 by 500</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 500 distinct, 0 duplicate, 0 missing of 500 rows" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 500 distinct, 0 duplicate, 0 missing of 500 rows</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="140" height="30" fill="#2166ac" pointer-events="all"><title>distinct
 100% (500 of 500 rows)
 (500 appearing once)</title></rect></svg></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:right;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td><td style="border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.35);"></td></tr><tr><td style="border:none;padding:.18em .4em .18em .4em;text-align:left;vertical-align:middle;white-space:nowrap;"><div style="display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;">event_time</span></div></td><td style="border:none;padding:.18em 0;text-align:left;vertical-align:middle;white-space:nowrap;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-tally" role="img" aria-label="column tally: 500 distinct, 0 duplicate, 0 missing of 500 entries" style="overflow:visible;height:1.6em;width:5.60em;vertical-align:-0.15em;"><desc>column tally: 500 distinct, 0 duplicate, 0 missing of 500 entries</desc><style>.pavement-tally .tvbox{transition:filter .1s ease}.pavement-tally .tvbox:hover{filter:brightness(1.12)}</style><rect class="tvbox" x="0" y="0" width="140" height="30" fill="#2166ac" pointer-events="all"><title>distinct
@@ -1197,6 +1225,8 @@ own. And for pandas or polars, <code>import pavement.pandas</code> (or
 <code>df.pave()</code>, <code>df.pave.spark("age")</code>,
 <code>df.pave.tally("plan")</code> — or
 <code>pavement.pandas.enable_repr()</code> to make the summary every
-DataFrame's default preview.</p>
+DataFrame's default preview. See
+<a href="pandas_polars_demo.html">pandas_polars_demo.html</a> for a full
+walkthrough.</p>
 
 </body></html>

@@ -74,6 +74,19 @@ PAGE = """<!doctype html>
 highlights (bins brighten, lines thicken) and shows a tooltip. Pure SVG —
 no JavaScript, no image files.</p>
 
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">import pavement.svg as psvg
+
+# A spark is an SVG string — drop it anywhere in HTML.
+spark = psvg.spark(values, bins=8, color="#c0392b")
+
+# bins=None draws a rug (one line per distinct value):
+rug = psvg.spark(values, bins=None)
+
+# Customize height, colors, hover formatting:
+psvg.spark(prices, bins=8, height="3em", value_format=lambda v: f"${{v:,.0f}}")</pre>
+</details>
+
 <p>Request latency kept a heavy tail {latency} while CPU stayed mid-range and
 symmetric {cpu}; exam scores {scores} clustered above the pass mark. Commute
 times split into two crowds {commute}. A pile-up raises a tassel: survey

@@ -24,6 +24,19 @@
 highlights (bins brighten, lines thicken) and shows a tooltip. Pure SVG —
 no JavaScript, no image files.</p>
 
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 1rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">import pavement.svg as psvg
+
+# A spark is an SVG string — drop it anywhere in HTML.
+spark = psvg.spark(values, bins=8, color="#c0392b")
+
+# bins=None draws a rug (one line per distinct value):
+rug = psvg.spark(values, bins=None)
+
+# Customize height, colors, hover formatting:
+psvg.spark(prices, bins=8, height="3em", value_format=lambda v: f"${v:,.0f}")</pre>
+</details>
+
 <p>Request latency kept a heavy tail <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 30" preserveAspectRatio="none" class="pavement-spark" role="img" aria-label="pavement sparkline of 400 values" style="overflow:visible;height:1em;width:auto;vertical-align:-0.15em;"><desc>pavement sparkline of 400 values</desc><style>.pavement-spark .pvbin{transition:fill-opacity .1s ease}.pavement-spark .pvbin:hover{fill-opacity:0.5}.pavement-spark .pvmark{transition:stroke-width .1s ease}.pavement-spark .pvtick:hover .pvmark{stroke-width:2.4}</style><rect class="pvbin" x="0" y="0" width="3.2" height="30" fill="#c0392b" fill-opacity="0.3" pointer-events="all"><title>0.00933 to 4.57
 p0 to p12
 12% (49 of 400 values)</title></rect><rect class="pvbin" x="3.2" y="0" width="3.84" height="30" fill="#c0392b" fill-opacity="0.3" pointer-events="all"><title>4.57 to 10

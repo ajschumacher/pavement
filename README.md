@@ -58,7 +58,11 @@ rating drawn as a frequency rug, a continuous `age`, a date on a time axis, a
 duration, a long-tailed `purchases`, and an almost-all-missing `legacy_field`.
 The top row summarizes the frame itself.*
 
-See [`examples/`](https://github.com/ajschumacher/pavement/tree/main/examples) for lots more.
+See [`examples/`](https://github.com/ajschumacher/pavement/tree/main/examples) for lots more, including
+[`svg_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/svg_demo.py) (inline sparklines),
+[`interactive_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/interactive_demo.py) (Plotly, Bokeh, HoloViews),
+[`pandas_polars_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/pandas_polars_demo.py) (the `.pave` accessor),
+and [`real_data.ipynb`](https://github.com/ajschumacher/pavement/blob/main/examples/real_data.ipynb) (singer heights, US income).
 <!-- --8<-- [end:hero] -->
 
 
@@ -250,7 +254,7 @@ keeping them aligned with the scatter and matching its per-category colors:
                             categories=df.species).show()
 
 Install with `pip install pavement[plotly]`. See
-[`examples/plotly_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/plotly_demo.py).
+[`examples/interactive_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/interactive_demo.py).
 
 
 ## Interactive plots (Bokeh)
@@ -279,7 +283,7 @@ colors:
     show(pavement.with_marginals(scatter, x=xs_all, y=ys_all, categories=groups))
 
 Install with `pip install pavement[bokeh]`. See
-[`examples/bokeh_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/bokeh_demo.py).
+[`examples/interactive_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/interactive_demo.py).
 
 
 ## Interactive plots (HoloViews)
@@ -302,7 +306,7 @@ call:
     pavement.with_marginals(scatter, x=xs, y=ys, categories=groups)
 
 Install with `pip install pavement[holoviews]` (plus `bokeh` and/or `plotly`).
-See [`examples/holoviews_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/holoviews_demo.py).
+See [`examples/interactive_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/interactive_demo.py).
 
 
 ## Using pavement with Claude

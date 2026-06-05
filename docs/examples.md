@@ -2,7 +2,7 @@
 
 These are the **actual outputs** of the scripts in
 [`examples/`](https://github.com/ajschumacher/pavement/tree/main/examples),
-embedded live. The interactive plots below are fully interactive — hover for the
+embedded live. The interactive plots are fully interactive — hover for the
 quantile tooltips, pan, zoom, and toggle legends right on the page.
 
 !!! info "Self-contained"
@@ -12,7 +12,8 @@ quantile tooltips, pan, zoom, and toggle legends right on the page.
 ## Inline SVG sparklines — `pavement.svg`
 
 Dependency-free `<svg>` sparks that inherit the surrounding text color and carry
-their quantile tooltips with pure CSS — no JavaScript. Hover the bins.
+their quantile tooltips with pure CSS — no JavaScript. Hover the bins. This page
+also shows the `tally` and `proportion` column strips.
 
 [:octicons-file-code-16: svg_demo.py](https://github.com/ajschumacher/pavement/blob/main/examples/svg_demo.py)
 
@@ -27,13 +28,14 @@ missing) paired with a distribution per column.
 
 <iframe class="example-frame" src="assets/summary_demo.html" style="height: 720px;"></iframe>
 
-## Column-summary strips — `tally` & `proportion`
+## The `.pave` accessor — pandas & polars
 
-The two borderless column strips that compose into `summary`.
+Importing `pavement.pandas` / `pavement.polars` registers a `.pave` accessor, so
+the summary and the column strips are a method away on any frame or series.
 
-[:octicons-file-code-16: column_summary_demo.py](https://github.com/ajschumacher/pavement/blob/main/examples/column_summary_demo.py)
+[:octicons-file-code-16: pandas_polars_demo.py](https://github.com/ajschumacher/pavement/blob/main/examples/pandas_polars_demo.py)
 
-<iframe class="example-frame" src="assets/column_summary_demo.html" style="height: 620px;"></iframe>
+<iframe class="example-frame" src="assets/pandas_polars_demo.html" style="height: 700px;"></iframe>
 
 ## Value formatting & box edges
 
@@ -47,32 +49,12 @@ binned plots versus rugs.
 
 <iframe class="example-frame" src="assets/box_edges_demo.html" style="height: 620px;"></iframe>
 
-## Interactive — Plotly
+## Interactive — Plotly, Bokeh & HoloViews
 
-[:octicons-file-code-16: plotly_demo.py](https://github.com/ajschumacher/pavement/blob/main/examples/plotly_demo.py)
+The same pavements across every interactive backend: single rows, rugs,
+category-split rows, and scatters with pavement marginals. Hover for the quantile
+tooltips, pan, zoom, and toggle the legends.
 
-A single pavement, a rug, category-split rows, and a scatter with pavement
-marginals:
+[:octicons-file-code-16: interactive_demo.py](https://github.com/ajschumacher/pavement/blob/main/examples/interactive_demo.py)
 
-<iframe class="example-frame" src="assets/plotly_single.html" style="height: 420px;"></iframe>
-
-<iframe class="example-frame" src="assets/plotly_rug.html" style="height: 420px;"></iframe>
-
-<iframe class="example-frame" src="assets/plotly_categories.html" style="height: 460px;"></iframe>
-
-<iframe class="example-frame" src="assets/plotly_marginals.html" style="height: 560px;"></iframe>
-
-## Interactive — Bokeh
-
-[:octicons-file-code-16: bokeh_demo.py](https://github.com/ajschumacher/pavement/blob/main/examples/bokeh_demo.py)
-
-The same shapes drawn with native Bokeh glyphs, hover tool and clickable legend
-included:
-
-<iframe class="example-frame" src="assets/bokeh_single.html" style="height: 420px;"></iframe>
-
-<iframe class="example-frame" src="assets/bokeh_rug.html" style="height: 420px;"></iframe>
-
-<iframe class="example-frame" src="assets/bokeh_categories.html" style="height: 460px;"></iframe>
-
-<iframe class="example-frame" src="assets/bokeh_marginals.html" style="height: 620px;"></iframe>
+<iframe class="example-frame" src="assets/interactive_demo.html" style="height: 900px;"></iframe>

@@ -569,3 +569,57 @@ def test_summary_groupby_is_wellformed_xml():
     pd = pytest.importorskip("pandas")
     df = pd.DataFrame({"k": list("aabbc"), "v": [1, 2, None, 4, 5]})
     _wellformed(str(summary(df["v"].groupby(df["k"]))))
+
+
+# ---------------------------------------------------------------------------
+# pandas DataFrameGroupBy
+# ---------------------------------------------------------------------------
+
+def test_summary_dataframe_groupby_one_row_per_group():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"team": list("aabbb"), "score": [1, 2, 3, 4, 5], "rank": range(5)})
+    out = str(summary(df.groupby("team")))
+    # Header row + 2 group rows -> 3 tally strips.
+    assert out.count('class="pavement-tally"') == 3
+    assert ">a<" in out
+    assert ">b<" in out
+
+
+def test_summary_dataframe_groupby_header_shape():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"team": list("abc"), "x": [1, 2, 3], "y": [4, 5, 6]})
+    out = str(summary(df.groupby("team")))
+    assert "3 groups" in out
+    assert "3 columns" in out   # team + x + y (all columns, including key)
+
+
+def test_summary_dataframe_groupby_header_tally_counts_rows():
+    pd = pytest.importorskip("pandas")
+    # 3 groups, 1 row each → 3 distinct rows total, no duplicates
+    df = pd.DataFrame({"k": list("abc"), "v": [1, 2, 3]})
+    out = str(summary(df.groupby("k")))
+    titles = _titles(out)
+    assert any("of 3 rows" in t for t in titles)
+
+
+def test_summary_dataframe_groupby_per_group_row_tally():
+    pd = pytest.importorskip("pandas")
+    # group "a" has 2 identical rows (duplicates)
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 1, 2]})
+    out = str(summary(df.groupby("k")))
+    titles = _titles(out)
+    assert any("duplicate" in t and "of 2 rows" in t for t in titles)
+
+
+def test_summary_dataframe_groupby_no_distribution_cells():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    out = str(summary(df.groupby("k")))
+    assert 'class="pavement-spark"' not in out
+    assert 'class="pavement-proportion"' not in out
+
+
+def test_summary_dataframe_groupby_is_wellformed_xml():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"k": list("aabbc"), "v": [1, 2, None, 4, 5], "w": range(5)})
+    _wellformed(str(summary(df.groupby("k"))))
