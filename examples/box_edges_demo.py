@@ -194,7 +194,58 @@ def build():
 
     return PAGE.format(body=body,
                        bokeh_resources=CDN.render(),
-                       bokeh_script=bokeh_script)
+                       bokeh_script=bokeh_script,
+                       rug_section=rug_section_svg())
+
+
+RUG_DATA = [1, 2, 2, 3, 3, 3, 4, 5, 5, 7, 9, 12, 12, 13, 18]
+
+
+def rug_section_svg() -> str:
+    """SVG cards for the rug / show_box section."""
+    cards = [
+        ("Binned (<code>bins=4</code>) — box always on",
+         psvg.spark(RUG_DATA, bins=4, height="2.8em", line_color=COLOR,
+                    line_width=LINE_W)),
+        ("Rug (<code>bins=None</code>) — borderless by default",
+         psvg.spark(RUG_DATA, bins=None, height="2.8em", line_color=COLOR,
+                    line_width=LINE_W)),
+        ("Rug + <code>show_box=True</code> — box forced back on",
+         psvg.spark(RUG_DATA, bins=None, show_box=True, height="2.8em",
+                    line_color=COLOR, line_width=LINE_W)),
+    ]
+    figures = "\n".join(
+        f'<figure class="card">'
+        f'<div class="plot">{body}</div>'
+        f'<figcaption>{caption}</figcaption></figure>'
+        for caption, body in cards)
+    return (
+        '<section>'
+        '<h2>Rugs are borderless by default</h2>'
+        '<p class="blurb">SVG <code>spark</code> — the same rule applies on '
+        'every backend.</p>'
+        '<p>A binned pavement always draws the box. A rug (<code>bins=None</code>)'
+        ' drops the box edges by default, so it reads like an ordinary rug plot —'
+        ' the box becomes a visual cue that you are looking at quantile bins, not'
+        ' raw points. <code>show_box=True</code> restores the box on a rug;'
+        ' <code>show_box=False</code> drops it from a binned plot.</p>'
+        f'<div class="grid">{figures}</div>'
+        '<details style="margin-top:1rem;">'
+        '<summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>'
+        '<pre style="margin:.6rem 0 0;background:#1d1f23;color:#e8e6e1;'
+        'padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;'
+        'overflow-x:auto;">import pavement.svg as psvg\n\n'
+        '# A binned pavement always draws its box:\n'
+        'psvg.spark(data, bins=4)\n\n'
+        '# A rug drops the box edges by default:\n'
+        'psvg.spark(data, bins=None)\n\n'
+        '# Force the box back on a rug:\n'
+        'psvg.spark(data, bins=None, show_box=True)\n\n'
+        '# Drop the box from a binned plot:\n'
+        'psvg.spark(data, bins=4, show_box=False)</pre>'
+        '</details>'
+        '</section>'
+    )
 
 
 PAGE = """<!doctype html>
@@ -245,6 +296,8 @@ backend opens and closes the box at the same places.</p>
 <code>pavement.svg</code>, <code>pavement.matplotlib</code>,
 <code>pavement.plotly</code>, <code>pavement.bokeh</code>, and
 <code>pavement.holoviews</code> — one shared geometry, one shared rule.</p>
+
+{rug_section}
 
 {bokeh_script}
 </body></html>
