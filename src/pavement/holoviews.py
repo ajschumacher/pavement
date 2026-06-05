@@ -456,6 +456,8 @@ def plot(
         Direction of the value axis.
     value_label : str, default: 'value'
         Axis label for the value axis (x for horizontal, y otherwise).
+        The ``matplotlib`` backend leaves this ``None`` (unlabelled) by
+        default instead.
     value_format : callable, optional
         Function mapping a value to its hover display string, e.g.
         ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
