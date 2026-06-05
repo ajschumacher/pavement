@@ -48,7 +48,7 @@ from typing import Any
 
 import pandas as pd
 
-from ._inline import (SVG, _GroupByAccessor, _register_groupby_accessor,
+from ._inline import (SVG, _register_groupby_accessor,
                        disable_summary_repr, enable_summary_repr, present)
 from .svg import proportion, spark, summary, tally
 
