@@ -28,3 +28,13 @@ summary_demo.html
 
 # Output of examples/box_edges_demo.py
 box_edges_demo.html
+
+# Docs site build + tooling
+/site/
+/.venv/
+.cache/
+
+# The live example embeds under docs/examples/assets/ ARE committed (small, and
+# served by GitHub Pages without a backend install). Re-include them despite the
+# broad demo-output patterns above; regenerate with `python docs/gen_examples.py`.
+!docs/examples/assets/*.html
