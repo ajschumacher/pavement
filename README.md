@@ -62,21 +62,10 @@ See [`examples/`](examples/) for lots more.
 
 ## Install
 
-The core (statistics and SVG implementations) is pure Python with no
-dependencies:
-
     pip install pavement
 
-Each other rendering backend — matplotlib included — is an optional
-extra, so you only install what you'll use:
-
-    pip install pavement[matplotlib]
-    pip install pavement[bokeh]
-    pip install pavement[plotly]
-    pip install pavement[holoviews]
-    pip install pavement[all]          # all four
-
-(You can also just install your backend of choice separately.)
+You can install your backend of choice separately, or explicitly `pip
+install pavement[matplotlib]` (or `bokeh`, `plotly`, `holoviews`).
 
 
 ## Usage
