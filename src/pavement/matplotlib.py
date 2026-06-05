@@ -283,7 +283,11 @@ def plot(
     value_label : str, optional
         If given, label the value axis (y for vertical, x otherwise).
         The shared name for this across backends; matplotlib leaves the
-        axis unlabelled by default.
+        axis unlabelled by default (``None``), where the interactive
+        backends default to ``'value'``. There is no ``value_format``
+        counterpart here: this static backend draws no hover tooltips, so
+        values are never formatted for display the way they are in the
+        ``bokeh``/``plotly``/``holoviews`` backends.
     color : str or sequence of str, optional
         Per-row color convenience. A single color applies to every row;
         a sequence sets each row and must match the number of rows. It
