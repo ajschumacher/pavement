@@ -6,12 +6,12 @@
 [![PyPI](https://img.shields.io/pypi/v/pavement.svg)](https://pypi.org/project/pavement/)
 [![CI](https://github.com/ajschumacher/pavement/actions/workflows/ci.yml/badge.svg)](https://github.com/ajschumacher/pavement/actions/workflows/ci.yml)
 
-**A pavement plot shows a distribution as a row of boxes that each hold an
-equal share of the data** — same count in every box. Where the data is dense
-the boxes are narrow; where it's sparse they stretch wide, so the shape of the
-distribution reads straight off the widths. It's a quantile plot you can take
-in at a glance: a sharper cousin of the box plot, and a drop-in replacement for
-the rug.
+**A pavement plot visualizes univariate data as boxes stretching from
+min to max, each holding an equal share of the data.** Where the data
+is denser, lines are denser, making visual interpretation intuitive.
+It's a quantile plot you can take in at a glance: a cousin of box
+plots and rug plots, with no assumption of central tendency, and
+better suited to large data sets.
 
 ![Four distribution shapes drawn as pavement plots](https://raw.githubusercontent.com/ajschumacher/pavement/main/examples/four_sets.png)
 
@@ -20,15 +20,14 @@ where the data piles up; the wide boxes are the sparse tails — two humps for
 the bimodal set, a heavy peak for the leptokurtic one, a long tail for the
 skewed one.*
 
-**One API, many canvases.** Pick a drawing backend by importing its submodule
-and call `plot` — the import line is the only thing that changes:
 
-- **matplotlib** — static figures (plus 2D pavements and marginal strips)
-- **Bokeh**, **Plotly**, **HoloViews** — interactive, with hover built in
-- **`pavement.svg`** — dependency-free inline `<svg>` sparklines for the web
+**One API, many canvases.** Pick a backend by importing its submodule:
 
-The quantile statistics live at the top level with no plotting dependency at
-all, so the core is pure Python.
+ * Static images
+     *  **matplotlib** — also supports marginal strips and 2D pavements
+ * Interactive visualizations, with hover info built in
+     *  **Bokeh**, **Plotly**, **HoloViews** (including marginal helpers)
+     *  **`pavement.svg`** — dependency-free inline `<svg>` sparklines for the web
 
 ```python
 import pavement.matplotlib as pavement   # or .bokeh / .plotly / .holoviews / .svg
@@ -38,12 +37,13 @@ pavement.plot([1, 2, 3, 4, 5])
 
 ## Glance at a whole dataframe
 
-`pavement.summary(df)` turns a dataframe (or Series, or plain sequence) into one
-inline table — the thing to look at when data first lands. Each column is paired
-with a **tally** (how much is distinct / duplicate / missing) and a
-**distribution** that adapts to the column: a pavement **spark** for numbers,
-dates, and durations, and a **proportion** strip for categories. It's pure SVG —
-no JavaScript, no plotting dependency — and renders itself inline in a notebook.
+`pavement.summary(df)` turns a pandas or polars dataframe (or Series,
+or plain sequence) into an inline table. Each variable is shown with a
+tally plot (how much is distinct / duplicate / missing) and a
+distribution plot that adapts to the column: a pavement **spark** for
+numbers, dates, and durations, and a **proportion** strip for
+categories. It's pure SVG — no JavaScript, no plotting dependency —
+and renders inline in a notebook.
 
 ```python
 import pavement
@@ -57,19 +57,18 @@ rating drawn as a frequency rug, a continuous `age`, a date on a time axis, a
 duration, a long-tailed `purchases`, and an almost-all-missing `legacy_field`.
 The top row summarizes the frame itself.*
 
-See [`examples/summary_demo.py`](examples/summary_demo.py) for the full tour, or
-the [demo notebook](https://github.com/ajschumacher/pavement/blob/main/examples/demo.ipynb)
-for the plots.
+See [`examples/`](examples/) for lots more.
 
 
 ## Install
 
-The core (the quantile statistics) is pure Python with no dependencies:
+The core (statistics and SVG implementations) is pure Python with no
+dependencies:
 
     pip install pavement
 
-Each rendering backend — matplotlib included — is an optional extra, so you
-only install what you'll use:
+Each other rendering backend — matplotlib included — is an optional
+extra, so you only install what you'll use:
 
     pip install pavement[matplotlib]
     pip install pavement[bokeh]
@@ -77,8 +76,7 @@ only install what you'll use:
     pip install pavement[holoviews]
     pip install pavement[all]          # all four
 
-The `pavement.svg` sparkline backend needs no extra — it has no dependencies and
-ships with the base install.
+(You can also just install your backend of choice separately.)
 
 
 ## Usage
@@ -113,8 +111,8 @@ dependency of their own:
 Missing values (`NaN`, `None`, pandas `NA`/`NaT`) are dropped before the
 quantiles are computed, so they can't skew the cut points. The column summaries
 behind `summary` are here too: `pavement.tally_stats` (a column's distinct /
-repeated / missing make-up) and `pavement.proportion_stats` (value counts, à la
-`value_counts`).
+repeated / missing make-up) and `pavement.proportion_stats` (value counts, like
+pandas `value_counts`).
 
 
 ## matplotlib (`pavement.matplotlib`)
@@ -162,7 +160,7 @@ same idea to a raster image for print.
 
 Alongside `spark`, `pavement.svg` has two column-summary strips in the same
 borderless form factor: `tally`, which shows how much of a column is distinct,
-duplicate, or missing, and `proportion`, which shows its value counts (à la
+duplicate, or missing, and `proportion`, which shows its value counts (like
 pandas `value_counts`) with a catch-all for a long tail. Both take a column of
 any type and return an `<svg>` string like `spark` does. See
 [`examples/svg_demo.py`](examples/svg_demo.py).
@@ -184,15 +182,18 @@ duplicated row and "missing" a row that is entirely blank.
     import pavement
     pavement.summary(df)        # renders inline in a Jupyter cell
 
-The result renders itself in Jupyter (via `_repr_html_`), so it appears on its
-own when it's the last line of a cell. `summary` accepts a pandas `DataFrame` or
-`Series`, a plain `dict` of columns (no pandas required), or any 1D sequence. A
-numeric column's resolution adapts to its number of distinct values — a rug when
-few, then 4, 8, or 16 equal-mass bins as it grows — so a small column reads
-value-by-value and a large one as a smooth shape. Like the rest of `pavement.svg`
-it is pure SVG with no dependencies and no JavaScript; `str()` gives the HTML
-fragment and `path="summary.html"` saves a standalone page. See
+The result renders itself in Jupyter (via `_repr_html_`), so it
+appears on its own when it's the last line of a cell. `summary`
+accepts a pandas or polars `DataFrame` or `Series`, a plain `dict` of
+columns (no pandas required), or any 1D sequence. A numeric column's
+resolution adapts to its number of distinct values — a rug when few,
+then 4, 8, or 16 equal-mass bins as it grows — so a small column reads
+value-by-value and a large one as a smooth shape. Like the rest of
+`pavement.svg` it is pure SVG with no dependencies and no JavaScript;
+`str()` gives the HTML fragment and `path="summary.html"` saves a
+standalone page. See
 [`examples/summary_demo.py`](examples/summary_demo.py).
+
 
 ### Tighter dataframe integration (`pavement.pandas`, `pavement.polars`)
 
