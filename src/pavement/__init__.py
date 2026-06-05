@@ -42,6 +42,10 @@ core stays dependency-free.
 
 from __future__ import annotations
 
+from importlib.metadata import version
+
+__version__ = version("pavement")
+
 from .core import (
     pavement_stats,
     pavement_stats2d,
@@ -52,6 +56,7 @@ from .core import (
 from .svg import summary
 
 __all__ = [
+    "__version__",
     "quantiles",
     "pavement_stats",
     "pavement_stats2d",
