@@ -1,6 +1,15 @@
+from math import nan
+
 import pytest
 
-from pavement import pavement_stats, pavement_stats2d, quantiles
+import pavement
+from pavement import (
+    pavement_stats,
+    pavement_stats2d,
+    proportion_stats,
+    quantiles,
+    tally_stats,
+)
 
 
 def test_quantiles_median_odd():
@@ -46,6 +55,29 @@ def test_quantiles_single_level_out_of_range():
         quantiles([1, 2, 3], [2.0])
 
 
+def test_quantiles_drops_missing():
+    # NaN and None are dropped before any math, so they neither corrupt the
+    # quantiles nor trip the sort check; the result is as if they were absent.
+    assert quantiles([1, 2, nan, 3], [0.5]) == [2]
+    assert quantiles([1, None, 2, 3], [0.5]) == [2]
+
+
+def test_quantiles_drops_missing_with_weights():
+    # A dropped value takes its weight with it: the NaN's weight of 99 must
+    # not pull the median, which stays the unweighted median of 1, 2, 3.
+    assert quantiles([1, 2, nan, 3], [0.5], weights=[1, 1, 99, 1]) == [2]
+
+
+def test_quantiles_rejects_empty():
+    with pytest.raises(ValueError, match="non-empty"):
+        quantiles([], [0.5])
+
+
+def test_quantiles_rejects_all_missing():
+    with pytest.raises(ValueError, match="non-empty"):
+        quantiles([nan, None], [0.5])
+
+
 def test_pavement_stats_default_bins():
     assert pavement_stats([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]
 
@@ -71,6 +103,24 @@ def test_pavement_stats_bins_none_keeps_duplicates():
 def test_pavement_stats_bins_none_presorted_rejects_unsorted():
     with pytest.raises(ValueError, match="sorted"):
         pavement_stats([3, 1, 2], bins=None, presorted=True)
+
+
+def test_pavement_stats_drops_missing():
+    assert pavement_stats([1, 2, nan, 3, 4, None, 5], bins=2) == [1, 3, 5]
+
+
+def test_pavement_stats_bins_none_drops_missing():
+    assert pavement_stats([3, nan, 1, 2, None], bins=None) == [1, 2, 3]
+
+
+def test_pavement_stats_rejects_empty():
+    with pytest.raises(ValueError, match="non-empty"):
+        pavement_stats([], bins=4)
+
+
+def test_pavement_stats_bins_none_rejects_empty():
+    with pytest.raises(ValueError, match="non-empty"):
+        pavement_stats([], bins=None)
 
 
 def test_pavement_stats2d_shape():
@@ -124,3 +174,14 @@ def test_pavement_stats2d_empty():
 def test_pavement_stats2d_too_few_points():
     with pytest.raises(ValueError, match="data points"):
         pavement_stats2d([1, 2], [1, 2], bins=4)
+
+
+def test_column_summaries_reexported_at_top_level():
+    # The column summaries are part of the backend-agnostic public surface,
+    # reachable from the package root like the pavement statistics.
+    assert pavement.tally_stats is tally_stats
+    assert pavement.proportion_stats is proportion_stats
+    for name in ("tally_stats", "proportion_stats"):
+        assert name in pavement.__all__
+    assert tally_stats([1, 1, 2])["distinct"] == 2
+    assert proportion_stats([1, 1, 2])["counts"][0] == (1, 2)
