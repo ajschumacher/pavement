@@ -62,6 +62,12 @@ dependency of their own:
     pavement.pavement_stats([1, 2, 3, 4, 5], bins=4)   # quantile cut points
     pavement.quantiles([1, 2, 3, 4, 5], [0.25, 0.5, 0.75])
 
+Missing values (`NaN`, `None`, pandas `NA`/`NaT`) are dropped before the
+quantiles are computed, so they can't skew the cut points. The column
+summaries behind `summary` are here too: `pavement.tally_stats` (a column's
+distinct / repeated / missing make-up) and `pavement.proportion_stats`
+(value counts, à la `value_counts`).
+
 
 ## matplotlib (`pavement.matplotlib`)
 

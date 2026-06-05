@@ -1,8 +1,9 @@
 """
 Quantile-based pavement plots: every box holds an equal share of the data.
 
-The top-level package exposes only the backend-agnostic statistics
-(`quantiles`, `pavement_stats`, `pavement_stats2d`). Pick a rendering
+The top-level package exposes the backend-agnostic statistics: the
+pavement quantiles (`quantiles`, `pavement_stats`, `pavement_stats2d`) and
+the column summaries (`tally_stats`, `proportion_stats`). Pick a rendering
 backend by importing its submodule — they share one ``plot`` API, so the
 import line is the only thing that changes::
 
@@ -41,7 +42,20 @@ core stays dependency-free.
 
 from __future__ import annotations
 
-from .core import pavement_stats, pavement_stats2d, quantiles
+from .core import (
+    pavement_stats,
+    pavement_stats2d,
+    proportion_stats,
+    quantiles,
+    tally_stats,
+)
 from .svg import summary
 
-__all__ = ["quantiles", "pavement_stats", "pavement_stats2d", "summary"]
+__all__ = [
+    "quantiles",
+    "pavement_stats",
+    "pavement_stats2d",
+    "tally_stats",
+    "proportion_stats",
+    "summary",
+]

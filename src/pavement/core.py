@@ -42,7 +42,9 @@ def quantiles(
     ----------
     data : iterable of float
         The values to take quantiles of. Sorted internally unless
-        *presorted* is True.
+        *presorted* is True. Missing values (``NaN``, ``None``, pandas
+        ``NA``/``NaT``, and the like; see `_is_missing`) are dropped before
+        any computation, along with their weights.
     levels : sequence of float
         Quantile levels in [0, 1], strictly increasing.
     weights : sequence of float, optional
@@ -62,9 +64,9 @@ def quantiles(
     ------
     ValueError
         If *levels* is not strictly increasing in [0, 1]; if *weights*
-        is given and its length doesn't match *data*; if *data* is not
-        sorted when *presorted* is True; or if any weight is not
-        positive.
+        is given and its length doesn't match *data*; if *data* is empty
+        (or holds only missing values); if *data* is not sorted when
+        *presorted* is True; or if any weight is not positive.
     """
     if not (all(0 <= a < b <= 1 for a, b in zip(levels, levels[1:]))
             and all(0 <= level <= 1 for level in levels)):
@@ -73,6 +75,19 @@ def quantiles(
     if weights is not None and len(weights) != len(data):
         raise ValueError(
             f"weights has length {len(weights)}, expected {len(data)}")
+    # Drop missing values (NaN, None, pandas NA/NaT, ...) before doing any
+    # math: a NaN sorts unpredictably and would otherwise either corrupt the
+    # quantiles silently or trip the monotonicity check with a misleading
+    # "data must be sorted". Each dropped value takes its weight with it.
+    if weights is None:
+        data = [value for value in data if not _is_missing(value)]
+    else:
+        kept = [(value, weight) for value, weight in zip(data, weights)
+                if not _is_missing(value)]
+        data = [value for value, _ in kept]
+        weights = [weight for _, weight in kept]
+    if not data:
+        raise ValueError("data must be non-empty")
     if not presorted:
         if weights is None:
             data = sorted(data)
@@ -117,7 +132,9 @@ def pavement_stats(
     Parameters
     ----------
     data : iterable of float
-        The values to summarize.
+        The values to summarize. Missing values (``NaN``, ``None``, pandas
+        ``NA``/``NaT``, and the like; see `_is_missing`) are dropped before
+        binning.
     bins : int or None, default: 4
         Number of equal-mass bins. Yields ``bins + 1`` quantile values:
         the two endpoints plus the ``bins - 1`` internal cut points. If
@@ -141,15 +158,19 @@ def pavement_stats(
     Raises
     ------
     ValueError
-        If *bins* is less than 1; if *data* is not sorted when
-        *presorted* is True; or for any reason raised by `quantiles`.
+        If *bins* is less than 1; if *data* is empty (or holds only
+        missing values); if *data* is not sorted when *presorted* is
+        True; or for any reason raised by `quantiles`.
 
     See Also
     --------
     quantiles : The underlying quantile computation.
     """
     if bins is None:
-        data = list(data)
+        # Drop missing values, as `quantiles` does for the binned path.
+        data = [value for value in data if not _is_missing(value)]
+        if not data:
+            raise ValueError("data must be non-empty")
         if not presorted:
             return sorted(data)
         if any(later < earlier for earlier, later in zip(data, data[1:])):
