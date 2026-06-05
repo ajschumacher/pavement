@@ -357,7 +357,7 @@ PAGE = f"""<!doctype html>
 <h1><code>pavement.summary</code></h1>
 <p class="sub">One call, an at-a-glance picture of a dataframe, Series, or
 sequence — a tally beside a distribution for every column. Pure SVG, no
-JavaScript. Hover any strip for its share, value, and count.</p>
+JavaScript by default. Hover any strip for its share, value, and count.</p>
 
 <p class="legend">tally:
   <span class="swatch" style="background:#2166ac"></span>distinct &nbsp;
@@ -397,6 +397,19 @@ label shows the value count instead. Numeric values give a spark:</p>
 <pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">pavement.summary(survey)          # a list of strings</pre>
 </details>
 {pavement.summary(survey)}
+
+<h2>Drag to reorder</h2>
+<p>Pass <code>draggable=True</code> and each column row becomes draggable: grab
+one and drop it where you want, and the others slide to make room — handy for
+sitting two columns next to each other to compare them. It adds a small,
+self-contained piece of JavaScript (the only script on this page), scoped to
+just this one table; the top summary row stays pinned. It's purely visual — the
+new order isn't read back into Python — and browser-only, since notebooks strip
+the script and just show the static table.</p>
+<details><summary style="cursor:pointer;color:#555;font-size:.9rem;">Show code</summary>
+<pre style="margin:.6rem 0 .8rem;background:#1d1f23;color:#e8e6e1;padding:.9rem 1rem;border-radius:8px;font-size:.82rem;line-height:1.5;overflow-x:auto;">pavement.summary(df, draggable=True)   # grab a column row and drop it to reorder</pre>
+</details>
+{pavement.summary(people, draggable=True)}
 {pandas_section}{numpy_section}{frequency_rug_section}{box_section}
 <h2>In a notebook</h2>
 <p>Everything above is just <code>str(pavement.summary(...))</code> dropped

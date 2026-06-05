@@ -164,6 +164,47 @@ def test_summary_is_wellformed_xml(data):
 
 
 # ---------------------------------------------------------------------------
+# draggable=True: a browser-only, self-contained reorder of the column rows
+# ---------------------------------------------------------------------------
+
+def test_summary_not_draggable_by_default():
+    out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}))
+    assert "draggable" not in out
+    assert "<script" not in out
+
+
+def test_summary_draggable_marks_each_column_row():
+    # Three columns → three draggable rows (the top "N by M" total row is not).
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]},
+                      draggable=True))
+    assert out.count('draggable="true"') == 3
+
+
+def test_summary_draggable_total_row_stays_pinned():
+    # The first row in the table is the frame's total row — never draggable.
+    out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}, draggable=True))
+    body = out.split("</colgroup>", 1)[1]
+    first_row = body.split("</tr>", 1)[0]
+    assert "draggable" not in first_row
+
+
+def test_summary_draggable_adds_one_scoped_script_keyed_to_the_table():
+    out = str(summary({"x": [1, 2, 3]}, draggable=True))
+    assert out.count("<script>") == 1
+    # The id on the table is the id the script looks up — same string, once each.
+    m = re.search(r'id="(pavement-summary-[0-9a-f]+)"', out)
+    assert m and out.count(m.group(1)) == 2
+
+
+def test_summary_draggable_ids_are_unique_across_tables():
+    a = re.search(r'id="(pavement-summary-[0-9a-f]+)"',
+                  str(summary({"x": [1, 2]}, draggable=True))).group(1)
+    b = re.search(r'id="(pavement-summary-[0-9a-f]+)"',
+                  str(summary({"x": [1, 2]}, draggable=True))).group(1)
+    assert a != b
+
+
+# ---------------------------------------------------------------------------
 # Single series / sequence
 # ---------------------------------------------------------------------------
 

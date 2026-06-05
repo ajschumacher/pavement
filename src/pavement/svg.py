@@ -44,6 +44,7 @@ from __future__ import annotations
 import datetime as _dt
 import math
 import numbers
+import uuid
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from decimal import Decimal
@@ -1259,8 +1260,13 @@ def _count_label(n: int, noun: str) -> str:
 
 
 def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
-                 *, total: bool = False) -> str:
-    """One table row: label, tally, min-extent, distribution, max-extent cells."""
+                 *, total: bool = False, draggable: bool = False) -> str:
+    """One table row: label, tally, min-extent, distribution, max-extent cells.
+
+    With *draggable*, a (non-total) row carries ``draggable="true"`` and a grab
+    cursor, the hook the summary's reorder script (`_drag_script`) keys on; the
+    total/header row never gets it, so it stays pinned at the top.
+    """
     td_name = _TD_NAME_TOTAL if total else _TD_NAME
     td_tally = _TD_TOTAL if total else _TD
     td_dist = _TD_DIST_TOTAL if total else _TD_DIST
@@ -1270,11 +1276,38 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
     hi_inner = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
     lo_html = f'<div style="{_TEXT_WRAP}">{lo_inner}</div>' if lo else ''
     hi_html = f'<div style="{_TEXT_WRAP}">{hi_inner}</div>' if hi else ''
-    return (f'<tr><td style="{td_name}"><div style="{_TEXT_WRAP}">{label}</div></td>'
+    tr = ('<tr draggable="true" style="cursor:grab;">'
+          if draggable and not total else '<tr>')
+    return (f'{tr}<td style="{td_name}"><div style="{_TEXT_WRAP}">{label}</div></td>'
             f'<td style="{td_tally}">{tally_html}</td>'
             f'<td style="{td_extl}">{lo_html}</td>'
             f'<td style="{td_dist}">{dist_html}</td>'
             f'<td style="{td_extr}">{hi_html}</td></tr>')
+
+
+def _drag_script(table_id: str) -> str:
+    """A scoped, dependency-free reorder for the summary's column rows.
+
+    Native HTML5 drag-and-drop, no library: grab a row and the others slide to
+    make room, so columns can be rearranged side by side. An IIFE keyed to the
+    table's id (added nowhere else), listening only for rows that carry the
+    ``draggable`` attribute — so the pinned total row is left alone. Browser
+    only: notebooks strip the ``<script>`` and just show the static table.
+    """
+    return (
+        '<script>(function(){'
+        f'var t=document.getElementById("{table_id}");if(!t)return;'
+        'var sel="tr[draggable]",d=null;'
+        't.addEventListener("dragstart",function(e){'
+        'd=e.target.closest(sel);if(!d)return;'
+        'e.dataTransfer.effectAllowed="move";d.style.opacity="0.4";});'
+        't.addEventListener("dragend",function(){if(d)d.style.opacity="";d=null;});'
+        't.addEventListener("dragover",function(e){'
+        'if(!d)return;var r=e.target.closest(sel);if(!r||r===d)return;'
+        'e.preventDefault();var b=r.getBoundingClientRect();'
+        'd.parentNode.insertBefore(d,e.clientY-b.top<b.height/2?r:r.nextSibling);});'
+        '}());</script>'
+    )
 
 
 def _set_strip_width(svg: str, width: str) -> str:
@@ -1417,6 +1450,7 @@ def summary(
     height: str = '1.6em',
     hover: bool = True,
     highlight: bool = True,
+    draggable: bool = False,
     class_: str = 'pavement-summary',
     path: str | None = None,
 ) -> Summary:
@@ -1483,6 +1517,13 @@ def summary(
         Whether the strips carry their native ``<title>`` tooltips.
     highlight : bool, default: True
         Whether the strips brighten the box under the cursor (scoped CSS).
+    draggable : bool, default: False
+        If True, make the column rows drag-and-drop re-orderable, to rearrange
+        them (e.g. to compare columns side by side). Adds a small, self-contained
+        ``<script>`` (the table's only JavaScript) scoped to this one table; the
+        top/total row stays pinned. Browser-only — notebooks strip the script
+        and just show the static table — and purely visual, the new order is not
+        read back into Python.
     class_ : str, default: 'pavement-summary'
         CSS class on the ``<table>``, a hook for your own styling.
     path : str, optional
@@ -1556,7 +1597,7 @@ def summary(
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
                 _tally_strip(row_keys, 'row', opts, strip_width=w_tally),
-                '', '', ''))
+                '', '', '', draggable=draggable))
     elif groupby is not None:  # _GROUPBY_SERIES
         _, series_name, group_keys, series_groups = groupby
         columns = [list(g) for g in series_groups]
@@ -1586,7 +1627,7 @@ def summary(
                 lo,
                 _distribution_strip(values, present, color, opts,
                                     strip_width=w_dist),
-                hi))
+                hi, draggable=draggable))
     elif columns_data is not None:
         names, columns = columns_data
         n_rows = len(columns[0]) if columns else 0
@@ -1609,7 +1650,7 @@ def summary(
                 lo,
                 _distribution_strip(values, present, color, opts,
                                     strip_width=w_dist),
-                hi))
+                hi, draggable=draggable))
     else:
         values = list(data)
         present = [v for v in values if not _is_missing(v)]
@@ -1620,7 +1661,7 @@ def summary(
             lo,
             _distribution_strip(values, present, color, opts,
                                 strip_width=w_dist),
-            hi))
+            hi, draggable=draggable))
 
     if fixed_layout:
         # table-layout:fixed + explicit width ignores cell content entirely.
@@ -1642,10 +1683,16 @@ def summary(
         colgroup = ''
         table_style = 'border-collapse:collapse;font-family:inherit;'
 
+    if draggable:
+        table_id = f'pavement-summary-{uuid.uuid4().hex[:8]}'
+        id_attr = f' id={quoteattr(table_id)}'
+        script = _drag_script(table_id)
+    else:
+        id_attr = script = ''
     table = (
         f'<div style="max-width:{_SUMMARY_MAX_WIDTH};overflow-x:auto;">'
-        f'<table class={quoteattr(class_)} style={quoteattr(table_style)}>'
-        f'{colgroup}{"".join(rows)}</table></div>'
+        f'<table{id_attr} class={quoteattr(class_)} style={quoteattr(table_style)}>'
+        f'{colgroup}{"".join(rows)}</table></div>{script}'
     )
 
     if path is not None:
