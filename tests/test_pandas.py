@@ -147,6 +147,60 @@ def test_enable_repr_series_false_leaves_series_alone(ipython_shell):
         fmt.lookup_by_type(pd.Series)
 
 
+# ---------------------------------------------------------------------------
+# GroupBy accessors
+# ---------------------------------------------------------------------------
+
+def test_groupby_accessor_is_registered():
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    assert hasattr(df["v"].groupby(df["k"]), "pave")
+    assert hasattr(df.groupby("k"), "pave")
+
+
+def test_series_groupby_pave_call_returns_summary():
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    gbk = df["v"].groupby(df["k"])
+    result = gbk.pave()
+    assert isinstance(result, Summary)
+    assert "2 groups" in str(result)
+
+
+def test_series_groupby_pave_summary_method():
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    gbk = df["v"].groupby(df["k"])
+    assert isinstance(gbk.pave.summary(), Summary)
+
+
+def test_series_groupby_pave_forwards_kwargs():
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    assert "height:2.5em" in str(df["v"].groupby(df["k"]).pave(height="2.5em"))
+
+
+def test_dataframe_groupby_pave_call_returns_summary():
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    gbk = df.groupby("k")
+    result = gbk.pave()
+    assert isinstance(result, Summary)
+    assert "2 groups" in str(result)
+
+
+def test_dataframe_groupby_pave_summary_method():
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    assert isinstance(df.groupby("k").pave.summary(), Summary)
+
+
+def test_dataframe_groupby_pave_forwards_kwargs():
+    df = pd.DataFrame({"k": list("aab"), "v": [1, 2, 3]})
+    assert "height:2.5em" in str(df.groupby("k").pave(height="2.5em"))
+
+
+def test_groupby_pave_class_access_returns_accessor_class():
+    # Accessing .pave on the class (not an instance) returns the accessor,
+    # consistent with pandas' own _CachedAccessor behaviour.
+    assert pd.core.groupby.SeriesGroupBy.pave is not None
+    assert pd.core.groupby.DataFrameGroupBy.pave is not None
+
+
 def test_enable_repr_without_a_session_raises(monkeypatch):
     # No running IPython -> a clear error rather than silently doing nothing.
     # Whether IPython is merely not *running* (get_ipython() is None) or not
