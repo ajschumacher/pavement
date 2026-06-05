@@ -1252,6 +1252,14 @@ _TEXT_COL_CLAMP = 'clamp(5em, 20vw, 12em)'
 # Scrollable wrapper inside each text cell. Width comes from the <col> element
 # (via table-layout:fixed), so no explicit width is needed on the div itself.
 _TEXT_WRAP = 'display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;'
+# The drag handle for a draggable=True summary's column rows: a muted 6-dot
+# grip pinned at the left of the name.  It is the *only* draggable element (so
+# the rest of the row keeps its normal cursor and stays text-selectable), and
+# starts hidden — `_drag_script` reveals it on load, so it appears only where
+# the script actually runs (a browser) and not where it is stripped (notebooks,
+# static renders), where dragging would not work anyway.
+_HANDLE_STYLE = ('display:none;flex:none;cursor:grab;color:#bbb;font-size:1em;'
+                 'line-height:1;user-select:none;-webkit-user-select:none;')
 
 
 def _count_label(n: int, noun: str) -> str:
@@ -1263,9 +1271,11 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
                  *, total: bool = False, draggable: bool = False) -> str:
     """One table row: label, tally, min-extent, distribution, max-extent cells.
 
-    With *draggable*, a (non-total) row carries ``draggable="true"`` and a grab
-    cursor, the hook the summary's reorder script (`_drag_script`) keys on; the
-    total/header row never gets it, so it stays pinned at the top.
+    With *draggable*, a (non-total) row carries a ``data-pave-row`` marker and a
+    `_HANDLE_STYLE` grip (``.pavement-handle``) at the left of its name — the
+    only draggable element, the hook the summary's reorder script
+    (`_drag_script`) keys on. The total/header row gets neither, so it stays
+    pinned at the top, and every row keeps its normal cursor and selectable text.
     """
     td_name = _TD_NAME_TOTAL if total else _TD_NAME
     td_tally = _TD_TOTAL if total else _TD
@@ -1276,9 +1286,17 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
     hi_inner = f'<span style="{_EXTENT_STYLE}">{escape(hi)}</span>' if hi else ''
     lo_html = f'<div style="{_TEXT_WRAP}">{lo_inner}</div>' if lo else ''
     hi_html = f'<div style="{_TEXT_WRAP}">{hi_inner}</div>' if hi else ''
-    tr = ('<tr draggable="true" style="cursor:grab;">'
-          if draggable and not total else '<tr>')
-    return (f'{tr}<td style="{td_name}"><div style="{_TEXT_WRAP}">{label}</div></td>'
+    if draggable and not total:
+        tr = '<tr data-pave-row>'
+        handle = (f'<span class="pavement-handle" draggable="true" '
+                  f'title="Drag to reorder" style="{_HANDLE_STYLE}">⠿</span>')
+        name_cell = (f'<div style="display:flex;align-items:center;gap:.3em;">'
+                     f'{handle}<div style="{_TEXT_WRAP}min-width:0;">{label}</div>'
+                     f'</div>')
+    else:
+        tr = '<tr>'
+        name_cell = f'<div style="{_TEXT_WRAP}">{label}</div>'
+    return (f'{tr}<td style="{td_name}">{name_cell}</td>'
             f'<td style="{td_tally}">{tally_html}</td>'
             f'<td style="{td_extl}">{lo_html}</td>'
             f'<td style="{td_dist}">{dist_html}</td>'
@@ -1288,28 +1306,38 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
 def _drag_script(table_id: str) -> str:
     """A scoped, dependency-free reorder for the summary's column rows.
 
-    Native HTML5 drag-and-drop, no library: grab a row and the others slide to
-    make room, so columns can be rearranged side by side. An IIFE keyed to the
-    table's id (added nowhere else), listening only for rows that carry the
-    ``draggable`` attribute — so the pinned total row is left alone. Browser
-    only: notebooks strip the ``<script>`` and just show the static table.
+    Native HTML5 drag-and-drop, no library: grab a row's left-edge handle and
+    the others slide to make room, so columns can be rearranged side by side.
+    An IIFE keyed to the table's id (added nowhere else). On load it reveals the
+    handles (hidden in the markup), so they appear only here, where dragging
+    works — notebooks strip the ``<script>`` and just show the static table.
+    Dragging starts only from a ``.pavement-handle``; rows are matched and moved
+    by their ``data-pave-row`` marker, so the unmarked total row stays pinned.
     """
     return (
         '<script>(function(){'
         f'var t=document.getElementById("{table_id}");if(!t)return;'
-        'var sel="tr[draggable]",d=null;'
+        # Reveal the handles: they ship hidden, so a stripped script leaves no
+        # dangling grip on a table that cannot actually be dragged.
+        'var hs=t.querySelectorAll(".pavement-handle"),i;'
+        'for(i=0;i<hs.length;i++)hs[i].style.display="inline-block";'
+        'var d=null;'
         't.addEventListener("dragstart",function(e){'
-        'd=e.target.closest(sel);if(!d)return;'
+        'var h=e.target.closest(".pavement-handle");if(!h)return;'
+        'd=h.closest("[data-pave-row]");if(!d)return;'
         'e.dataTransfer.effectAllowed="move";d.style.opacity="0.4";});'
         't.addEventListener("dragend",function(){if(d)d.style.opacity="";d=null;});'
+        # preventDefault on *every* dragover over the table keeps the drop
+        # allowed — including when the cursor is over the dragged row itself
+        # (where you usually release, since the row tracks under it). Without
+        # that, the release lands on a "drop not allowed" spot and the browser
+        # plays its snap-back animation of the drag image. Only the row-move is
+        # conditional; the drop-accept is not.
         't.addEventListener("dragover",function(e){'
-        'if(!d)return;var r=e.target.closest(sel);if(!r||r===d)return;'
-        'e.preventDefault();e.dataTransfer.dropEffect="move";'
+        'if(!d)return;e.preventDefault();e.dataTransfer.dropEffect="move";'
+        'var r=e.target.closest("[data-pave-row]");if(!r||r===d)return;'
         'var b=r.getBoundingClientRect();'
         'd.parentNode.insertBefore(d,e.clientY-b.top<b.height/2?r:r.nextSibling);});'
-        # Accept the drop so the browser does not play its "snap back to the
-        # start" animation of the drag image (the default when no drop target
-        # claims it); the row is already in place from dragover.
         't.addEventListener("drop",function(e){e.preventDefault();});'
         '}());</script>'
     )
@@ -1524,11 +1552,14 @@ def summary(
         Whether the strips brighten the box under the cursor (scoped CSS).
     draggable : bool, default: False
         If True, make the column rows drag-and-drop re-orderable, to rearrange
-        them (e.g. to compare columns side by side). Adds a small, self-contained
-        ``<script>`` (the table's only JavaScript) scoped to this one table; the
-        top/total row stays pinned. Browser-only — notebooks strip the script
-        and just show the static table — and purely visual, the new order is not
-        read back into Python.
+        them (e.g. to compare columns side by side). A small grip handle appears
+        at the left of each column name and is the only draggable target, so the
+        rest of each row keeps its normal cursor and stays text-selectable. Adds
+        a small, self-contained ``<script>`` (the table's only JavaScript) scoped
+        to this one table; the top/total row stays pinned. Browser-only — the
+        handles are revealed by the script, so notebooks (which strip it) show
+        the plain static table — and purely visual, the new order is not read
+        back into Python.
     class_ : str, default: 'pavement-summary'
         CSS class on the ``<table>``, a hook for your own styling.
     path : str, optional

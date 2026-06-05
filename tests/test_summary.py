@@ -170,22 +170,36 @@ def test_summary_is_wellformed_xml(data):
 def test_summary_not_draggable_by_default():
     out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}))
     assert "draggable" not in out
+    assert "pavement-handle" not in out
     assert "<script" not in out
 
 
-def test_summary_draggable_marks_each_column_row():
-    # Three columns → three draggable rows (the top "N by M" total row is not).
+def test_summary_draggable_gives_each_column_row_a_handle():
+    # Three columns → three grip handles (the top "N by M" total row gets none).
+    # The handle is the only draggable element — the rows themselves are not.
     out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]},
                       draggable=True))
-    assert out.count('draggable="true"') == 3
+    assert out.count('class="pavement-handle"') == 3
+    assert out.count('draggable="true"') == 3   # one per handle, none on <tr>
+    assert "<tr draggable" not in out
+
+
+def test_summary_draggable_handles_start_hidden():
+    # Hidden in the markup; the script reveals them, so a stripped script (a
+    # notebook) leaves no grip on a table that cannot be dragged.
+    out = str(summary({"x": [1, 2, 3]}, draggable=True))
+    handle = out.split('class="pavement-handle"', 1)[1].split(">", 1)[0]
+    assert "display:none" in handle
 
 
 def test_summary_draggable_total_row_stays_pinned():
-    # The first row in the table is the frame's total row — never draggable.
+    # The first row in the table is the frame's total row — no handle, not a
+    # drop-target row (no data-pave-row marker).
     out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}, draggable=True))
     body = out.split("</colgroup>", 1)[1]
     first_row = body.split("</tr>", 1)[0]
-    assert "draggable" not in first_row
+    assert "pavement-handle" not in first_row
+    assert "data-pave-row" not in first_row
 
 
 def test_summary_draggable_adds_one_scoped_script_keyed_to_the_table():
