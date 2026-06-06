@@ -1714,14 +1714,14 @@ def summary(
             rks = [_row_key(row) for row in zip(*col_lists)] if col_lists else []
             row_key_lists.append(rks)
         if labels is not None:
-            lab_str = [str(l) for l in labels]
-            missing = [l for l in lab_str if l not in group_keys]
+            lab_str = [str(lab) for lab in labels]
+            missing = [lab for lab in lab_str if lab not in group_keys]
             if missing:
                 raise ValueError(
                     f"labels not found in groupby keys: "
                     f"{', '.join(map(repr, missing))}")
             idx = {k: i for i, k in enumerate(group_keys)}
-            order = [idx[l] for l in lab_str]
+            order = [idx[lab] for lab in lab_str]
             group_keys = [group_keys[i] for i in order]
             row_key_lists = [row_key_lists[i] for i in order]
         n_groups = len(group_keys)
@@ -1747,14 +1747,14 @@ def summary(
         _, series_name, group_keys, series_groups = groupby
         group_cols = [list(g) for g in series_groups]
         if labels is not None:
-            lab_str = [str(l) for l in labels]
-            missing = [l for l in lab_str if l not in group_keys]
+            lab_str = [str(lab) for lab in labels]
+            missing = [lab for lab in lab_str if lab not in group_keys]
             if missing:
                 raise ValueError(
                     f"labels not found in groupby keys: "
                     f"{', '.join(map(repr, missing))}")
             idx = {k: i for i, k in enumerate(group_keys)}
-            order = [idx[l] for l in lab_str]
+            order = [idx[lab] for lab in lab_str]
             group_keys = [group_keys[i] for i in order]
             group_cols = [group_cols[i] for i in order]
         all_values = [v for col in group_cols for v in col]
@@ -1797,13 +1797,13 @@ def summary(
         names, col_values = columns_data
         if labels is not None:
             name_to_idx = {n: i for i, n in enumerate(names)}
-            missing = [l for l in labels if l not in name_to_idx]
+            missing = [lab for lab in labels if lab not in name_to_idx]
             if missing:
                 raise ValueError(
                     f"labels not found in data: "
                     f"{', '.join(map(repr, missing))}")
             names = list(labels)
-            col_values = [col_values[name_to_idx[l]] for l in labels]
+            col_values = [col_values[name_to_idx[lab]] for lab in labels]
         n_rows = len(col_values[0]) if col_values else 0
         # The frame as a whole: "N by M" shape label on the left, a tally
         # over whole rows in the middle, distribution cell empty.
