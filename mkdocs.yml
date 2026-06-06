@@ -37,7 +37,9 @@ theme:
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
+  favicon: assets/favicon.svg
   icon:
+    logo: material/view-week-outline
     repo: fontawesome/brands/github
 
 nav:
