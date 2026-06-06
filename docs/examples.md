@@ -28,6 +28,17 @@ missing) paired with a distribution per column.
 
 <iframe class="example-frame" src="assets/summary_demo.html" style="height: 720px;"></iframe>
 
+## DataFrame view — column profiles in the header
+
+A table where each column header stacks the column name, a tally strip, and a
+distribution strip — a SQL-client–style preview of a result set with column
+statistics built right into the header. Numeric and date columns get a pavement
+spark; categorical columns get a proportion strip.
+
+[:octicons-file-code-16: dataframe_view_demo.py](https://github.com/ajschumacher/pavement/blob/main/examples/dataframe_view_demo.py)
+
+<iframe class="example-frame" src="assets/dataframe_view_demo.html" style="height: 620px;"></iframe>
+
 ## The `.pave` accessor — pandas & polars
 
 Importing `pavement.pandas` / `pavement.polars` registers a `.pave` accessor, so

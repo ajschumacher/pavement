@@ -27,6 +27,7 @@ ASSETS = REPO / "docs" / "examples" / "assets"
 DEMOS = [
     "svg_demo",
     "summary_demo",
+    "dataframe_view_demo",
     "value_format_demo",
     "box_edges_demo",
     "interactive_demo",
