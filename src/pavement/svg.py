@@ -1526,6 +1526,7 @@ def summary(
     draggable: bool = True,
     min_fill: float = 0.1,
     shared_bounds: bool | None = None,
+    labels: Sequence[Any] | None = None,
     class_: str = 'pavement-summary',
     path: str | None = None,
 ) -> Summary:
@@ -1628,6 +1629,13 @@ def summary(
         point), False for plain DataFrames and dicts (where columns often
         have different units or scales). Has no effect on categorical
         proportion strips.
+    labels : sequence, optional
+        Which columns (or groups, for a groupby) to show and in what order,
+        overriding the default order from the data. Each entry must match a
+        column name (for a DataFrame or dict) or a group-key string (for a
+        groupby). Raises ``ValueError`` if any name is not found. When
+        ``None`` (the default), all columns or groups appear in their
+        natural order.
     class_ : str, default: 'pavement-summary'
         CSS class on the ``<table>``, a hook for your own styling.
     path : str, optional
@@ -1705,6 +1713,17 @@ def summary(
             col_lists = [list(sub_df[c]) for c in sub_df.columns]
             rks = [_row_key(row) for row in zip(*col_lists)] if col_lists else []
             row_key_lists.append(rks)
+        if labels is not None:
+            lab_str = [str(lab) for lab in labels]
+            missing = [lab for lab in lab_str if lab not in group_keys]
+            if missing:
+                raise ValueError(
+                    f"labels not found in groupby keys: "
+                    f"{', '.join(map(repr, missing))}")
+            idx = {k: i for i, k in enumerate(group_keys)}
+            order = [idx[lab] for lab in lab_str]
+            group_keys = [group_keys[i] for i in order]
+            row_key_lists = [row_key_lists[i] for i in order]
         n_groups = len(group_keys)
         enable_drag = draggable and n_groups >= 2
         all_row_keys = [rk for rks in row_key_lists for rk in rks]
@@ -1726,8 +1745,19 @@ def summary(
                 '', '', '', draggable=enable_drag))
     elif groupby is not None:  # _GROUPBY_SERIES
         _, series_name, group_keys, series_groups = groupby
-        columns = [list(g) for g in series_groups]
-        all_values = [v for col in columns for v in col]
+        group_cols = [list(g) for g in series_groups]
+        if labels is not None:
+            lab_str = [str(lab) for lab in labels]
+            missing = [lab for lab in lab_str if lab not in group_keys]
+            if missing:
+                raise ValueError(
+                    f"labels not found in groupby keys: "
+                    f"{', '.join(map(repr, missing))}")
+            idx = {k: i for i, k in enumerate(group_keys)}
+            order = [idx[lab] for lab in lab_str]
+            group_keys = [group_keys[i] for i in order]
+            group_cols = [group_cols[i] for i in order]
+        all_values = [v for col in group_cols for v in col]
         all_present = [v for v in all_values if not _is_missing(v)]
         n_groups = len(group_keys)
         enable_drag = draggable and n_groups >= 2
@@ -1748,9 +1778,9 @@ def summary(
             _distribution_strip(all_values, all_present, color, opts,
                                 strip_width=w_dist),
             global_hi, total=True))
-        group_sizes = [len(col) for col in columns]
+        group_sizes = [len(col) for col in group_cols]
         max_size = max(group_sizes, default=1)
-        for key, values, size in zip(group_keys, columns, group_sizes):
+        for key, values, size in zip(group_keys, group_cols, group_sizes):
             fr = max(min_fill, size / max_size) if max_size else 1.0
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
@@ -1764,11 +1794,20 @@ def summary(
                                     domain=global_domain),
                 hi, draggable=enable_drag))
     elif columns_data is not None:
-        names, columns = columns_data
-        n_rows = len(columns[0]) if columns else 0
+        names, col_values = columns_data
+        if labels is not None:
+            name_to_idx = {n: i for i, n in enumerate(names)}
+            missing = [lab for lab in labels if lab not in name_to_idx]
+            if missing:
+                raise ValueError(
+                    f"labels not found in data: "
+                    f"{', '.join(map(repr, missing))}")
+            names = list(labels)
+            col_values = [col_values[name_to_idx[lab]] for lab in labels]
+        n_rows = len(col_values[0]) if col_values else 0
         # The frame as a whole: "N by M" shape label on the left, a tally
         # over whole rows in the middle, distribution cell empty.
-        keys = [_row_key(row) for row in zip(*columns)] if columns else []
+        keys = [_row_key(row) for row in zip(*col_values)] if col_values else []
         n_cols = len(names)
         enable_drag = draggable and n_cols >= 2
         shape_label = (f'<span style="{_COUNT_STYLE}">'
@@ -1777,13 +1816,13 @@ def summary(
             shape_label,
             _tally_strip(keys, 'row', opts, strip_width=w_tally),
             '', '', '', total=True))
-        col_sizes = [len(col) for col in columns]
+        col_sizes = [len(col) for col in col_values]
         max_size = max(col_sizes, default=1)
-        all_col_present = [v for col in columns for v in col if not _is_missing(v)]
+        all_col_present = [v for col in col_values for v in col if not _is_missing(v)]
         frame_global_domain = (_global_domain(all_col_present)
                                if shared_bounds and _pavement_column(all_col_present)
                                else None)
-        for name, values, size in zip(names, columns, col_sizes):
+        for name, values, size in zip(names, col_values, col_sizes):
             fr = max(min_fill, size / max_size) if max_size else 1.0
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)

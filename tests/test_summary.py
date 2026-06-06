@@ -910,3 +910,79 @@ def test_summary_shared_bounds_wellformed_xml():
     s = pd.Series([0, 1, 50, 100])
     keys = pd.Series(["a", "a", "b", "b"])
     _wellformed(str(summary(s.groupby(keys))))
+
+
+# ---------------------------------------------------------------------------
+# columns parameter: reorder / subset columns or groups
+# ---------------------------------------------------------------------------
+
+def test_summary_columns_reorders_dict():
+    data = {"a": [1, 2], "b": [3, 4], "c": [5, 6]}
+    html = str(summary(data, labels=["c", "a"]))
+    pos_c = html.index(">c<")
+    pos_a = html.index(">a<")
+    assert pos_c < pos_a
+    assert ">b<" not in html
+
+
+def test_summary_columns_reorders_dataframe():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"x": [1], "y": [2], "z": [3]})
+    html = str(summary(df, labels=["z", "x"]))
+    pos_z = html.index(">z<")
+    pos_x = html.index(">x<")
+    assert pos_z < pos_x
+    assert ">y<" not in html
+
+
+def test_summary_columns_subset_only():
+    data = {"a": [1, 2], "b": [3, 4], "c": [5, 6]}
+    html = str(summary(data, labels=["b"]))
+    assert ">b<" in html
+    assert ">a<" not in html
+    assert ">c<" not in html
+
+
+def test_summary_columns_invalid_name_raises():
+    data = {"a": [1], "b": [2]}
+    with pytest.raises(ValueError, match="labels not found in data"):
+        summary(data, labels=["a", "z"])
+
+
+def test_summary_columns_reorders_series_groupby():
+    pd = pytest.importorskip("pandas")
+    s = pd.Series([1, 2, 3, 4], name="val")
+    keys = pd.Series(["a", "a", "b", "b"])
+    html = str(summary(s.groupby(keys), labels=["b", "a"]))
+    pos_b = html.index(">b<")
+    pos_a = html.index(">a<")
+    assert pos_b < pos_a
+
+
+def test_summary_columns_reorders_dataframe_groupby():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"v": [1, 2, 3, 4], "g": ["x", "x", "y", "y"]})
+    html = str(summary(df.groupby("g"), labels=["y", "x"]))
+    pos_y = html.index(">y<")
+    pos_x = html.index(">x<")
+    assert pos_y < pos_x
+
+
+def test_summary_columns_invalid_group_raises():
+    pd = pytest.importorskip("pandas")
+    s = pd.Series([1, 2], name="v")
+    keys = pd.Series(["a", "b"])
+    with pytest.raises(ValueError, match="labels not found in groupby keys"):
+        summary(s.groupby(keys), labels=["a", "z"])
+
+
+def test_summary_columns_none_unchanged():
+    data = {"a": [1], "b": [2], "c": [3]}
+    html = str(summary(data, labels=None))
+    assert ">a<" in html and ">b<" in html and ">c<" in html
+
+
+def test_summary_columns_wellformed_xml():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"p": [1, 2], "q": [3, 4], "r": [5, 6]})
+    _wellformed(str(summary(df, labels=["r", "p"])))
