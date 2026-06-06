@@ -247,6 +247,79 @@ def test_summary_draggable_ids_are_unique_across_tables():
 
 
 # ---------------------------------------------------------------------------
+# Copy button: pavement-copy glyph in the header row when draggable
+# ---------------------------------------------------------------------------
+
+def test_summary_copy_button_present_when_draggable():
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6]}))
+    assert "pavement-copy" in out
+    assert 'title="Copy current label order"' in out
+
+
+def test_summary_copy_button_absent_when_draggable_false():
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6]}, draggable=False))
+    assert "pavement-copy" not in out
+
+
+def test_summary_copy_button_absent_for_single_column():
+    out = str(summary({"only": [1, 2, 3]}))
+    assert "pavement-copy" not in out
+
+
+def test_summary_copy_button_absent_for_bare_sequence():
+    out = str(summary([1, 2, 3]))
+    assert "pavement-copy" not in out
+
+
+def test_summary_copy_button_hidden_by_default():
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6]}))
+    # The span ships with display:none so it only appears where JS runs.
+    m = re.search(r'class="pavement-copy"[^>]*style="([^"]*)"', out)
+    assert m and "display:none" in m.group(1)
+
+
+def test_summary_copy_button_glyph_is_copy_icon():
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6]}))
+    assert "⧉" in out
+
+
+def test_summary_copy_button_in_header_row_not_data_rows():
+    # pavement-copy should be inside the total/header <tr> (the one without
+    # data-pave-row), not inside any draggable column row.
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6]}))
+    # Strip the <script> block before splitting, so the JS text doesn't interfere.
+    table_html = re.sub(r'<script>.*?</script>', '', out, flags=re.S)
+    parts = table_html.split('data-pave-row')
+    assert "pavement-copy" in parts[0]
+    for part in parts[1:]:
+        assert "pavement-copy" not in part
+
+
+def test_summary_pavement_label_class_on_draggable_rows():
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6]}))
+    assert "pavement-label" in out
+
+
+def test_summary_copy_button_present_for_series_groupby():
+    pd = pytest.importorskip("pandas")
+    s = pd.Series([1, 2, 3, 4], name="v")
+    keys = pd.Series(["a", "a", "b", "b"])
+    out = str(summary(s.groupby(keys)))
+    assert "pavement-copy" in out
+
+
+def test_summary_copy_button_present_for_dataframe_groupby():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"v": [1, 2, 3, 4], "g": ["x", "x", "y", "y"]})
+    out = str(summary(df.groupby("g")))
+    assert "pavement-copy" in out
+
+
+def test_summary_copy_button_wellformed_xml():
+    _wellformed(str(summary({"x": [1, 2, 3], "y": [4, 5, 6]})))
+
+
+# ---------------------------------------------------------------------------
 # Single series / sequence
 # ---------------------------------------------------------------------------
 
