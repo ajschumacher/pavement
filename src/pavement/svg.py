@@ -847,6 +847,7 @@ def tally(
     line_color: str | None = None,
     line_width: float = 1.0,
     min_box: float = 3.0,
+    fill_ratio: float = 1.0,
     height: str = '1em',
     inline: bool = True,
     hover: bool = True,
@@ -867,7 +868,7 @@ def tally(
     surfaces exactly what a pavement plot can't — missing values and
     distinctness.
 
-    The three boxes always fill the strip edge to edge, since the counts
+    By default the three boxes fill the strip edge to edge, since the counts
     sum to the total (see `pavement.core.tally_stats`); a category with no
     values draws no box. Each box carries a native ``<title>`` tooltip with
     its share and count — the lines between boxes do not. Returns an
@@ -902,6 +903,14 @@ def tally(
         from the larger boxes, and the tooltip still reports the true share
         and count. 0 makes the boxes purely proportional. A category with no
         values still draws no box.
+    fill_ratio : float, default: 1.0
+        Fraction of the strip's span that the boxes occupy, in [0, 1]. At
+        1.0 (default) the boxes fill edge to edge. Values below 1.0 leave
+        the right (or bottom, when vertical) portion of the strip empty —
+        transparent, with no box drawn. Used by `summary` to make each
+        group's tally proportional to its row count relative to the largest
+        group, so a smaller group appears visually narrower. Clamped to
+        [0, 1]; the tooltips always report the true counts.
     height : str, default: '1em'
         CSS height baked onto the root when *inline* is True, so the strip
         tracks the font size; width follows the aspect.
@@ -965,7 +974,8 @@ def tally(
         ('duplicate', repeated_color, counts['repeated']),
         ('missing', missing_color, counts['missing']),
     ) if count > 0]  # a category with no values draws no box
-    lengths = _box_lengths([count for _, _, count in segments], span, min_box)
+    effective_span = span * max(0.0, min(1.0, fill_ratio))
+    lengths = _box_lengths([count for _, _, count in segments], effective_span, min_box)
     word = noun if total == 1 else _plural(noun)
 
     parts: list[str] = []
@@ -1374,12 +1384,12 @@ def _set_strip_width(svg: str, width: str) -> str:
 
 
 def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any],
-                 *, strip_width: str | None = None) -> str:
+                 *, strip_width: str | None = None, fill_ratio: float = 1.0) -> str:
     """A column's (or the whole frame's) tally strip — empty if there is
     nothing to count (a zero-length column)."""
     if not values:
         return ''
-    svg = tally(values, noun=noun, **opts)
+    svg = tally(values, noun=noun, fill_ratio=fill_ratio, **opts)
     return _set_strip_width(svg, strip_width) if strip_width else svg
 
 
@@ -1502,6 +1512,7 @@ def summary(
     hover: bool = True,
     highlight: bool = True,
     draggable: bool = True,
+    min_fill: float = 0.1,
     class_: str = 'pavement-summary',
     path: str | None = None,
 ) -> Summary:
@@ -1582,6 +1593,16 @@ def summary(
         is not read back into Python. Has no effect unless there are two or more
         column rows to reorder — a single column, single group, or bare sequence
         gets no handle (nothing to rearrange).
+    min_fill : float, default: 0.1
+        When groups or columns have different row counts (a groupby or a dict
+        with unequal-length values), each tally strip is scaled so its visible
+        width is proportional to its row count relative to the largest group or
+        column. *min_fill* is the floor: even the smallest tally strip uses at
+        least this fraction of the full strip width, so it stays visible. ``0``
+        makes the scaling fully proportional (a very small group's strip can
+        shrink to nearly nothing); ``1`` makes every strip fill its full width
+        (disables the proportional scaling). Has no effect when all groups or
+        columns have the same length.
     class_ : str, default: 'pavement-summary'
         CSS class on the ``<table>``, a hook for your own styling.
     path : str, optional
@@ -1656,10 +1677,14 @@ def summary(
             shape_label,
             _tally_strip(all_row_keys, 'row', opts, strip_width=w_tally),
             '', '', '', total=True))
-        for key, row_keys in zip(group_keys, row_key_lists):
+        group_sizes = [len(rks) for rks in row_key_lists]
+        max_size = max(group_sizes, default=1)
+        for key, row_keys, size in zip(group_keys, row_key_lists, group_sizes):
+            fr = max(min_fill, size / max_size) if max_size else 1.0
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
-                _tally_strip(row_keys, 'row', opts, strip_width=w_tally),
+                _tally_strip(row_keys, 'row', opts, strip_width=w_tally,
+                             fill_ratio=fr),
                 '', '', '', draggable=enable_drag))
     elif groupby is not None:  # _GROUPBY_SERIES
         _, series_name, group_keys, series_groups = groupby
@@ -1682,12 +1707,16 @@ def summary(
             _distribution_strip(all_values, all_present, color, opts,
                                 strip_width=w_dist),
             hi, total=True))
-        for key, values in zip(group_keys, columns):
+        group_sizes = [len(col) for col in columns]
+        max_size = max(group_sizes, default=1)
+        for key, values, size in zip(group_keys, columns, group_sizes):
+            fr = max(min_fill, size / max_size) if max_size else 1.0
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
-                _tally_strip(values, 'entry', opts, strip_width=w_tally),
+                _tally_strip(values, 'entry', opts, strip_width=w_tally,
+                             fill_ratio=fr),
                 lo,
                 _distribution_strip(values, present, color, opts,
                                     strip_width=w_dist),
@@ -1706,12 +1735,16 @@ def summary(
             shape_label,
             _tally_strip(keys, 'row', opts, strip_width=w_tally),
             '', '', '', total=True))
-        for name, values in zip(names, columns):
+        col_sizes = [len(col) for col in columns]
+        max_size = max(col_sizes, default=1)
+        for name, values, size in zip(names, columns, col_sizes):
+            fr = max(min_fill, size / max_size) if max_size else 1.0
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
-                _tally_strip(values, 'entry', opts, strip_width=w_tally),
+                _tally_strip(values, 'entry', opts, strip_width=w_tally,
+                             fill_ratio=fr),
                 lo,
                 _distribution_strip(values, present, color, opts,
                                     strip_width=w_dist),

@@ -706,3 +706,110 @@ def test_summary_dataframe_groupby_is_wellformed_xml():
     pd = pytest.importorskip("pandas")
     df = pd.DataFrame({"k": list("aabbc"), "v": [1, 2, None, 4, 5], "w": range(5)})
     _wellformed(str(summary(df.groupby("k"))))
+
+
+# ---------------------------------------------------------------------------
+# min_fill — proportional tally width for unequal groups / columns
+# ---------------------------------------------------------------------------
+
+def _tally_box_widths(html):
+    """Total filled width (sum of box widths) of each tally SVG in order."""
+    results = []
+    for svg in re.findall(r'<svg[^>]*class="pavement-tally"[^>]*>.*?</svg>',
+                          html, re.S):
+        widths = [float(w) for w in re.findall(
+            r'<rect class="tvbox"[^>]*?width="([-\d.]+)"', svg)]
+        results.append(sum(widths))
+    return results
+
+
+def test_summary_min_fill_series_groupby_unequal_groups():
+    pd = pytest.importorskip("pandas")
+    # Group "a": 1 entry, group "b": 10 entries.
+    # Pandas sorts groups alphabetically: "a" row precedes "b" row in the HTML.
+    s = pd.Series(list(range(10)) + [99], name="v")
+    keys = pd.Series(["b"] * 10 + ["a"])
+    out = str(summary(s.groupby(keys)))
+    widths = _tally_box_widths(out)
+    # Three strips: header (all 11), group "a" (1), group "b" (10).
+    assert len(widths) == 3
+    header_w, small_w, big_w = widths
+    # Header is full width (~140), big group is also full (~140), small is less.
+    assert header_w == pytest.approx(140.0)
+    assert big_w == pytest.approx(140.0)
+    assert small_w < big_w
+
+
+def test_summary_min_fill_series_groupby_floor_applied():
+    pd = pytest.importorskip("pandas")
+    # Tiny group (1 entry) vs large group (100 entries); default min_fill=0.1
+    # means small group fills at least 10% of 140 = 14 viewBox units.
+    # "big" < "tiny" alphabetically, so big row comes first.
+    s = pd.Series(list(range(100)) + [999])
+    keys = pd.Series(["big"] * 100 + ["tiny"])
+    out = str(summary(s.groupby(keys)))
+    widths = _tally_box_widths(out)
+    _, big_w, small_w = widths
+    assert big_w == pytest.approx(140.0)
+    assert small_w >= 140.0 * 0.1
+
+
+def test_summary_min_fill_zero_is_fully_proportional():
+    pd = pytest.importorskip("pandas")
+    # "big" < "tiny" alphabetically.
+    s = pd.Series(list(range(100)) + [999])
+    keys = pd.Series(["big"] * 100 + ["tiny"])
+    out = str(summary(s.groupby(keys), min_fill=0.0))
+    widths = _tally_box_widths(out)
+    _, big_w, small_w = widths
+    assert big_w == pytest.approx(140.0)
+    # With min_fill=0, small group (1/100 of big) gets ~1.4 units.
+    assert small_w == pytest.approx(140.0 / 100, rel=0.1)
+
+
+def test_summary_min_fill_one_all_strips_full_width():
+    pd = pytest.importorskip("pandas")
+    s = pd.Series(list(range(100)) + [999])
+    keys = pd.Series(["big"] * 100 + ["tiny"])
+    out = str(summary(s.groupby(keys), min_fill=1.0))
+    widths = _tally_box_widths(out)
+    for w in widths:
+        assert w == pytest.approx(140.0)
+
+
+def test_summary_min_fill_dataframe_groupby_unequal_groups():
+    pd = pytest.importorskip("pandas")
+    # "a" (1 row) sorts before "b" (10 rows).
+    df = pd.DataFrame({
+        "k": ["a"] * 1 + ["b"] * 10,
+        "v": range(11),
+    })
+    out = str(summary(df.groupby("k")))
+    widths = _tally_box_widths(out)
+    # Header + "a" (1 row) + "b" (10 rows)
+    assert len(widths) == 3
+    header_w, small_w, big_w = widths
+    assert header_w == pytest.approx(140.0)
+    assert big_w == pytest.approx(140.0)
+    assert small_w < big_w
+
+
+def test_summary_min_fill_dict_unequal_columns():
+    # Dict with two differently-sized columns; smaller gets a narrower strip.
+    out = str(summary({"short": [1, 2], "long": list(range(20))}))
+    widths = _tally_box_widths(out)
+    # Header row (whole-row tally, zip-truncated to 2) + short + long.
+    assert len(widths) == 3
+    _, short_w, long_w = widths
+    assert long_w == pytest.approx(140.0)
+    assert short_w < long_w
+
+
+def test_summary_min_fill_equal_columns_no_scaling():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+    out = str(summary(df))
+    widths = _tally_box_widths(out)
+    # All strips should be full width when columns are the same length.
+    for w in widths:
+        assert w == pytest.approx(140.0)
