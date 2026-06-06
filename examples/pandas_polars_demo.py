@@ -190,6 +190,10 @@ PAGE = f"""<!doctype html>
   p {{ max-width: 50rem; }}
   code {{ font-family: Menlo, monospace; font-size: 0.85em;
           background: #f0eee8; padding: 0.05em 0.3em; border-radius: 3px; }}
+  /* Code blocks supply their own dark background; don't let the inline-code
+     beige box paint over the light-on-dark text inside them. */
+  pre code {{ background: none; padding: 0; border-radius: 0;
+              font-size: inherit; color: inherit; }}
   .output {{ margin-bottom: 0.6rem; font-size: 1.1em; }}
 </style></head><body>
 
