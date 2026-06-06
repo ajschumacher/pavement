@@ -55,7 +55,7 @@ plugins:
         python:
           paths: [src]
           options:
-            docstring_style: google
+            docstring_style: numpy
             show_root_heading: true
             show_root_full_path: false
             show_source: true
