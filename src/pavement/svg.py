@@ -1286,6 +1286,9 @@ _TEXT_WRAP = 'display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:t
 # static renders), where dragging would not work anyway.
 _HANDLE_STYLE = ('display:none;flex:none;cursor:grab;color:#bbb;font-size:1em;'
                  'line-height:1;user-select:none;-webkit-user-select:none;')
+_COPY_STYLE = ('display:none;cursor:pointer;color:#bbb;font-size:1em;'
+               'line-height:1;user-select:none;-webkit-user-select:none;'
+               'margin-right:.3em;')
 
 
 def _count_label(n: int, noun: str) -> str:
@@ -1294,14 +1297,20 @@ def _count_label(n: int, noun: str) -> str:
 
 
 def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
-                 *, total: bool = False, draggable: bool = False) -> str:
+                 *, total: bool = False, draggable: bool = False,
+                 copy_btn: bool = False) -> str:
     """One table row: label, tally, min-extent, distribution, max-extent cells.
 
     With *draggable*, a (non-total) row carries a ``data-pave-row`` marker and a
     `_HANDLE_STYLE` grip (``.pavement-handle``) at the left of its name — the
     only draggable element, the hook the summary's reorder script
-    (`_drag_script`) keys on. The total/header row gets neither, so it stays
-    pinned at the top, and every row keeps its normal cursor and selectable text.
+    (`_drag_script`) keys on. The label text sits in a ``pavement-label`` span
+    so the copy script can read the current row order from the DOM.
+
+    With *copy_btn*, the total/header row gets a hidden ``.pavement-copy`` glyph
+    before its label; the script reveals it and wires the clipboard action.
+    Without *copy_btn* the total row stays pinned at the top with no extra markup.
+    Every row keeps its normal cursor and selectable text.
     """
     td_name = _TD_NAME_TOTAL if total else _TD_NAME
     td_tally = _TD_TOTAL if total else _TD
@@ -1317,11 +1326,19 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
         handle = (f'<span class="pavement-handle" draggable="true" '
                   f'title="Drag to reorder" style="{_HANDLE_STYLE}">⠿</span>')
         name_cell = (f'<div style="display:flex;align-items:center;gap:.3em;">'
-                     f'{handle}<div style="{_TEXT_WRAP}min-width:0;">{label}</div>'
+                     f'{handle}'
+                     f'<div class="pavement-label" style="{_TEXT_WRAP}min-width:0;">'
+                     f'{label}</div>'
                      f'</div>')
     else:
         tr = '<tr>'
-        name_cell = f'<div style="{_TEXT_WRAP}">{label}</div>'
+        if copy_btn and total:
+            copy_span = (f'<span class="pavement-copy" '
+                         f'title="Copy current label order" '
+                         f'style="{_COPY_STYLE}">⧉</span>')
+            name_cell = f'<div style="{_TEXT_WRAP}">{copy_span}{label}</div>'
+        else:
+            name_cell = f'<div style="{_TEXT_WRAP}">{label}</div>'
     return (f'{tr}<td style="{td_name}">{name_cell}</td>'
             f'<td style="{td_tally}">{tally_html}</td>'
             f'<td style="{td_extl}">{lo_html}</td>'
@@ -1339,6 +1356,12 @@ def _drag_script(table_id: str) -> str:
     works — notebooks strip the ``<script>`` and just show the static table.
     Dragging starts only from a ``.pavement-handle``; rows are matched and moved
     by their ``data-pave-row`` marker, so the unmarked total row stays pinned.
+
+    Also reveals the ``.pavement-copy`` button in the header and wires a click
+    handler that reads the current DOM order of ``.pavement-label`` elements,
+    formats them as a Python list literal, and writes it to the clipboard.
+    Integer-looking labels are emitted without quotes; everything else uses
+    JSON.stringify (double-quoted strings, valid Python).
     """
     return (
         # The body is wrapped in a CDATA section so the fragment stays
@@ -1351,6 +1374,24 @@ def _drag_script(table_id: str) -> str:
         # dangling grip on a table that cannot actually be dragged.
         'var hs=t.querySelectorAll(".pavement-handle"),i;'
         'for(i=0;i<hs.length;i++)hs[i].style.display="inline-block";'
+        # Reveal the copy button and wire clipboard action.
+        'var cb=t.querySelector(".pavement-copy");'
+        'if(cb){'
+        'cb.style.display="inline";'
+        'cb.addEventListener("click",function(){'
+        'var rs=t.querySelectorAll("[data-pave-row]"),labs=[],j,el,txt;'
+        'for(j=0;j<rs.length;j++){'
+        'el=rs[j].cells[0].querySelector(".pavement-label");if(!el)continue;'
+        'txt=el.textContent.trim();'
+        # Emit integers without quotes; everything else as a JSON string.
+        'if(/^-?\\d+$/.test(txt)){labs.push(txt);}'
+        'else{labs.push(JSON.stringify(txt));}'
+        '}'
+        'navigator.clipboard.writeText("["+labs.join(", ")+"]").then(function(){'
+        'var o=cb.textContent;cb.textContent="\\u2713";'
+        'setTimeout(function(){cb.textContent=o;},1200);'
+        '}).catch(function(){});'
+        '});}'
         'var d=null;'
         't.addEventListener("dragstart",function(e){'
         'var h=e.target.closest(".pavement-handle");if(!h)return;'
@@ -1733,7 +1774,7 @@ def summary(
         rows.append(_summary_row(
             shape_label,
             _tally_strip(all_row_keys, 'row', opts, strip_width=w_tally),
-            '', '', '', total=True))
+            '', '', '', total=True, copy_btn=enable_drag))
         group_sizes = [len(rks) for rks in row_key_lists]
         max_size = max(group_sizes, default=1)
         for key, row_keys, size in zip(group_keys, row_key_lists, group_sizes):
@@ -1777,7 +1818,7 @@ def summary(
             global_lo,
             _distribution_strip(all_values, all_present, color, opts,
                                 strip_width=w_dist),
-            global_hi, total=True))
+            global_hi, total=True, copy_btn=enable_drag))
         group_sizes = [len(col) for col in group_cols]
         max_size = max(group_sizes, default=1)
         for key, values, size in zip(group_keys, group_cols, group_sizes):
@@ -1815,7 +1856,7 @@ def summary(
         rows.append(_summary_row(
             shape_label,
             _tally_strip(keys, 'row', opts, strip_width=w_tally),
-            '', '', '', total=True))
+            '', '', '', total=True, copy_btn=enable_drag))
         col_sizes = [len(col) for col in col_values]
         max_size = max(col_sizes, default=1)
         all_col_present = [v for col in col_values for v in col if not _is_missing(v)]
