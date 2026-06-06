@@ -43,8 +43,10 @@ or plain sequence) into an inline table. Each variable is shown with a
 tally plot (how much is distinct / duplicate / missing) and a
 distribution plot that adapts to the column: a pavement **spark** for
 numbers, dates, and durations, and a **proportion** strip for
-categories. It's pure SVG — no JavaScript, no plotting dependency —
-and renders inline in a notebook.
+categories. It needs no plotting dependency and renders inline in a
+notebook; in a browser its rows are drag-to-reorder by default — the
+one sprinkle of JavaScript, which stays out of notebooks and static
+exports (and is off with `draggable=False`).
 
 ```python
 import pavement
@@ -184,10 +186,11 @@ accepts a pandas or polars `DataFrame` or `Series`, a plain `dict` of
 columns (no pandas required), or any 1D sequence. A numeric column's
 resolution adapts to its number of distinct values — a rug when few,
 then 4, 8, or 16 equal-mass bins as it grows — so a small column reads
-value-by-value and a large one as a smooth shape. Like the rest of
-`pavement.svg` it is pure SVG with no dependencies and no JavaScript;
-`str()` gives the HTML fragment and `path="summary.html"` saves a
-standalone page. See
+value-by-value and a large one as a smooth shape. It has no
+dependencies; the strips are pure SVG, and the only JavaScript is the
+optional drag-to-reorder (a grip handle on each row, off with
+`draggable=False`). `str()` gives the HTML fragment and
+`path="summary.html"` saves a standalone page. See
 [`examples/summary_demo.py`](https://github.com/ajschumacher/pavement/blob/main/examples/summary_demo.py).
 
 

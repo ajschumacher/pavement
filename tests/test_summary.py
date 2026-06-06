@@ -164,6 +164,89 @@ def test_summary_is_wellformed_xml(data):
 
 
 # ---------------------------------------------------------------------------
+# draggable=True: a browser-only, self-contained reorder of the column rows
+# ---------------------------------------------------------------------------
+
+def test_summary_draggable_is_the_default():
+    out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}))
+    assert "pavement-handle" in out
+    assert "<script" in out
+
+
+def test_summary_draggable_false_is_a_script_free_fragment():
+    out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}, draggable=False))
+    assert "draggable" not in out
+    assert "pavement-handle" not in out
+    assert "<script" not in out
+
+
+@pytest.mark.parametrize("data", [
+    {"only": [1, 2, 3]},        # single-column frame — one reorderable row
+    [1, 2, 3, 4, 5],            # bare sequence — a single row
+    {"a": [1], "b": [2]},       # two columns, but each a single value
+])
+def test_summary_no_handle_when_nothing_to_reorder(data):
+    # Dragging needs 2+ column rows; with fewer there is no handle and no
+    # script (the multi-column case still gets them — that is two rows).
+    out = str(summary(data))
+    if isinstance(data, dict) and len(data) >= 2:
+        assert "pavement-handle" in out
+    else:
+        assert "pavement-handle" not in out
+        assert "<script" not in out
+
+
+def test_summary_default_output_is_wellformed_xml():
+    # The default now carries a <script>; it stays well-formed XML — the script
+    # lives inside the wrapper div (one root) and its body is a CDATA section.
+    _wellformed(str(summary({"x": [1, 2, 3], "y": ["a", "b", None]})))
+
+
+def test_summary_draggable_gives_each_column_row_a_handle():
+    # Three columns → three grip handles (the top "N by M" total row gets none).
+    # The handle is the only draggable element — the rows themselves are not.
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]},
+                      draggable=True))
+    assert out.count('class="pavement-handle"') == 3
+    assert out.count('draggable="true"') == 3   # one per handle, none on <tr>
+    assert "<tr draggable" not in out
+
+
+def test_summary_draggable_handles_start_hidden():
+    # Hidden in the markup; the script reveals them, so a stripped script (a
+    # notebook) leaves no grip on a table that cannot be dragged.
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6]}, draggable=True))
+    handle = out.split('class="pavement-handle"', 1)[1].split(">", 1)[0]
+    assert "display:none" in handle
+
+
+def test_summary_draggable_total_row_stays_pinned():
+    # The first row in the table is the frame's total row — no handle, not a
+    # drop-target row (no data-pave-row marker).
+    out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}, draggable=True))
+    body = out.split("</colgroup>", 1)[1]
+    first_row = body.split("</tr>", 1)[0]
+    assert "pavement-handle" not in first_row
+    assert "data-pave-row" not in first_row
+
+
+def test_summary_draggable_adds_one_scoped_script_keyed_to_the_table():
+    out = str(summary({"x": [1, 2, 3], "y": [4, 5, 6]}, draggable=True))
+    assert out.count("<script>") == 1
+    # The id on the table is the id the script looks up — same string, once each.
+    m = re.search(r'id="(pavement-summary-[0-9a-f]+)"', out)
+    assert m and out.count(m.group(1)) == 2
+
+
+def test_summary_draggable_ids_are_unique_across_tables():
+    a = re.search(r'id="(pavement-summary-[0-9a-f]+)"',
+                  str(summary({"x": [1, 2], "y": [3, 4]}, draggable=True))).group(1)
+    b = re.search(r'id="(pavement-summary-[0-9a-f]+)"',
+                  str(summary({"x": [1, 2], "y": [3, 4]}, draggable=True))).group(1)
+    assert a != b
+
+
+# ---------------------------------------------------------------------------
 # Single series / sequence
 # ---------------------------------------------------------------------------
 
