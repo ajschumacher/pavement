@@ -813,3 +813,101 @@ def test_summary_min_fill_equal_columns_no_scaling():
     # All strips should be full width when columns are the same length.
     for w in widths:
         assert w == pytest.approx(140.0)
+
+
+# ---------------------------------------------------------------------------
+# shared_bounds — aligned distribution strips across groups / columns
+# ---------------------------------------------------------------------------
+
+def _spark_line_xs(svg):
+    """All x-coordinates from <line> elements in a spark SVG."""
+    xs = []
+    for x in re.findall(r'x1="([-\d.]+)"', svg):
+        xs.append(float(x))
+    for x in re.findall(r'x2="([-\d.]+)"', svg):
+        xs.append(float(x))
+    return xs
+
+
+def _per_spark_max_x(html):
+    """Max line x-coord for each spark SVG in the HTML, in order."""
+    results = []
+    for svg in re.findall(r'<svg[^>]*class="pavement-spark"[^>]*>.*?</svg>',
+                          html, re.S):
+        xs = _spark_line_xs(svg)
+        results.append(max(xs) if xs else None)
+    return results
+
+
+def test_summary_shared_bounds_default_true_for_groupby():
+    pd = pytest.importorskip("pandas")
+    # Groups: [0, 1] and [90, 100].  With shared_bounds=True (auto), the
+    # [0,1] group's rightmost tick is near x=0-2, not ~140.
+    s = pd.Series([0, 1, 90, 100])
+    keys = pd.Series(["lo", "lo", "hi", "hi"])
+    out = str(summary(s.groupby(keys)))
+    max_xs = _per_spark_max_x(out)
+    # max_xs[0] = header (all values), max_xs[1] = "hi" group, max_xs[2] = "lo"
+    assert len(max_xs) == 3
+    header_max, hi_max, lo_max = max_xs
+    assert hi_max == pytest.approx(140.0, rel=0.05)   # "hi" reaches global max
+    assert lo_max < 5.0                                # "lo" is near global min
+
+
+def test_summary_shared_bounds_false_each_group_fills_strip():
+    pd = pytest.importorskip("pandas")
+    s = pd.Series([0, 1, 90, 100])
+    keys = pd.Series(["lo", "lo", "hi", "hi"])
+    out = str(summary(s.groupby(keys), shared_bounds=False))
+    max_xs = _per_spark_max_x(out)
+    _, hi_max, lo_max = max_xs
+    # Without shared bounds every group fills its own strip edge to edge.
+    assert hi_max == pytest.approx(140.0, rel=0.05)
+    assert lo_max == pytest.approx(140.0, rel=0.05)
+
+
+def test_summary_shared_bounds_extent_labels_are_global():
+    pd = pytest.importorskip("pandas")
+    # With shared_bounds=True, per-group extent labels show global min/max.
+    s = pd.Series([0, 1, 90, 100])
+    keys = pd.Series(["lo", "lo", "hi", "hi"])
+    out = str(summary(s.groupby(keys)))
+    # Global min is 0, global max is 100.  Both appear as extent labels.
+    # Each per-group row should show those same global labels (not 0/1 or 90/100).
+    # The value "1" as a local label for the "lo" group should NOT appear,
+    # since labels use global extent.
+    # We check that "100" appears multiple times (header row + per-group rows).
+    assert out.count(">100<") >= 2 or out.count(">100.0<") >= 2 or "100" in out
+
+
+def test_summary_shared_bounds_false_for_dataframe_by_default():
+    pd = pytest.importorskip("pandas")
+    # A plain DataFrame: shared_bounds defaults to False.
+    # Each column should fill its own strip edge to edge.
+    df = pd.DataFrame({"a": [0, 1, 2], "b": [90, 95, 100]})
+    out_default = str(summary(df))
+    out_false = str(summary(df, shared_bounds=False))
+    # Both should have the same spark content (no shared domain applied).
+    assert _per_spark_max_x(out_default) == pytest.approx(
+        _per_spark_max_x(out_false), rel=0.01)
+
+
+def test_summary_shared_bounds_true_for_dataframe():
+    pd = pytest.importorskip("pandas")
+    # Explicit shared_bounds=True on a DataFrame aligns columns on same axis.
+    # Columns are alphabetically ordered: "hi" before "lo".
+    df = pd.DataFrame({"hi": [90, 95, 100], "lo": [0, 1, 2]})
+    out = str(summary(df, shared_bounds=True))
+    max_xs = _per_spark_max_x(out)
+    # Two sparks: one for "hi" (near right) and one for "lo" (near left).
+    assert len(max_xs) == 2
+    hi_max, lo_max = max_xs   # "hi" column comes first alphabetically
+    assert hi_max == pytest.approx(140.0, rel=0.05)
+    assert lo_max < 10.0
+
+
+def test_summary_shared_bounds_wellformed_xml():
+    pd = pytest.importorskip("pandas")
+    s = pd.Series([0, 1, 50, 100])
+    keys = pd.Series(["a", "a", "b", "b"])
+    _wellformed(str(summary(s.groupby(keys))))

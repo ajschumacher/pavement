@@ -228,6 +228,7 @@ def spark(
     data: Iterable[float],
     weights: Sequence[float] | None = None,
     bins: int | None = 4,
+    domain: tuple[float, float] | None = None,
     orientation: Literal['vertical', 'horizontal'] = 'horizontal',
     width: float = 0.6,
     tassel_extent: float = 0.05,
@@ -272,6 +273,13 @@ def spark(
     bins : int or None, default: 4
         Number of equal-mass bins. None shows all the data instead of
         binning it (see `pavement_stats`), turning the spark into a rug.
+    domain : (float, float) or None, default: None
+        Explicit ``(lo, hi)`` extent for the value axis, in projected
+        coordinates (floats, after `_project` has converted dates etc.).
+        When given, the ticks are positioned as if this were the full
+        value range, so values outside the data's own range leave
+        transparent empty space — useful for aligning multiple strips on
+        a shared axis. When None the axis spans the data's own range.
     orientation : {'vertical', 'horizontal'}, default: 'horizontal'
         Direction of the value axis. 'horizontal' runs values
         left-to-right, the natural fit for an inline strip.
@@ -417,6 +425,8 @@ def spark(
         mark_reaches = [t.reach for t in spec.ticks]
 
     value_low, value_high = spec.value_low, spec.value_high
+    if domain is not None:
+        value_low, value_high = domain
     if value_high == value_low:  # constant data: give the box a little span
         value_low, value_high = value_low - 0.5, value_high + 0.5
     value_range = value_high - value_low
@@ -1395,7 +1405,8 @@ def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any],
 
 def _distribution_strip(values: list[Any], present: list[Any],
                         color: str, opts: dict[str, Any],
-                        *, strip_width: str | None = None) -> str:
+                        *, strip_width: str | None = None,
+                        domain: tuple[float, float] | None = None) -> str:
     """A column's distribution strip: a pavement spark when its present values
     are an ordered family a pavement can draw (numbers, ``Decimal``, or
     ``date``/``datetime``), otherwise a proportion strip. Empty when the column
@@ -1410,7 +1421,8 @@ def _distribution_strip(values: list[Any], present: list[Any],
         # value counts in their lengths, which is the whole point of rugging a
         # discrete column rather than binning it.
         svg = spark(present, bins=bins, color=color,
-                    proportional_representation=bins is None, **opts)
+                    proportional_representation=bins is None,
+                    domain=domain, **opts)
     else:
         svg = proportion(values, **opts)
     return _set_strip_width(svg, strip_width) if strip_width else svg
@@ -1513,6 +1525,7 @@ def summary(
     highlight: bool = True,
     draggable: bool = True,
     min_fill: float = 0.1,
+    shared_bounds: bool | None = None,
     class_: str = 'pavement-summary',
     path: str | None = None,
 ) -> Summary:
@@ -1603,6 +1616,18 @@ def summary(
         shrink to nearly nothing); ``1`` makes every strip fill its full width
         (disables the proportional scaling). Has no effect when all groups or
         columns have the same length.
+    shared_bounds : bool or None, default: None
+        Whether to place all distribution strips on a single shared value
+        axis, so their positions can be compared directly. When True, the
+        global min and max across all groups (or all columns, for a dict)
+        are used as the axis endpoints for every numeric distribution strip;
+        a group whose values occupy only part of the global range shows data
+        in the corresponding portion of the strip, with transparent empty
+        space elsewhere. None (the default) auto-detects: True for groupby
+        inputs (where comparing groups on a common axis is usually the
+        point), False for plain DataFrames and dicts (where columns often
+        have different units or scales). Has no effect on categorical
+        proportion strips.
     class_ : str, default: 'pavement-summary'
         CSS class on the ``<table>``, a hook for your own styling.
     path : str, optional
@@ -1654,6 +1679,19 @@ def summary(
     opts = {'height': height, 'hover': hover, 'highlight': highlight}
     groupby = _detect_groupby(data)
     columns_data = None if groupby is not None else _as_columns(data)
+
+    # Resolve shared_bounds: None auto-detects (True for groupby, else False).
+    if shared_bounds is None:
+        shared_bounds = groupby is not None
+
+    def _global_domain(present: list[Any]) -> tuple[float, float] | None:
+        """Projected (lo, hi) axis domain from *present* values, or None."""
+        if not present:
+            return None
+        proj, _ = _project(list(present))
+        lo, hi = min(proj), max(proj)
+        return (lo - 0.5, hi + 0.5) if lo == hi else (lo, hi)
+
     rows: list[str] = []
     # Dragging only earns its keep with two or more reorderable rows — a single
     # column, group, or bare sequence has nothing to rearrange, so it gets no
@@ -1699,27 +1737,34 @@ def summary(
                             f'{escape(str(series_name))}</span> {count_part}')
         else:
             header_label = count_part
-        lo, hi = _column_extent(all_values, all_present)
+        global_lo, global_hi = _column_extent(all_values, all_present)
+        global_domain = (_global_domain(all_present)
+                         if shared_bounds and _pavement_column(all_present)
+                         else None)
         rows.append(_summary_row(
             header_label,
             _tally_strip(all_values, 'entry', opts, strip_width=w_tally),
-            lo,
+            global_lo,
             _distribution_strip(all_values, all_present, color, opts,
                                 strip_width=w_dist),
-            hi, total=True))
+            global_hi, total=True))
         group_sizes = [len(col) for col in columns]
         max_size = max(group_sizes, default=1)
         for key, values, size in zip(group_keys, columns, group_sizes):
             fr = max(min_fill, size / max_size) if max_size else 1.0
             present = [v for v in values if not _is_missing(v)]
-            lo, hi = _column_extent(values, present)
+            if global_domain is not None:
+                lo, hi = global_lo, global_hi
+            else:
+                lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
                 _tally_strip(values, 'entry', opts, strip_width=w_tally,
                              fill_ratio=fr),
                 lo,
                 _distribution_strip(values, present, color, opts,
-                                    strip_width=w_dist),
+                                    strip_width=w_dist,
+                                    domain=global_domain),
                 hi, draggable=enable_drag))
     elif columns_data is not None:
         names, columns = columns_data
@@ -1737,17 +1782,28 @@ def summary(
             '', '', '', total=True))
         col_sizes = [len(col) for col in columns]
         max_size = max(col_sizes, default=1)
+        all_col_present = [v for col in columns for v in col if not _is_missing(v)]
+        frame_global_domain = (_global_domain(all_col_present)
+                               if shared_bounds and _pavement_column(all_col_present)
+                               else None)
+        if frame_global_domain is not None:
+            frame_global_lo, frame_global_hi = _column_extent(
+                [v for col in columns for v in col], all_col_present)
         for name, values, size in zip(names, columns, col_sizes):
             fr = max(min_fill, size / max_size) if max_size else 1.0
             present = [v for v in values if not _is_missing(v)]
-            lo, hi = _column_extent(values, present)
+            if frame_global_domain is not None:
+                lo, hi = frame_global_lo, frame_global_hi
+            else:
+                lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
                 _tally_strip(values, 'entry', opts, strip_width=w_tally,
                              fill_ratio=fr),
                 lo,
                 _distribution_strip(values, present, color, opts,
-                                    strip_width=w_dist),
+                                    strip_width=w_dist,
+                                    domain=frame_global_domain),
                 hi, draggable=enable_drag))
     else:
         values = list(data)

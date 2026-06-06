@@ -429,3 +429,57 @@ def test_spark_proportional_off_leaves_lines_full():
     data = [1] * 5 + [2] * 50
     lengths = _mark_lengths(spark(data, bins=None, hover=False))
     assert all(length == pytest.approx(30) for length in lengths)
+
+
+# ---------------------------------------------------------------------------
+# domain — shared-axis positioning
+# ---------------------------------------------------------------------------
+
+def _line_xs(svg):
+    """All x1 and x2 values from <line ...> elements in the SVG."""
+    import re
+    xs = []
+    for x in re.findall(r'x1="([-\d.]+)"', svg):
+        xs.append(float(x))
+    for x in re.findall(r'x2="([-\d.]+)"', svg):
+        xs.append(float(x))
+    return xs
+
+
+def test_spark_domain_none_is_default_behavior():
+    # Explicit domain matching the data's own range gives the same coordinates.
+    data = list(range(5))
+    out_default = spark(data, bins=None, hover=False)
+    out_explicit = spark(data, bins=None, hover=False, domain=(0.0, 4.0))
+    assert sorted(_line_xs(out_default)) == pytest.approx(sorted(_line_xs(out_explicit)))
+
+
+def test_spark_domain_wider_compresses_ticks_left():
+    # Data [0, 1, 2] with domain=(0, 10): ticks at 0%, 10%, 20% of viewBox.
+    # The rightmost tick should be at x ≈ 140 * 2/10 = 28, well left of 140.
+    out = spark([0, 1, 2], bins=None, hover=False, domain=(0.0, 10.0))
+    max_x = max(_line_xs(out))
+    assert max_x < 50.0  # well inside the left third
+
+
+def test_spark_domain_right_offset_positions_ticks_right():
+    # Data [8, 9, 10] with domain=(0, 10): ticks at 80%, 90%, 100% of viewBox.
+    out = spark([8, 9, 10], bins=None, hover=False, domain=(0.0, 10.0))
+    # The leftmost non-zero tick x should be well to the right.
+    positive_xs = [x for x in _line_xs(out) if x > 1.0]
+    assert positive_xs  # some ticks were drawn
+    assert min(positive_xs) > 90.0  # well into the right portion
+
+
+def test_spark_domain_with_binned_spark():
+    # domain works with binned sparks too — all line x-coords in [0, 140].
+    out = spark(list(range(50)), bins=4, hover=False, domain=(0.0, 100.0))
+    xs = _line_xs(out)
+    assert xs  # something was drawn
+    assert all(0.0 <= x <= 140.0 + 1e-6 for x in xs)
+    # data spans [0, 49] inside domain [0, 100]; rightmost edge ≈ 140*49/100
+    assert max(xs) < 75.0
+
+
+def test_spark_domain_wellformed_xml():
+    _wellformed(spark([1, 2, 3], bins=None, domain=(0.0, 5.0)))
