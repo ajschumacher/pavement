@@ -366,3 +366,53 @@ def test_tally_all_missing_is_single_full_box():
     width = float(re.search(r'width="([-\d.]+)"', out).group(1))
     assert width == pytest.approx(140.0)
     assert "missing\n100% (3 of 3 entries)" in out
+
+
+# ---------------------------------------------------------------------------
+# fill_ratio — partial-width tally
+# ---------------------------------------------------------------------------
+
+def test_tally_fill_ratio_one_is_full_width():
+    # Default fill_ratio=1.0 is identical to omitting the argument.
+    out_default = tally([1, 1, 2, None])
+    out_explicit = tally([1, 1, 2, None], fill_ratio=1.0)
+    assert _box_widths(out_default) == pytest.approx(_box_widths(out_explicit))
+
+
+def test_tally_fill_ratio_half_limits_boxes_to_half_span():
+    # fill_ratio=0.5 → boxes fit within [0, 70]; nothing reaches 140.
+    import re
+    out = tally([1, 1, 2, None], fill_ratio=0.5)
+    widths = _box_widths(out)
+    assert sum(widths) == pytest.approx(70.0)
+    # Confirm no box coordinate exceeds 70 (check x + width for each rect).
+    xs = [float(x) for x in re.findall(r'<rect class="tvbox" x="([-\d.]+)"', out)]
+    for x, w in zip(xs, widths):
+        assert x + w <= 70.0 + 1e-6
+
+
+def test_tally_fill_ratio_tooltips_still_report_true_counts():
+    # Visual width is halved, but the tooltip numbers are unchanged.
+    out_half = tally([1, 1, 2, None], fill_ratio=0.5)
+    out_full = tally([1, 1, 2, None], fill_ratio=1.0)
+    import re
+    def _titles(html):
+        return re.findall(r'<title>(.*?)</title>', html)
+    assert _titles(out_half) == _titles(out_full)
+
+
+def test_tally_fill_ratio_clamped_above_one():
+    # Values > 1.0 are treated as 1.0 — same as the default.
+    widths_clamped = _box_widths(tally([1, 1, 2, None], fill_ratio=5.0))
+    widths_default = _box_widths(tally([1, 1, 2, None]))
+    assert widths_clamped == pytest.approx(widths_default)
+
+
+def test_tally_fill_ratio_clamped_below_zero():
+    # Values < 0 are clamped to 0.0; boxes have zero width, no crash.
+    widths = _box_widths(tally([1, 1, 2, None], fill_ratio=-1.0))
+    assert all(w == pytest.approx(0.0) for w in widths)
+
+
+def test_tally_fill_ratio_wellformed_xml():
+    _wellformed(tally([1, 1, 2, None], fill_ratio=0.3))
