@@ -167,11 +167,23 @@ def test_summary_is_wellformed_xml(data):
 # draggable=True: a browser-only, self-contained reorder of the column rows
 # ---------------------------------------------------------------------------
 
-def test_summary_not_draggable_by_default():
+def test_summary_draggable_is_the_default():
     out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}))
+    assert "pavement-handle" in out
+    assert "<script" in out
+
+
+def test_summary_draggable_false_is_a_script_free_fragment():
+    out = str(summary({"x": [1, 2, 3], "y": ["a", "b", "a"]}, draggable=False))
     assert "draggable" not in out
     assert "pavement-handle" not in out
     assert "<script" not in out
+
+
+def test_summary_default_output_is_wellformed_xml():
+    # The default now carries a <script>; it stays well-formed XML — the script
+    # lives inside the wrapper div (one root) and its body is a CDATA section.
+    _wellformed(str(summary({"x": [1, 2, 3], "y": ["a", "b", None]})))
 
 
 def test_summary_draggable_gives_each_column_row_a_handle():

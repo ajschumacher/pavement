@@ -1214,17 +1214,17 @@ def _detect_groupby(
 # <svg>. The grays are mid-tone, legible on light and dark themes alike.
 _TD = ('border:none;padding:.18em 0;text-align:left;'
        'vertical-align:middle;white-space:nowrap;')
-_TD_TOTAL = _TD + 'border-bottom:1px solid rgba(128,128,128,.35);'
+_TD_TOTAL = _TD + 'box-shadow:0 1px 0 0 rgba(128,128,128,.35);'
 # Distribution column: no side padding — the extent cells handle the gaps.
 _TD_DIST = 'border:none;padding:.18em 0 .18em 0;vertical-align:middle;white-space:nowrap;'
-_TD_DIST_TOTAL = _TD_DIST + 'border-bottom:1px solid rgba(128,128,128,.35);'
+_TD_DIST_TOTAL = _TD_DIST + 'box-shadow:0 1px 0 0 rgba(128,128,128,.35);'
 # Min (left extent, right-aligned) and max (right extent, left-aligned) cells.
 _TD_EXTL = ('border:none;padding:.18em .4em .18em .4em;text-align:right;'
             'vertical-align:middle;white-space:nowrap;')
-_TD_EXTL_TOTAL = _TD_EXTL + 'border-bottom:1px solid rgba(128,128,128,.35);'
+_TD_EXTL_TOTAL = _TD_EXTL + 'box-shadow:0 1px 0 0 rgba(128,128,128,.35);'
 _TD_EXTR = ('border:none;padding:.18em .4em .18em .4em;text-align:left;'
             'vertical-align:middle;white-space:nowrap;')
-_TD_EXTR_TOTAL = _TD_EXTR + 'border-bottom:1px solid rgba(128,128,128,.35);'
+_TD_EXTR_TOTAL = _TD_EXTR + 'box-shadow:0 1px 0 0 rgba(128,128,128,.35);'
 _COUNT_STYLE = 'color:#888;'  # muted, for a "1,234 rows" / "1,234 values" cell
 _NAME_STYLE = ('font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
                'monospace;font-size:.92em;')
@@ -1233,7 +1233,7 @@ _NAME_STYLE = ('font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'
 # original 0/0.8em padding so the tally SVG stays flush-left as before.
 _TD_NAME = ('border:none;padding:.18em .4em .18em .4em;text-align:left;'
             'vertical-align:middle;white-space:nowrap;')
-_TD_NAME_TOTAL = _TD_NAME + 'border-bottom:1px solid rgba(128,128,128,.35);'
+_TD_NAME_TOTAL = _TD_NAME + 'box-shadow:0 1px 0 0 rgba(128,128,128,.35);'
 _EXTENT_STYLE = ('color:#888;font-family:ui-monospace,SFMono-Regular,Menlo,'
                  'Consolas,monospace;font-size:.85em;')
 
@@ -1287,7 +1287,7 @@ def _summary_row(label: str, tally_html: str, lo: str, dist_html: str, hi: str,
     lo_html = f'<div style="{_TEXT_WRAP}">{lo_inner}</div>' if lo else ''
     hi_html = f'<div style="{_TEXT_WRAP}">{hi_inner}</div>' if hi else ''
     if draggable and not total:
-        tr = '<tr data-pave-row>'
+        tr = '<tr data-pave-row="">'
         handle = (f'<span class="pavement-handle" draggable="true" '
                   f'title="Drag to reorder" style="{_HANDLE_STYLE}">⠿</span>')
         name_cell = (f'<div style="display:flex;align-items:center;gap:.3em;">'
@@ -1315,7 +1315,11 @@ def _drag_script(table_id: str) -> str:
     by their ``data-pave-row`` marker, so the unmarked total row stays pinned.
     """
     return (
-        '<script>(function(){'
+        # The body is wrapped in a CDATA section so the fragment stays
+        # well-formed XML (the JS contains a bare "<"); the // guards make the
+        # CDATA delimiters line comments to a browser's JS parser, so it runs
+        # fine as HTML too — the classic XHTML-safe inline-script idiom.
+        '<script>//<![CDATA[\n(function(){'
         f'var t=document.getElementById("{table_id}");if(!t)return;'
         # Reveal the handles: they ship hidden, so a stripped script leaves no
         # dangling grip on a table that cannot actually be dragged.
@@ -1325,7 +1329,15 @@ def _drag_script(table_id: str) -> str:
         't.addEventListener("dragstart",function(e){'
         'var h=e.target.closest(".pavement-handle");if(!h)return;'
         'd=h.closest("[data-pave-row]");if(!d)return;'
-        'e.dataTransfer.effectAllowed="move";d.style.opacity="0.4";});'
+        'e.dataTransfer.effectAllowed="move";'
+        # Drag the *whole row*, not just the grip: use the row as the drag
+        # image, offset so the cursor holds it where the handle was grabbed.
+        # Fade the original to a placeholder only after the image is captured
+        # (a deferred tick), so the floating ghost stays solid; the guard skips
+        # it if the drag was already cancelled.
+        'var b=d.getBoundingClientRect();'
+        'e.dataTransfer.setDragImage(d,e.clientX-b.left,e.clientY-b.top);'
+        'setTimeout(function(){if(d)d.style.opacity="0.4";},0);});'
         't.addEventListener("dragend",function(){if(d)d.style.opacity="";d=null;});'
         # preventDefault on *every* dragover over the table keeps the drop
         # allowed — including when the cursor is over the dragged row itself
@@ -1339,7 +1351,7 @@ def _drag_script(table_id: str) -> str:
         'var b=r.getBoundingClientRect();'
         'd.parentNode.insertBefore(d,e.clientY-b.top<b.height/2?r:r.nextSibling);});'
         't.addEventListener("drop",function(e){e.preventDefault();});'
-        '}());</script>'
+        '}());\n//]]></script>'
     )
 
 
@@ -1483,7 +1495,7 @@ def summary(
     height: str = '1.6em',
     hover: bool = True,
     highlight: bool = True,
-    draggable: bool = False,
+    draggable: bool = True,
     class_: str = 'pavement-summary',
     path: str | None = None,
 ) -> Summary:
@@ -1550,16 +1562,18 @@ def summary(
         Whether the strips carry their native ``<title>`` tooltips.
     highlight : bool, default: True
         Whether the strips brighten the box under the cursor (scoped CSS).
-    draggable : bool, default: False
+    draggable : bool, default: True
         If True, make the column rows drag-and-drop re-orderable, to rearrange
         them (e.g. to compare columns side by side). A small grip handle appears
         at the left of each column name and is the only draggable target, so the
         rest of each row keeps its normal cursor and stays text-selectable. Adds
         a small, self-contained ``<script>`` (the table's only JavaScript) scoped
-        to this one table; the top/total row stays pinned. Browser-only — the
-        handles are revealed by the script, so notebooks (which strip it) show
-        the plain static table — and purely visual, the new order is not read
-        back into Python.
+        to this one table; the top/total row stays pinned. The script reveals the
+        handles, so where it cannot run — notebooks strip it, static exports have
+        no JS — they stay hidden and the plain static table shows, which is why
+        this is harmless to leave on by default. Pass ``draggable=False`` for a
+        guaranteed script-free fragment. Purely visual either way: the new order
+        is not read back into Python.
     class_ : str, default: 'pavement-summary'
         CSS class on the ``<table>``, a hook for your own styling.
     path : str, optional
@@ -1728,7 +1742,7 @@ def summary(
     table = (
         f'<div style="max-width:{_SUMMARY_MAX_WIDTH};overflow-x:auto;">'
         f'<table{id_attr} class={quoteattr(class_)} style={quoteattr(table_style)}>'
-        f'{colgroup}{"".join(rows)}</table></div>{script}'
+        f'{colgroup}{"".join(rows)}</table>{script}</div>'
     )
 
     if path is not None:
