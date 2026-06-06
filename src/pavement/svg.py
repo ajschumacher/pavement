@@ -1753,10 +1753,7 @@ def summary(
         for key, values, size in zip(group_keys, columns, group_sizes):
             fr = max(min_fill, size / max_size) if max_size else 1.0
             present = [v for v in values if not _is_missing(v)]
-            if global_domain is not None:
-                lo, hi = global_lo, global_hi
-            else:
-                lo, hi = _column_extent(values, present)
+            lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
                 _tally_strip(values, 'entry', opts, strip_width=w_tally,
@@ -1786,16 +1783,10 @@ def summary(
         frame_global_domain = (_global_domain(all_col_present)
                                if shared_bounds and _pavement_column(all_col_present)
                                else None)
-        if frame_global_domain is not None:
-            frame_global_lo, frame_global_hi = _column_extent(
-                [v for col in columns for v in col], all_col_present)
         for name, values, size in zip(names, columns, col_sizes):
             fr = max(min_fill, size / max_size) if max_size else 1.0
             present = [v for v in values if not _is_missing(v)]
-            if frame_global_domain is not None:
-                lo, hi = frame_global_lo, frame_global_hi
-            else:
-                lo, hi = _column_extent(values, present)
+            lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(str(name))}</span>',
                 _tally_strip(values, 'entry', opts, strip_width=w_tally,

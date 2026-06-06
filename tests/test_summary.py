@@ -866,18 +866,17 @@ def test_summary_shared_bounds_false_each_group_fills_strip():
     assert lo_max == pytest.approx(140.0, rel=0.05)
 
 
-def test_summary_shared_bounds_extent_labels_are_global():
+def test_summary_shared_bounds_extent_labels_are_per_group():
     pd = pytest.importorskip("pandas")
-    # With shared_bounds=True, per-group extent labels show global min/max.
+    # With shared_bounds=True, per-group extent labels show each group's actual
+    # min and max — not the global bounds — so users can see the real data range.
     s = pd.Series([0, 1, 90, 100])
     keys = pd.Series(["lo", "lo", "hi", "hi"])
     out = str(summary(s.groupby(keys)))
-    # Global min is 0, global max is 100.  Both appear as extent labels.
-    # Each per-group row should show those same global labels (not 0/1 or 90/100).
-    # The value "1" as a local label for the "lo" group should NOT appear,
-    # since labels use global extent.
-    # We check that "100" appears multiple times (header row + per-group rows).
-    assert out.count(">100<") >= 2 or out.count(">100.0<") >= 2 or "100" in out
+    # "hi" group spans 90–100; "lo" group spans 0–1.
+    # The group-specific values should appear as extent labels.
+    assert "90" in out   # "hi" group min
+    assert ">1<" in out or ">1.0<" in out  # "lo" group max
 
 
 def test_summary_shared_bounds_false_for_dataframe_by_default():
