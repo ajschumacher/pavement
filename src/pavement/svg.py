@@ -1573,7 +1573,9 @@ def summary(
         no JS — they stay hidden and the plain static table shows, which is why
         this is harmless to leave on by default. Pass ``draggable=False`` for a
         guaranteed script-free fragment. Purely visual either way: the new order
-        is not read back into Python.
+        is not read back into Python. Has no effect unless there are two or more
+        column rows to reorder — a single column, single group, or bare sequence
+        gets no handle (nothing to rearrange).
     class_ : str, default: 'pavement-summary'
         CSS class on the ``<table>``, a hook for your own styling.
     path : str, optional
@@ -1626,6 +1628,10 @@ def summary(
     groupby = _detect_groupby(data)
     columns_data = None if groupby is not None else _as_columns(data)
     rows: list[str] = []
+    # Dragging only earns its keep with two or more reorderable rows — a single
+    # column, group, or bare sequence has nothing to rearrange, so it gets no
+    # handles and no script. Each branch enables it once it knows its row count.
+    enable_drag = False
 
     if groupby is not None and groupby[0] == _GROUPBY_FRAME:
         _, n_cols, group_keys, sub_dfs = groupby
@@ -1635,6 +1641,7 @@ def summary(
             rks = [_row_key(row) for row in zip(*col_lists)] if col_lists else []
             row_key_lists.append(rks)
         n_groups = len(group_keys)
+        enable_drag = draggable and n_groups >= 2
         all_row_keys = [rk for rks in row_key_lists for rk in rks]
         shape_label = (f'<span style="{_COUNT_STYLE}">'
                        f'{n_groups:,} {"group" if n_groups == 1 else "groups"}, '
@@ -1647,13 +1654,14 @@ def summary(
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
                 _tally_strip(row_keys, 'row', opts, strip_width=w_tally),
-                '', '', '', draggable=draggable))
+                '', '', '', draggable=enable_drag))
     elif groupby is not None:  # _GROUPBY_SERIES
         _, series_name, group_keys, series_groups = groupby
         columns = [list(g) for g in series_groups]
         all_values = [v for col in columns for v in col]
         all_present = [v for v in all_values if not _is_missing(v)]
         n_groups = len(group_keys)
+        enable_drag = draggable and n_groups >= 2
         count_part = _count_label(n_groups, 'group')
         if series_name is not None:
             header_label = (f'<span style="{_NAME_STYLE}">'
@@ -1677,7 +1685,7 @@ def summary(
                 lo,
                 _distribution_strip(values, present, color, opts,
                                     strip_width=w_dist),
-                hi, draggable=draggable))
+                hi, draggable=enable_drag))
     elif columns_data is not None:
         names, columns = columns_data
         n_rows = len(columns[0]) if columns else 0
@@ -1685,6 +1693,7 @@ def summary(
         # over whole rows in the middle, distribution cell empty.
         keys = [_row_key(row) for row in zip(*columns)] if columns else []
         n_cols = len(names)
+        enable_drag = draggable and n_cols >= 2
         shape_label = (f'<span style="{_COUNT_STYLE}">'
                        f'{n_cols:,} by {n_rows:,}</span>')
         rows.append(_summary_row(
@@ -1700,7 +1709,7 @@ def summary(
                 lo,
                 _distribution_strip(values, present, color, opts,
                                     strip_width=w_dist),
-                hi, draggable=draggable))
+                hi, draggable=enable_drag))
     else:
         values = list(data)
         present = [v for v in values if not _is_missing(v)]
@@ -1711,7 +1720,7 @@ def summary(
             lo,
             _distribution_strip(values, present, color, opts,
                                 strip_width=w_dist),
-            hi, draggable=draggable))
+            hi, draggable=enable_drag))
 
     if fixed_layout:
         # table-layout:fixed + explicit width ignores cell content entirely.
@@ -1733,7 +1742,7 @@ def summary(
         colgroup = ''
         table_style = 'border-collapse:collapse;font-family:inherit;'
 
-    if draggable:
+    if enable_drag:
         table_id = f'pavement-summary-{uuid.uuid4().hex[:8]}'
         id_attr = f' id={quoteattr(table_id)}'
         script = _drag_script(table_id)
