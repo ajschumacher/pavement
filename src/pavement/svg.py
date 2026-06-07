@@ -246,6 +246,7 @@ def spark(
     value_format: ValueFormat | None = None,
     tick_hover_limit: int | None = 24,
     highlight: bool = True,
+    _view_width: float | None = None,
     class_: str = 'pavement-spark',
     path: str | None = None,
 ) -> str:
@@ -435,6 +436,13 @@ def spark(
 
     horizontal = orientation == 'horizontal'
     view_w, view_h = _VIEWBOX[orientation]
+    # `_view_width` (internal) overrides the value-axis viewBox extent without
+    # touching the on-screen size (set by CSS).  All geometry is fractional, so
+    # this is visually identical EXCEPT that it sets the viewBox aspect: matching
+    # it to a stretched cell's width:height ratio keeps `non-scaling-stroke`
+    # strokes uniform instead of fattening the cross-axis lines (see `summary`).
+    if _view_width is not None and horizontal:
+        view_w = _view_width
 
     def pt(perp: float, value: float) -> tuple[float, float]:
         """Map (perpendicular, value) geometry onto SVG (x, y), filling
@@ -1274,7 +1282,13 @@ _SUMMARY_MAX_WIDTH = 'min(100%, 54em)'
 # Responsive width for all three text columns.  Using the same clamp() value
 # for name, ext-left, and ext-right guarantees they are always exactly equal
 # at any viewport width.  table-layout:fixed + calc() table width enforces this.
-_TEXT_COL_CLAMP = 'clamp(5em, 20vw, 12em)'
+# Kept as numeric pieces so the max (the common desktop width, where 20vw is
+# clamped) can drive the shared-bounds spark aspect (see `summary`).
+_TEXT_COL_MIN_EM = 5.0
+_TEXT_COL_VW = 20.0
+_TEXT_COL_MAX_EM = 12.0
+_TEXT_COL_CLAMP = (f'clamp({_num(_TEXT_COL_MIN_EM)}em, {_num(_TEXT_COL_VW)}vw, '
+                   f'{_num(_TEXT_COL_MAX_EM)}em)')
 # Scrollable wrapper inside each text cell. Width comes from the <col> element
 # (via table-layout:fixed), so no explicit width is needed on the div itself.
 _TEXT_WRAP = 'display:block;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;'
@@ -1447,7 +1461,8 @@ def _tally_strip(values: list[Any], noun: str, opts: dict[str, Any],
 def _distribution_strip(values: list[Any], present: list[Any],
                         color: str, opts: dict[str, Any],
                         *, strip_width: str | None = None,
-                        domain: tuple[float, float] | None = None) -> str:
+                        domain: tuple[float, float] | None = None,
+                        view_width: float | None = None) -> str:
     """A column's distribution strip: a pavement spark when its present values
     are an ordered family a pavement can draw (numbers, ``Decimal``, or
     ``date``/``datetime``), otherwise a proportion strip. Empty when the column
@@ -1463,8 +1478,10 @@ def _distribution_strip(values: list[Any], present: list[Any],
         # discrete column rather than binning it.
         svg = spark(present, bins=bins, color=color,
                     proportional_representation=bins is None,
-                    domain=domain, **opts)
+                    domain=domain, _view_width=view_width, **opts)
     else:
+        # Proportion strips draw no strokes here (no line_color), so a stretched
+        # cell only widens their fills — no aspect match needed.
         svg = proportion(values, **opts)
     return _set_strip_width(svg, strip_width) if strip_width else svg
 
@@ -1710,6 +1727,9 @@ def summary(
     # The three text columns get one shared width so the layout is uniform.
     # For non-em heights the widths fall back to width:auto on the SVGs.
     h_em: float | None = None
+    # Value-axis viewBox extent for the distribution sparks.  None keeps each
+    # spark's default aspect; shared_bounds sets it to match the widened cell.
+    dist_view_w: float | None = None
     if isinstance(height, str) and height.endswith('em'):
         try:
             h_em = float(height[:-2])
@@ -1736,6 +1756,14 @@ def summary(
             w_ext_col = f'calc({_TEXT_COL_CLAMP} / 2)'
             w_dist_col = f'calc({w_dist_svg:.2f}em + {_TEXT_COL_CLAMP})'
             w_dist = w_dist_col
+            # The strip now fills a much wider cell, but preserveAspectRatio is
+            # "none", so a fixed 140-unit viewBox would stretch x≫y and fatten
+            # the vertical strokes.  Widen the spark's viewBox to match the
+            # cell's on-screen width:height ratio so the scale stays ~uniform
+            # and strokes render crisp.  The vw term is unknowable here, so we
+            # match the common desktop case where 20vw is clamped to its max.
+            cell_w_em = w_dist_svg + _TEXT_COL_MAX_EM
+            dist_view_w = _VIEWBOX['horizontal'][0] * cell_w_em / w_dist_svg
         # Table width = exact sum of column widths, expressed in CSS so the
         # browser never has leftover space to redistribute.  calc() lets us add
         # the responsive clamp() text columns to the fixed-em strip columns.
@@ -1833,7 +1861,7 @@ def summary(
             _tally_strip(all_values, 'entry', opts, strip_width=w_tally),
             global_lo,
             _distribution_strip(all_values, all_present, color, opts,
-                                strip_width=w_dist),
+                                strip_width=w_dist, view_width=dist_view_w),
             global_hi, total=True, copy_btn=enable_drag))
         group_sizes = [len(col) for col in group_cols]
         max_size = max(group_sizes, default=1)
@@ -1848,7 +1876,8 @@ def summary(
                 lo,
                 _distribution_strip(values, present, color, opts,
                                     strip_width=w_dist,
-                                    domain=global_domain),
+                                    domain=global_domain,
+                                    view_width=dist_view_w),
                 hi, draggable=enable_drag))
     elif columns_data is not None:
         names, col_values = columns_data
@@ -1890,7 +1919,8 @@ def summary(
                 lo,
                 _distribution_strip(values, present, color, opts,
                                     strip_width=w_dist,
-                                    domain=frame_global_domain),
+                                    domain=frame_global_domain,
+                                    view_width=dist_view_w),
                 hi, draggable=enable_drag))
     else:
         values = list(data)
@@ -1901,7 +1931,7 @@ def summary(
             _tally_strip(values, 'entry', opts, strip_width=w_tally),
             lo,
             _distribution_strip(values, present, color, opts,
-                                strip_width=w_dist),
+                                strip_width=w_dist, view_width=dist_view_w),
             hi, draggable=enable_drag))
 
     if fixed_layout:
