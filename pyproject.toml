@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pavement"
-version = "1.0.0rc1"
-description = "Quantile-based pavement plots for matplotlib, Bokeh, Plotly, and HoloViews."
+version = "1.0.0"
+description = "Quantile-based pavement plots for matplotlib, Bokeh, Plotly, HoloViews, and dependency-free SVG."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Aaron Schumacher" }]
 keywords = ["quantile", "boxplot", "visualization", "matplotlib", "bokeh",
-            "plotly", "holoviews", "interactive", "statistics"]
+            "plotly", "holoviews", "svg", "interactive", "statistics"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
