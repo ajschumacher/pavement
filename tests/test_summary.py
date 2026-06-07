@@ -985,6 +985,75 @@ def test_summary_shared_bounds_wellformed_xml():
     _wellformed(str(summary(s.groupby(keys))))
 
 
+def _colgroup_widths(html):
+    """The five <col> width values, in order: name, tally, ext, dist, ext."""
+    cg = html.split("<colgroup>", 1)[1].split("</colgroup>", 1)[0]
+    return re.findall(r'width:([^;"]+(?:\([^)]*\))?[^;"]*);', cg)
+
+
+def test_summary_shared_bounds_widens_distribution_column():
+    # shared_bounds=True halves the two extent columns flanking the
+    # distribution and gives that width to the distribution column.
+    df = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    name, tally, ext_l, dist, ext_r = _colgroup_widths(
+        str(summary(df, shared_bounds=True)))
+    # The two extent columns are halved copies of the same clamp() value.
+    assert ext_l == ext_r
+    assert "/ 2" in ext_l
+    assert "clamp(" in ext_l
+    # The distribution column gains a full clamp() on top of its em width.
+    assert "clamp(" in dist and "em +" in dist
+    # The name column keeps the full, un-halved clamp().
+    assert "/ 2" not in name and "clamp(" in name
+
+
+def test_summary_shared_bounds_false_keeps_equal_text_columns():
+    # Without shared bounds, name and both extent columns share one clamp().
+    df = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    name, tally, ext_l, dist, ext_r = _colgroup_widths(
+        str(summary(df, shared_bounds=False)))
+    assert name == ext_l == ext_r
+    assert "/ 2" not in ext_l
+    assert "clamp(" not in dist   # plain em width, no clamp folded in
+
+
+def test_summary_shared_bounds_distribution_svg_matches_column():
+    # The distribution SVG itself widens to fill the widened column, so the
+    # pavement actually uses the extra room (not just the cell).
+    df = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    out = str(summary(df, shared_bounds=True))
+    _, _, _, dist_col, _ = _colgroup_widths(out)
+    spark_widths = re.findall(
+        r'<svg[^>]*class="pavement-spark"[^>]*?width:([^;"]+(?:\([^)]*\))?[^;"]*);',
+        out)
+    assert spark_widths
+    assert all(w == dist_col for w in spark_widths)
+
+
+def _eval_table_width(html, clamp_value=8.0):
+    """Numeric em value of the table's calc() width, with clamp() pinned."""
+    css = re.search(r'table-layout:fixed;width:([^"]+);', html).group(1)
+    # Pin clamp(...) to a concrete em and drop unit/keyword tokens so the
+    # remaining arithmetic is plain Python.
+    css = re.sub(r'clamp\([^)]*\)', str(clamp_value), css)
+    css = css.replace("calc", "").replace("em", "")
+    return eval(css)  # noqa: S307 -- arithmetic on our own generated string
+
+
+def test_summary_shared_bounds_table_width_unchanged():
+    # Moving width between columns leaves the overall table width identical.
+    df = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    w_true = _eval_table_width(str(summary(df, shared_bounds=True)))
+    w_false = _eval_table_width(str(summary(df, shared_bounds=False)))
+    assert w_true == pytest.approx(w_false)
+
+
+def test_summary_shared_bounds_widening_is_wellformed():
+    # The calc()/clamp() column widths must not break the XML fragment.
+    _wellformed(str(summary({"a": [1, 2, 3], "b": [4, 5, 6]},
+                            shared_bounds=True)))
+
+
 # ---------------------------------------------------------------------------
 # columns parameter: reorder / subset columns or groups
 # ---------------------------------------------------------------------------

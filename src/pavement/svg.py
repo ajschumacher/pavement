@@ -1669,7 +1669,10 @@ def summary(
         inputs (where comparing groups on a common axis is usually the
         point), False for plain DataFrames and dicts (where columns often
         have different units or scales). Has no effect on categorical
-        proportion strips.
+        proportion strips. When True, the two extent columns flanking the
+        distribution are halved and that width is given to the distribution
+        column, so the shared-axis pavements have more room to show where each
+        row's data falls (the overall table width is unchanged).
     labels : sequence, optional
         Which columns (or groups, for a groupby) to show and in what order,
         overriding the default order from the data. Each entry must match a
@@ -1696,6 +1699,12 @@ def summary(
     proportion : The categorical distribution strip.
     spark : The numeric distribution sparkline.
     """
+    groupby = _detect_groupby(data)
+    # Resolve shared_bounds early — it shapes the column widths below: None
+    # auto-detects (True for groupby, else False).
+    if shared_bounds is None:
+        shared_bounds = groupby is not None
+
     # Compute all column widths from the base height.  All strips keep the same
     # height; tally is 75% as wide as the natural size, distribution 130%.
     # The three text columns get one shared width so the layout is uniform.
@@ -1712,26 +1721,33 @@ def summary(
         w_dist_svg = natural_w * _DIST_WIDTH_SCALE
         w_tally = f'{w_tally_svg:.2f}em'    # for _set_strip_width
         w_dist = f'{w_dist_svg:.2f}em'      # for _set_strip_width
-        # <col> widths for the two strip columns.  Text columns all use
-        # _TEXT_COL_CLAMP — the same CSS value guarantees they are equal.
+        # <col> widths.  The name column and the two extent columns normally all
+        # use _TEXT_COL_CLAMP — the same CSS value guarantees they are equal.
         w_tally_col = f'{w_tally_svg:.2f}em'   # tally cell: no horiz. padding
         w_dist_col = f'{w_dist_svg:.2f}em'    # dist cell: no horiz. padding
+        w_ext_col = _TEXT_COL_CLAMP           # extent columns flanking the dist
+        if shared_bounds:
+            # Shared bounds usually means numeric data on one axis, where the
+            # extent labels are short and the relative positions across rows are
+            # the point.  Halve the two extent columns flanking the distribution
+            # and hand the reclaimed width (one full _TEXT_COL_CLAMP) to the
+            # distribution column — both the <col> and the SVG — so the
+            # pavements get more room.  The total table width is unchanged.
+            w_ext_col = f'calc({_TEXT_COL_CLAMP} / 2)'
+            w_dist_col = f'calc({w_dist_svg:.2f}em + {_TEXT_COL_CLAMP})'
+            w_dist = w_dist_col
         # Table width = exact sum of column widths, expressed in CSS so the
         # browser never has leftover space to redistribute.  calc() lets us add
         # the responsive clamp() text columns to the fixed-em strip columns.
-        w_total_css = (f'calc(3 * {_TEXT_COL_CLAMP} + {w_tally_col} + {w_dist_col})')
+        w_total_css = (f'calc({_TEXT_COL_CLAMP} + {w_tally_col} + {w_ext_col} '
+                       f'+ {w_dist_col} + {w_ext_col})')
         fixed_layout = True
     else:
         w_tally = w_dist = None
         fixed_layout = False
 
     opts = {'height': height, 'hover': hover, 'highlight': highlight}
-    groupby = _detect_groupby(data)
     columns_data = None if groupby is not None else _as_columns(data)
-
-    # Resolve shared_bounds: None auto-detects (True for groupby, else False).
-    if shared_bounds is None:
-        shared_bounds = groupby is not None
 
     def _global_domain(present: list[Any]) -> tuple[float, float] | None:
         """Projected (lo, hi) axis domain from *present* values, or None."""
@@ -1890,16 +1906,17 @@ def summary(
 
     if fixed_layout:
         # table-layout:fixed + explicit width ignores cell content entirely.
-        # All three text <col> elements use the same clamp() value → guaranteed
-        # equal.  The table width is the exact CSS sum of all column widths via
-        # calc(), so the browser never has leftover space to redistribute.
+        # The name and extent <col>s share _TEXT_COL_CLAMP (the extents halved
+        # when shared_bounds widens the distribution).  The table width is the
+        # exact CSS sum of all column widths via calc(), so the browser never
+        # has leftover space to redistribute.
         colgroup = (
             f'<colgroup>'
             f'<col style="width:{_TEXT_COL_CLAMP};"/>'
             f'<col style="width:{w_tally_col};"/>'
-            f'<col style="width:{_TEXT_COL_CLAMP};"/>'
+            f'<col style="width:{w_ext_col};"/>'
             f'<col style="width:{w_dist_col};"/>'
-            f'<col style="width:{_TEXT_COL_CLAMP};"/>'
+            f'<col style="width:{w_ext_col};"/>'
             f'</colgroup>'
         )
         table_style = (f'border-collapse:collapse;font-family:inherit;'
