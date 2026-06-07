@@ -567,7 +567,9 @@ def test_summary_class_is_on_the_table():
 
 
 def test_summary_height_is_passed_to_strips():
-    out = str(summary([1, 2, 3], height="2.5em"))
+    # narrow_value_cols=False isolates the natural height-derived widths (the
+    # default narrows the value columns and widens the distribution).
+    out = str(summary([1, 2, 3], height="2.5em", narrow_value_cols=False))
     # All strips keep the same height; widths differ (75% tally, 130% dist).
     assert out.count("height:2.5em") >= 2           # base height on every strip
     assert "width:8.75em" in out    # tally: 2.5 × (140/30) × 0.75
@@ -1010,11 +1012,11 @@ def test_summary_shared_bounds_widens_distribution_column():
     assert "/ 2" not in name and "clamp(" in name
 
 
-def test_summary_shared_bounds_false_keeps_equal_text_columns():
-    # Without shared bounds, name and both extent columns share one clamp().
+def test_summary_unnarrowed_keeps_equal_text_columns():
+    # With narrowing off, name and both extent columns share one clamp().
     df = {"a": [1, 2, 3], "b": [4, 5, 6]}
     name, tally, ext_l, dist, ext_r = _colgroup_widths(
-        str(summary(df, shared_bounds=False)))
+        str(summary(df, narrow_value_cols=False)))
     assert name == ext_l == ext_r
     assert "/ 2" not in ext_l
     assert "clamp(" not in dist   # plain em width, no clamp folded in
@@ -1074,9 +1076,9 @@ def test_summary_shared_bounds_widens_spark_viewbox_to_match_cell():
     assert vws and all(w == pytest.approx(313.0, abs=1.0) for w in vws)
 
 
-def test_summary_no_shared_bounds_keeps_default_spark_viewbox():
+def test_summary_unnarrowed_keeps_default_spark_viewbox():
     # Without widening, the sparks keep the plain 140-unit viewBox.
-    out = str(summary({"a": [1, 2, 3], "b": [4, 5, 6]}, shared_bounds=False))
+    out = str(summary({"a": [1, 2, 3], "b": [4, 5, 6]}, narrow_value_cols=False))
     vws = _spark_view_widths(out)
     assert vws and all(w == 140.0 for w in vws)
 
@@ -1137,16 +1139,19 @@ def test_summary_narrow_value_cols_resolution(shared, narrow, expect):
     assert all((w > 140.0) is expect for w in vws)
 
 
-def test_summary_narrow_value_cols_default_unchanged():
-    # Omitting narrow_value_cols reproduces the prior shared_bounds-driven
-    # layout.  draggable=False avoids the random table id so the markup is
-    # byte-for-byte comparable.
+def test_summary_narrow_value_cols_defaults_to_true():
+    # The default narrows regardless of shared_bounds — same markup as an
+    # explicit narrow_value_cols=True.  draggable=False avoids the random table
+    # id so the markup is byte-for-byte comparable.
     df = {"a": [1, 2, 3], "b": [4, 5, 6]}
     for shared in (True, False):
         a = str(summary(df, shared_bounds=shared, draggable=False))
-        b = str(summary(df, shared_bounds=shared, narrow_value_cols=None,
+        b = str(summary(df, shared_bounds=shared, narrow_value_cols=True,
                         draggable=False))
         assert a == b
+    # ... and the default does narrow (it is not equivalent to None/False here,
+    # since shared_bounds=False would not narrow).
+    assert _is_narrowed(str(summary(df, shared_bounds=False)))
 
 
 def test_summary_narrow_value_cols_independent_of_shared_axis():

@@ -1584,7 +1584,7 @@ def summary(
     draggable: bool = True,
     min_fill: float = 0.1,
     shared_bounds: bool | None = None,
-    narrow_value_cols: bool | None = None,
+    narrow_value_cols: bool | None = True,
     labels: Sequence[Any] | None = None,
     class_: str = 'pavement-summary',
     path: str | None = None,
@@ -1687,19 +1687,17 @@ def summary(
         inputs (where comparing groups on a common axis is usually the
         point), False for plain DataFrames and dicts (where columns often
         have different units or scales). Has no effect on categorical
-        proportion strips. By default it also drives *narrow_value_cols* (a
-        shared axis usually wants the wider distribution), but that layout is
-        separately controllable — see below.
-    narrow_value_cols : bool or None, default: None
+        proportion strips. Independent of the column layout — see
+        *narrow_value_cols*.
+    narrow_value_cols : bool or None, default: True
         Whether to halve the two value (extent) columns flanking the
         distribution and give that width to the distribution column, so the
-        pavements have more room to show where each row's data falls. The
-        overall table width is unchanged. ``None`` (the default) follows
-        *shared_bounds* — the two usually go together — while ``True`` or
-        ``False`` forces the layout on or off independently (e.g. narrow
-        columns without a shared axis, or keep full-width value columns even
-        with one). Has no visible effect on a groupby of whole rows or a
-        DataFrame header row, whose distribution and extent cells are empty.
+        pavements have more room to show where each row's data falls (the
+        overall table width is unchanged). ``True`` (the default) always does;
+        ``False`` keeps full-width value columns; ``None`` follows
+        *shared_bounds*, narrowing only when the strips share an axis. Has no
+        visible effect on a groupby of whole rows or a DataFrame header row,
+        whose distribution and extent cells are empty.
     labels : sequence, optional
         Which columns (or groups, for a groupby) to show and in what order,
         overriding the default order from the data. Each entry must match a
@@ -1733,9 +1731,9 @@ def summary(
         shared_bounds = groupby is not None
 
     # narrow_value_cols controls the layout (halve the extent columns flanking
-    # the distribution, widen the distribution).  None follows shared_bounds —
-    # the two usually go together — but either can be set explicitly to mix
-    # them: narrow without a shared axis, or a shared axis without narrowing.
+    # the distribution, widen the distribution).  Defaults to True (always
+    # narrow); None opts into following shared_bounds instead, so the two can
+    # still be coupled — or mixed (narrow without a shared axis, or vice versa).
     narrow_value_cols = (shared_bounds if narrow_value_cols is None
                          else narrow_value_cols)
 
