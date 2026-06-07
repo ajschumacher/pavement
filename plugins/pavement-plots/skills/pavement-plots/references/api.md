@@ -87,17 +87,23 @@ Proportion-of-each-category strip; the top `max_boxes` categories plus an "other
 because the count includes missing entries (which aren't values); `summary` passes `"row"`
 for its whole-frame tally.
 
-### `summary(data, color=..., height="1.6em", hover=True, highlight=True, class_="pavement-summary", path=None)`
+### `summary(data, color=..., height="1.6em", hover=True, highlight=True, draggable=True, min_fill=0.1, shared_bounds=None, narrow_value_cols=None, labels=None, class_="pavement-summary", path=None)`
 A whole-dataframe / Series / sequence summary as one HTML `<table>`: a row per column
 pairing its `tally` with its distribution — a `spark` for an ordered column (numbers,
 `Decimal`, or `date`/`datetime`, the temporal ones projected onto a time axis), a
 `proportion` for categorical. A dataframe adds a top row for the frame itself (its row count and a tally
 over *whole rows*, where "missing" is an all-blank row). `data` may be a pandas
-`DataFrame`/`Series`, a `dict` of column name → values, or a 1D sequence. Returns a
+`DataFrame`/`Series`, a `dict` of column name → values, a 1D sequence, or a pandas
+`DataFrameGroupBy`/`SeriesGroupBy` (a row per group). Returns a
 `Summary` that renders inline in Jupyter (`_repr_html_`); `str()` gives the HTML fragment,
 `path="summary.html"` saves a standalone page. Also re-exported as top-level
-`pavement.summary`. A numeric column's resolution auto-scales by distinct-value count: a
-rug (≤24), then 4, 8 (>96), and 16 (>384) equal-mass bins. `color` tints the numeric sparks.
+`pavement.summary`. A numeric column's resolution auto-scales by value count: a
+rug (≤24 values, or ≤16 distinct), then 4 (≤96), 8 (≤256), and 16 equal-mass bins. `color` tints the numeric sparks.
+- `draggable=True` makes column/group rows drag-reorderable (adds a small scoped `<script>`; pass `False` for a JS-free fragment).
+- `min_fill=0.1` floors how narrow an uneven group's tally strip scales (proportional to row count; `0` fully proportional, `1` disables scaling).
+- `shared_bounds=None` puts all numeric distributions on one shared value axis for direct comparison; `None` auto-detects (True for groupby, False for frames/dicts).
+- `narrow_value_cols=None` halves the value columns flanking the distribution to widen it; `None` follows `shared_bounds`.
+- `labels=None` selects which columns/groups to show and in what order (raises `ValueError` on an unknown name).
 
 ## `pavement.pandas` / `pavement.polars`
 
