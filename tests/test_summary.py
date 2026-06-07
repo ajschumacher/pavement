@@ -1113,6 +1113,66 @@ def test_spark_view_width_sets_viewbox_without_moving_geometry():
 
 
 # ---------------------------------------------------------------------------
+# narrow_value_cols — the layout (halved value columns + widened distribution),
+# separable from shared_bounds (the shared value axis).
+# ---------------------------------------------------------------------------
+
+def _is_narrowed(html):
+    """True if the value (extent) columns flanking the distribution are halved."""
+    return "/ 2" in _colgroup_widths(html)[2]
+
+
+@pytest.mark.parametrize("shared, narrow, expect", [
+    (True, None, True),     # None follows shared_bounds ...
+    (False, None, False),   # ... in both directions
+    (False, True, True),    # True forces narrowing without a shared axis
+    (True, False, False),   # False forces full-width cols despite shared bounds
+])
+def test_summary_narrow_value_cols_resolution(shared, narrow, expect):
+    df = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    html = str(summary(df, shared_bounds=shared, narrow_value_cols=narrow))
+    assert _is_narrowed(html) is expect
+    # The spark viewBox is widened to match exactly when the columns narrow.
+    vws = _spark_view_widths(html)
+    assert all((w > 140.0) is expect for w in vws)
+
+
+def test_summary_narrow_value_cols_default_unchanged():
+    # Omitting narrow_value_cols reproduces the prior shared_bounds-driven
+    # layout.  draggable=False avoids the random table id so the markup is
+    # byte-for-byte comparable.
+    df = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    for shared in (True, False):
+        a = str(summary(df, shared_bounds=shared, draggable=False))
+        b = str(summary(df, shared_bounds=shared, narrow_value_cols=None,
+                        draggable=False))
+        assert a == b
+
+
+def test_summary_narrow_value_cols_independent_of_shared_axis():
+    pd = pytest.importorskip("pandas")
+    # shared_bounds=True still shares the axis even when narrowing is forced off:
+    # column "a" (1-5) occupies only the left of the shared 1-50 range.
+    df = pd.DataFrame({"a": [1, 2, 3, 4, 5], "b": [10, 20, 30, 40, 50]})
+    out = str(summary(df, shared_bounds=True, narrow_value_cols=False))
+    assert not _is_narrowed(out)
+    a_max, b_max = _per_spark_max_x(out)
+    assert a_max < 0.2                              # shared axis still applied
+    assert b_max == pytest.approx(1.0, rel=0.05)
+    # And narrowing without a shared axis: each spark fills its own range.
+    out2 = str(summary(df, shared_bounds=False, narrow_value_cols=True))
+    assert _is_narrowed(out2)
+    a2, b2 = _per_spark_max_x(out2)
+    assert a2 == pytest.approx(1.0, rel=0.05)
+    assert b2 == pytest.approx(1.0, rel=0.05)
+
+
+def test_summary_narrow_value_cols_wellformed():
+    _wellformed(str(summary({"a": [1, 2, 3], "b": [4, 5, 6]},
+                            shared_bounds=False, narrow_value_cols=True)))
+
+
+# ---------------------------------------------------------------------------
 # columns parameter: reorder / subset columns or groups
 # ---------------------------------------------------------------------------
 

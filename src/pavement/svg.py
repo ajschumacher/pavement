@@ -1584,6 +1584,7 @@ def summary(
     draggable: bool = True,
     min_fill: float = 0.1,
     shared_bounds: bool | None = None,
+    narrow_value_cols: bool | None = None,
     labels: Sequence[Any] | None = None,
     class_: str = 'pavement-summary',
     path: str | None = None,
@@ -1686,10 +1687,19 @@ def summary(
         inputs (where comparing groups on a common axis is usually the
         point), False for plain DataFrames and dicts (where columns often
         have different units or scales). Has no effect on categorical
-        proportion strips. When True, the two extent columns flanking the
-        distribution are halved and that width is given to the distribution
-        column, so the shared-axis pavements have more room to show where each
-        row's data falls (the overall table width is unchanged).
+        proportion strips. By default it also drives *narrow_value_cols* (a
+        shared axis usually wants the wider distribution), but that layout is
+        separately controllable — see below.
+    narrow_value_cols : bool or None, default: None
+        Whether to halve the two value (extent) columns flanking the
+        distribution and give that width to the distribution column, so the
+        pavements have more room to show where each row's data falls. The
+        overall table width is unchanged. ``None`` (the default) follows
+        *shared_bounds* — the two usually go together — while ``True`` or
+        ``False`` forces the layout on or off independently (e.g. narrow
+        columns without a shared axis, or keep full-width value columns even
+        with one). Has no visible effect on a groupby of whole rows or a
+        DataFrame header row, whose distribution and extent cells are empty.
     labels : sequence, optional
         Which columns (or groups, for a groupby) to show and in what order,
         overriding the default order from the data. Each entry must match a
@@ -1722,13 +1732,20 @@ def summary(
     if shared_bounds is None:
         shared_bounds = groupby is not None
 
+    # narrow_value_cols controls the layout (halve the extent columns flanking
+    # the distribution, widen the distribution).  None follows shared_bounds —
+    # the two usually go together — but either can be set explicitly to mix
+    # them: narrow without a shared axis, or a shared axis without narrowing.
+    narrow_value_cols = (shared_bounds if narrow_value_cols is None
+                         else narrow_value_cols)
+
     # Compute all column widths from the base height.  All strips keep the same
     # height; tally is 75% as wide as the natural size, distribution 130%.
     # The three text columns get one shared width so the layout is uniform.
     # For non-em heights the widths fall back to width:auto on the SVGs.
     h_em: float | None = None
     # Value-axis viewBox extent for the distribution sparks.  None keeps each
-    # spark's default aspect; shared_bounds sets it to match the widened cell.
+    # spark's default aspect; narrowing sets it to match the widened cell.
     dist_view_w: float | None = None
     if isinstance(height, str) and height.endswith('em'):
         try:
@@ -1746,13 +1763,13 @@ def summary(
         w_tally_col = f'{w_tally_svg:.2f}em'   # tally cell: no horiz. padding
         w_dist_col = f'{w_dist_svg:.2f}em'    # dist cell: no horiz. padding
         w_ext_col = _TEXT_COL_CLAMP           # extent columns flanking the dist
-        if shared_bounds:
-            # Shared bounds usually means numeric data on one axis, where the
-            # extent labels are short and the relative positions across rows are
-            # the point.  Halve the two extent columns flanking the distribution
-            # and hand the reclaimed width (one full _TEXT_COL_CLAMP) to the
-            # distribution column — both the <col> and the SVG — so the
-            # pavements get more room.  The total table width is unchanged.
+        if narrow_value_cols:
+            # Usually paired with shared bounds: numeric data on one axis, where
+            # the extent labels are short and the relative positions across rows
+            # are the point.  Halve the two extent columns flanking the
+            # distribution and hand the reclaimed width (one full
+            # _TEXT_COL_CLAMP) to the distribution column — both the <col> and
+            # the SVG — so the pavements get more room.  Table width unchanged.
             w_ext_col = f'calc({_TEXT_COL_CLAMP} / 2)'
             w_dist_col = f'calc({w_dist_svg:.2f}em + {_TEXT_COL_CLAMP})'
             w_dist = w_dist_col
