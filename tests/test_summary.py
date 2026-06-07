@@ -903,12 +903,15 @@ def _spark_line_xs(svg):
 
 
 def _per_spark_max_x(html):
-    """Max line x-coord for each spark SVG in the HTML, in order."""
+    """Max line x-coord per spark, as a fraction (0..1) of its own viewBox
+    width — so the checks stay valid whatever viewBox width a spark uses
+    (shared_bounds widens it to match the cell; see _view_width in svg.py)."""
     results = []
     for svg in re.findall(r'<svg[^>]*class="pavement-spark"[^>]*>.*?</svg>',
                           html, re.S):
+        view_w = float(re.search(r'viewBox="0 0 ([\d.]+) ', svg).group(1))
         xs = _spark_line_xs(svg)
-        results.append(max(xs) if xs else None)
+        results.append(max(xs) / view_w if xs else None)
     return results
 
 
@@ -923,8 +926,8 @@ def test_summary_shared_bounds_default_true_for_groupby():
     # max_xs[0] = header (all values), max_xs[1] = "hi" group, max_xs[2] = "lo"
     assert len(max_xs) == 3
     header_max, hi_max, lo_max = max_xs
-    assert hi_max == pytest.approx(140.0, rel=0.05)   # "hi" reaches global max
-    assert lo_max < 5.0                                # "lo" is near global min
+    assert hi_max == pytest.approx(1.0, rel=0.05)   # "hi" reaches global max
+    assert lo_max < 5.0 / 140                        # "lo" is near global min
 
 
 def test_summary_shared_bounds_false_each_group_fills_strip():
@@ -935,8 +938,8 @@ def test_summary_shared_bounds_false_each_group_fills_strip():
     max_xs = _per_spark_max_x(out)
     _, hi_max, lo_max = max_xs
     # Without shared bounds every group fills its own strip edge to edge.
-    assert hi_max == pytest.approx(140.0, rel=0.05)
-    assert lo_max == pytest.approx(140.0, rel=0.05)
+    assert hi_max == pytest.approx(1.0, rel=0.05)
+    assert lo_max == pytest.approx(1.0, rel=0.05)
 
 
 def test_summary_shared_bounds_extent_labels_are_per_group():
@@ -974,8 +977,8 @@ def test_summary_shared_bounds_true_for_dataframe():
     # Two sparks: one for "hi" (near right) and one for "lo" (near left).
     assert len(max_xs) == 2
     hi_max, lo_max = max_xs   # "hi" column comes first alphabetically
-    assert hi_max == pytest.approx(140.0, rel=0.05)
-    assert lo_max < 10.0
+    assert hi_max == pytest.approx(1.0, rel=0.05)
+    assert lo_max < 10.0 / 140
 
 
 def test_summary_shared_bounds_wellformed_xml():
@@ -1052,6 +1055,61 @@ def test_summary_shared_bounds_widening_is_wellformed():
     # The calc()/clamp() column widths must not break the XML fragment.
     _wellformed(str(summary({"a": [1, 2, 3], "b": [4, 5, 6]},
                             shared_bounds=True)))
+
+
+def _spark_view_widths(html):
+    """The viewBox width of every distribution spark, in order."""
+    return [float(w) for w in re.findall(
+        r'viewBox="0 0 ([\d.]+) 30" preserveAspectRatio="none" '
+        r'class="pavement-spark"', html)]
+
+
+def test_summary_shared_bounds_widens_spark_viewbox_to_match_cell():
+    # The widened distribution cell would otherwise stretch the fixed 140-unit
+    # viewBox (preserveAspectRatio="none"), fattening the vertical strokes.
+    # shared_bounds widens each spark's viewBox to match the cell's aspect so
+    # the scale stays ~uniform.  Default height 1.6em -> ~313 (see svg.py).
+    out = str(summary({"a": [1, 2, 3], "b": [4, 5, 6]}, shared_bounds=True))
+    vws = _spark_view_widths(out)
+    assert vws and all(w == pytest.approx(313.0, abs=1.0) for w in vws)
+
+
+def test_summary_no_shared_bounds_keeps_default_spark_viewbox():
+    # Without widening, the sparks keep the plain 140-unit viewBox.
+    out = str(summary({"a": [1, 2, 3], "b": [4, 5, 6]}, shared_bounds=False))
+    vws = _spark_view_widths(out)
+    assert vws and all(w == 140.0 for w in vws)
+
+
+def test_summary_shared_bounds_spark_viewbox_scales_with_height():
+    # The matched viewBox is proportional to the cell width, which scales with
+    # the strip height, so a taller summary widens the viewBox proportionally.
+    w_small = _spark_view_widths(
+        str(summary({"a": [1, 2, 3], "b": [4, 5, 6]}, shared_bounds=True,
+                    height="1.6em")))[0]
+    w_big = _spark_view_widths(
+        str(summary({"a": [1, 2, 3], "b": [4, 5, 6]}, shared_bounds=True,
+                    height="3.2em")))[0]
+    # Taller -> natural strip wider -> the +12em extent is a smaller relative
+    # add -> viewBox closer to the 140 baseline (less widening needed).
+    assert 140.0 < w_big < w_small
+
+
+def test_spark_view_width_sets_viewbox_without_moving_geometry():
+    # The internal _view_width override changes only the coordinate scale: every
+    # tick stays at the same *fraction* of the viewBox, so a value at the far
+    # edge still lands at the right edge (just expressed in wider coordinates).
+    from pavement.svg import spark
+    a = spark([0, 1, 2, 3, 4], bins=None)
+    b = spark([0, 1, 2, 3, 4], bins=None, _view_width=313.0)
+    va = float(re.search(r'viewBox="0 0 ([\d.]+) ', a).group(1))
+    vb = float(re.search(r'viewBox="0 0 ([\d.]+) ', b).group(1))
+    assert va == 140.0 and vb == 313.0
+
+    def max_tick_fraction(svg, vw):
+        xs = [float(x) for x in re.findall(r'<line class="pvmark"[^>]*x1="([-\d.]+)"', svg)]
+        return max(xs) / vw
+    assert max_tick_fraction(a, va) == pytest.approx(max_tick_fraction(b, vb))
 
 
 # ---------------------------------------------------------------------------
