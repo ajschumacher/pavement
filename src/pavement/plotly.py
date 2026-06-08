@@ -482,13 +482,13 @@ def plot(
     show_tassels: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
-    value_label: str = "value",
+    value_label: str | None = None,
     value_format: ValueFormat | None = None,
     color: str | Sequence[str] | None = None,
     fill_alpha: float = 0.3,
     line_width: float = 1.0,
     hover: bool = True,
-    show_legend: bool = True,
+    show_legend: bool = False,
     fig: go.Figure | None = None,
 ) -> go.Figure:
     """
@@ -533,10 +533,10 @@ def plot(
         False forces it. Resolved per row.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis.
-    value_label : str, default: 'value'
-        Axis title for the value axis (x for horizontal, y otherwise).
-        The ``matplotlib`` backend leaves this ``None`` (unlabelled) by
-        default instead.
+    value_label : str, optional
+        If given, label the value axis (x for horizontal, y otherwise).
+        Defaults to ``None`` (unlabelled), as the ``matplotlib`` backend
+        does; pass a string to title the axis.
     value_format : callable, optional
         Function mapping a value to its hover display string, e.g.
         ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
@@ -551,8 +551,9 @@ def plot(
         Width of the tick and box-edge lines.
     hover : bool, default: True
         Whether to enable hover (via the invisible marker layer).
-    show_legend : bool, default: True
+    show_legend : bool, default: False
         Whether to show the legend (only relevant with multiple rows).
+        Off by default; pass True to label the rows with a legend.
     fig : plotly.graph_objects.Figure, optional
         Figure to draw into. Defaults to a fresh one. (Passing a subplot
         figure here draws into its default cell; for a specific cell, use

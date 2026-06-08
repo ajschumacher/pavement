@@ -184,8 +184,15 @@ def test_pavement_single_returns_figure():
     assert fig.layout.showlegend is False  # anonymous single row
 
 
-def test_pavement_multiple_gets_legend_per_row():
+def test_pavement_multiple_no_legend_by_default():
     fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    assert fig.layout.showlegend is False
+    assert not any(t.showlegend for t in fig.data)
+
+
+def test_pavement_multiple_gets_legend_per_row():
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"],
+                   show_legend=True)
     assert fig.layout.showlegend is True
     legend_names = [t.name for t in fig.data if t.showlegend]
     assert legend_names == ["a", "b"]
@@ -215,6 +222,11 @@ def test_pavement_labels_tick_the_position_axis():
 def test_pavement_anonymous_row_has_no_position_ticks():
     fig = plot([1, 2, 3, 4, 5])
     assert fig.layout.xaxis.showticklabels is False
+
+
+def test_pavement_no_value_label_by_default():
+    fig = plot([1, 2, 3, 4, 5])
+    assert fig.layout.yaxis.title.text is None
 
 
 def test_pavement_horizontal_labels_value_axis_on_x():

@@ -401,12 +401,12 @@ def plot(
     show_tassels: bool = False,
     show_box: bool | None = None,
     orientation: Literal["vertical", "horizontal"] = "vertical",
-    value_label: str = "value",
+    value_label: str | None = None,
     value_format: ValueFormat | None = None,
     color: str | Sequence[str] | None = None,
     fill_alpha: float = 0.3,
     hover: bool = True,
-    show_legend: bool = True,
+    show_legend: bool = False,
     transpose_labels: bool = False,
 ) -> Any:
     """
@@ -461,10 +461,10 @@ def plot(
         the right default for each.
     orientation : {'vertical', 'horizontal'}, default: 'vertical'
         Direction of the value axis.
-    value_label : str, default: 'value'
-        Axis label for the value axis (x for horizontal, y otherwise).
-        The ``matplotlib`` backend leaves this ``None`` (unlabelled) by
-        default instead.
+    value_label : str, optional
+        If given, label the value axis (x for horizontal, y otherwise).
+        Defaults to ``None`` (unlabelled), as the ``matplotlib`` backend
+        does; pass a string to label the axis.
     value_format : callable, optional
         Function mapping a value to its hover display string, e.g.
         ``lambda v: f"${v:,.2f}"``. Applies to the bin value ranges and
@@ -481,11 +481,12 @@ def plot(
     hover : bool, default: True
         Whether to enable a hover tool (bokeh only; plotly hovers by
         default, matplotlib has none).
-    show_legend : bool, default: True
+    show_legend : bool, default: False
         Whether to show the category legend (only relevant with multiple
-        rows). Has no effect on matplotlib, which can't build a legend
-        handle for the bin glyphs. `with_marginals` turns this off for
-        marginals, whose legend duplicates the main plot's.
+        rows). Off by default; pass True to label the rows with a legend.
+        Has no effect on matplotlib, which can't build a legend handle for
+        the bin glyphs. `with_marginals` turns this off for marginals,
+        whose legend duplicates the main plot's.
     transpose_labels : bool, default: False
         Place the value-axis label and the position ticks on the
         *opposite* axes from *orientation*. Use this only when the plot
@@ -573,7 +574,10 @@ def plot(
     pos_axis = "y" if orientation == "horizontal" else "x"
     if transpose_labels:
         value_axis, pos_axis = pos_axis, value_axis
-    opts: dict[str, Any] = {f"{value_axis}label": value_label, f"{pos_axis}label": ""}
+    # An unlabelled value axis (the default) is blanked, not left to fall
+    # back to the bare "x0"/"y0" dimension name HoloViews would otherwise show.
+    value_text = "" if value_label is None else value_label
+    opts: dict[str, Any] = {f"{value_axis}label": value_text, f"{pos_axis}label": ""}
     if labelled:
         opts[f"{pos_axis}ticks"] = [
             (pos, str(label)) for pos, label in zip(positions, labels)]

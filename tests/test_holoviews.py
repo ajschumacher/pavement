@@ -278,9 +278,10 @@ def test_with_marginals_renders_across_backends():
         assert hv.render(layout, backend=backend) is not None
 
 
-def test_pavement_show_legend_false_empties_legend():
-    fig_on = hv.render(plot([[1, 2], [3, 4]], labels=["a", "b"]),
-                       backend="bokeh")
+def test_pavement_show_legend_toggles_legend():
+    fig_on = hv.render(
+        plot([[1, 2], [3, 4]], labels=["a", "b"], show_legend=True),
+        backend="bokeh")
     fig_off = hv.render(
         plot([[1, 2], [3, 4]], labels=["a", "b"], show_legend=False),
         backend="bokeh")
