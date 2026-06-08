@@ -178,8 +178,14 @@ def test_pavement_hover_can_be_disabled():
     assert fig.select(HoverTool) == []
 
 
-def test_pavement_multiple_gets_legend_per_row():
+def test_pavement_multiple_no_legend_by_default():
     fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    assert fig.select(Legend) == []
+
+
+def test_pavement_multiple_gets_legend_per_row():
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"],
+                   show_legend=True)
     legend = fig.select(Legend)[0]
     assert [item.label.value for item in legend.items] == ["a", "b"]
     assert legend.click_policy == "hide"
@@ -187,7 +193,8 @@ def test_pavement_multiple_gets_legend_per_row():
 
 def test_pavement_legend_toggles_whole_row():
     # Each legend entry hides the row's fill, ticks, and box together.
-    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"])
+    fig = plot([[1, 2, 3, 4], [5, 6, 7, 8]], labels=["a", "b"],
+                   show_legend=True)
     legend = fig.select(Legend)[0]
     kinds = sorted(type(r.glyph).__name__ for r in legend.items[0].renderers)
     assert kinds == ["Quad", "Segment", "Segment"]
@@ -235,6 +242,11 @@ def test_pavement_horizontal_labels_value_axis_on_x():
 def test_pavement_vertical_labels_value_axis_on_y():
     fig = plot([1, 2, 3, 4, 5], value_label="height")
     assert fig.yaxis[0].axis_label == "height"
+
+
+def test_pavement_no_value_label_by_default():
+    fig = plot([1, 2, 3, 4, 5])
+    assert fig.yaxis[0].axis_label is None
 
 
 def test_pavement_default_colors_match_category10():
