@@ -21,6 +21,12 @@ GroupBy types), putting the pavement strips a method away::
 
     df.group_by("team").pave()     # one row per group
 
+A polars Series has no index, so the one-value-per-label "pebbles" view comes
+from a two-column ``(labels, values)`` frame instead (its second column names
+the pooled header)::
+
+    df.group_by("team").agg(pl.col("score").mean()).pebbles()   # one per team
+
 ``df.pave()`` / ``.summary()`` return the `pavement.summary` result (a
 `Summary`, which renders inline in Jupyter); the single-column helpers return
 the matching `pavement.svg` glyph's string, wrapped so it *also* renders
@@ -96,6 +102,45 @@ class _PaveSeries:
 
     def proportion(self, **kwargs: Any) -> SVG:
         return SVG(proportion(self._series.to_list(), **kwargs))
+
+
+class _NamedMapping(dict):
+    """A label->value dict that also carries a ``name``.
+
+    Polars Series have no index, so the pebbles view comes from a two-column
+    frame instead. Spreading that into a plain dict would drop the value
+    column's name; this subclass keeps it on ``.name`` where `summary`'s pebbles
+    path (``getattr(data, "name", None)``) finds it to title the pooled header,
+    just as a pandas Series' name does.
+    """
+
+    name: Any = None
+
+
+@pl.api.register_dataframe_namespace("pebbles")
+class _PebblesFrame:
+    """The ``.pebbles`` namespace on a DataFrame: ``df.pebbles()`` gives the
+    pebbles view of a two-column ``(labels, values)`` frame.
+
+    The polars counterpart of a pandas labeled Series — most often the result
+    of ``df.group_by("team").agg(pl.col("score").mean())``. The first column
+    supplies the labels, the second the per-label values (whose column name
+    titles the pooled header). Requires exactly two columns; extra keyword
+    arguments forward to `summary`.
+    """
+
+    def __init__(self, frame: pl.DataFrame) -> None:
+        self._frame = frame
+
+    def __call__(self, **kwargs: Any) -> Any:
+        if self._frame.width != 2:
+            raise ValueError(
+                "df.pebbles() expects exactly 2 columns (labels, values); "
+                f"got {self._frame.width}")
+        label_col, value_col = self._frame.get_columns()
+        mapping = _NamedMapping(zip(label_col.to_list(), value_col.to_list()))
+        mapping.name = value_col.name
+        return summary(mapping, pebbles=True, **kwargs)
 
 
 class _PaveGroupBy:

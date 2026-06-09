@@ -4,6 +4,8 @@ accessor on DataFrame and Series, and the opt-in ``enable_repr`` /
 ``disable_repr`` summary display. Skipped wholesale when pandas is absent.
 """
 
+import re
+
 import pytest
 
 pd = pytest.importorskip("pandas")
@@ -96,6 +98,36 @@ def test_series_pave_strip_helpers():
     assert s.pave.spark().startswith("<svg")   # numeric, missing dropped
     assert s.pave.tally().startswith("<svg")
     assert pd.Series(["a", "a", "b"]).pave.proportion().startswith("<svg")
+
+
+# ---------------------------------------------------------------------------
+# .pebbles accessor — s.pebbles() == s.pave(pebbles=True)
+# ---------------------------------------------------------------------------
+
+def test_series_pebbles_is_registered():
+    assert hasattr(pd.Series([1]), "pebbles")
+
+
+def test_series_pebbles_matches_pave_pebbles_true():
+    s = pd.Series([1.5, 11.0, 5.0], index=["a", "b", "c"], name="score")
+    # Identical but for the per-render random drag-script table id.
+    def strip_id(h):
+        return re.sub(r"pavement-summary-[0-9a-f]+", "ID", h)
+    assert strip_id(str(s.pebbles())) == strip_id(str(s.pave(pebbles=True)))
+
+
+def test_series_pebbles_renders_one_pebble_per_label():
+    df = pd.DataFrame({"team": ["a", "a", "b", "b", "c"],
+                       "score": [1, 2, 10, 12, 5]})
+    out = str(df.groupby("team")["score"].mean().pebbles())
+    assert isinstance(df.groupby("team")["score"].mean().pebbles(), Summary)
+    assert out.count('class="pavement-spark"') == 4   # pooled header + 3 labels
+    assert "score" in out and "3 labels" in out
+
+
+def test_series_pebbles_forwards_kwargs():
+    s = pd.Series([1.5, 11.0, 5.0], index=["a", "b", "c"], name="score")
+    assert "height:2.5em" in str(s.pebbles(height="2.5em"))
 
 
 # ---------------------------------------------------------------------------
