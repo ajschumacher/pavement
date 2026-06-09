@@ -22,6 +22,11 @@ strips a method away::
     df["score"].groupby(df["team"]).pave()   # one row per group (SeriesGroupBy)
     df.groupby("team").pave()               # one row per group (DataFrameGroupBy)
 
+A labeled Series — say a groupby aggregate — also gets a ``.pebbles`` shortcut
+for the one-value-per-label view (``s.pave(pebbles=True)`` spelled shorter)::
+
+    df.groupby("team")["score"].mean().pebbles()   # one pebble per team
+
 ``df.pave()`` and ``.summary()`` return the same `pavement.summary` result (a
 `Summary`, which renders inline in Jupyter). The single-column helpers return
 the svg string of the matching `pavement.svg` glyph, wrapped so it *also*
@@ -99,6 +104,23 @@ class _PaveSeries:
         return SVG(proportion(self._series, **kwargs))
 
 
+class _PebblesSeries:
+    """The ``.pebbles`` accessor on a Series: ``s.pebbles()`` is shorthand for
+    ``s.pave(pebbles=True)``.
+
+    For a labeled Series — most often a groupby aggregate like
+    ``df.groupby("team")["score"].mean()``, whose index carries the labels — it
+    is the pebbles view: one value per label on a shared axis under a pooled
+    header. Extra keyword arguments forward to `summary` (e.g. ``height``).
+    """
+
+    def __init__(self, series: pd.Series) -> None:
+        self._series = series
+
+    def __call__(self, **kwargs: Any) -> Any:
+        return summary(self._series, pebbles=True, **kwargs)
+
+
 class _PaveSeriesGroupBy:
     """The ``.pave`` accessor on a SeriesGroupBy."""
 
@@ -131,6 +153,7 @@ class _PaveDataFrameGroupBy:
 # mechanism, applied manually since pandas has no public API for it.
 pd.api.extensions.register_dataframe_accessor("pave")(_PaveFrame)
 pd.api.extensions.register_series_accessor("pave")(_PaveSeries)
+pd.api.extensions.register_series_accessor("pebbles")(_PebblesSeries)
 _register_groupby_accessor("pave", pd.core.groupby.SeriesGroupBy,
                            _PaveSeriesGroupBy)
 _register_groupby_accessor("pave", pd.core.groupby.DataFrameGroupBy,

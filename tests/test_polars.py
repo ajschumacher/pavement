@@ -125,6 +125,46 @@ def test_series_pave_helpers():
 
 
 # ---------------------------------------------------------------------------
+# .pebbles namespace — a polars Series has no index, so pebbles comes from a
+# two-column (labels, values) frame, e.g. group_by(k).agg(...).
+# ---------------------------------------------------------------------------
+
+def test_df_pebbles_is_registered():
+    assert hasattr(pl.DataFrame({"k": ["a"], "v": [1]}), "pebbles")
+
+
+def test_df_pebbles_renders_one_pebble_per_label():
+    df = pl.DataFrame({"team": ["a", "a", "b", "b", "c"],
+                       "score": [1, 2, 10, 12, 5]})
+    agg = df.group_by("team").agg(pl.col("score").mean()).sort("team")
+    out = str(agg.pebbles())
+    assert isinstance(agg.pebbles(), Summary)
+    assert out.count('class="pavement-spark"') == 4   # pooled header + 3 labels
+    _wellformed(out)
+    for label in ("a", "b", "c"):
+        assert f">{label}</span>" in out
+
+
+def test_df_pebbles_value_column_names_the_header():
+    agg = pl.DataFrame({"team": ["a", "b", "c"], "score": [1.5, 11.0, 5.0]})
+    out = str(agg.pebbles())
+    assert "score" in out          # the value column titles the pooled header
+    assert "3 labels" in out
+
+
+def test_df_pebbles_forwards_kwargs():
+    agg = pl.DataFrame({"team": ["a", "b", "c"], "score": [1.5, 11.0, 5.0]})
+    assert "height:2.5em" in str(agg.pebbles(height="2.5em"))
+
+
+@pytest.mark.parametrize("cols", [{"only": [1, 2]},
+                                  {"a": [1], "b": [2], "c": [3]}])
+def test_df_pebbles_requires_exactly_two_columns(cols):
+    with pytest.raises(ValueError, match="exactly 2 columns"):
+        pl.DataFrame(cols).pebbles()
+
+
+# ---------------------------------------------------------------------------
 # Opt-in summary repr
 # ---------------------------------------------------------------------------
 
