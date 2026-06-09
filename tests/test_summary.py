@@ -1246,3 +1246,83 @@ def test_summary_columns_wellformed_xml():
     pd = pytest.importorskip("pandas")
     df = pd.DataFrame({"p": [1, 2], "q": [3, 4], "r": [5, 6]})
     _wellformed(str(summary(df, labels=["r", "p"])))
+
+
+# ---------------------------------------------------------------------------
+# pebbles: spread a label->scalar input (e.g. a groupby-mean Series) into one
+# single-value row per label, on a shared axis by default.
+# ---------------------------------------------------------------------------
+
+def test_summary_pebbles_one_row_per_label():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"team": ["a", "a", "b", "b", "c"],
+                       "score": [1, 2, 10, 12, 5]})
+    means = df.groupby("team")["score"].mean()
+    out = str(summary(means, pebbles=True))
+    # One pebble (spark) per label, plus header + per-label tallies.
+    assert out.count('class="pavement-spark"') == 3
+    assert out.count('class="pavement-tally"') == 4   # header + 3 labels
+    assert ">a<" in out and ">b<" in out and ">c<" in out
+
+
+def test_summary_pebbles_header_shows_n_by_one_shape():
+    pd = pytest.importorskip("pandas")
+    means = pd.Series([1.5, 11.0, 5.0], index=["a", "b", "c"], name="score")
+    assert "3 by 1" in str(summary(means, pebbles=True))
+
+
+def test_summary_pebbles_defaults_to_shared_bounds():
+    # shared_bounds defaults True under pebbles, which cascades to
+    # narrow_value_cols -> the extent columns are halved (a calc(... / 2)).
+    pd = pytest.importorskip("pandas")
+    means = pd.Series([1.5, 11.0, 5.0], index=["a", "b", "c"], name="score")
+    assert "/ 2)" in str(summary(means, pebbles=True))
+    assert "/ 2)" not in str(summary(means, pebbles=True, shared_bounds=False))
+
+
+def test_summary_pebbles_accepts_dict_of_scalars():
+    out = str(summary({"a": 1, "b": 2, "c": 3}, pebbles=True))
+    assert out.count('class="pavement-spark"') == 3
+    assert ">a<" in out and ">c<" in out
+
+
+def test_summary_pebbles_preserves_label_order():
+    out = str(summary({"z": 1, "m": 2, "a": 3}, pebbles=True))
+    assert out.index(">z<") < out.index(">m<") < out.index(">a<")
+
+
+def test_summary_pebbles_multiindex_labels_joined_with_slash():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"region": ["N", "N", "S"], "dept": ["eng", "eng", "mkt"],
+                       "v": [1, 2, 3]})
+    means = df.groupby(["region", "dept"])["v"].mean()
+    assert "N / eng" in str(summary(means, pebbles=True))
+
+
+def test_summary_pebbles_wellformed_xml():
+    pd = pytest.importorskip("pandas")
+    means = pd.Series([1.5, 11.0, 5.0], index=["a", "b", "c"], name="score")
+    _wellformed(str(summary(means, pebbles=True)))
+
+
+def test_summary_pebbles_rejects_unlabeled_sequence():
+    with pytest.raises(ValueError, match="labeled input with an index"):
+        summary([1, 2, 3], pebbles=True)
+
+
+def test_summary_pebbles_rejects_dataframe():
+    pd = pytest.importorskip("pandas")
+    with pytest.raises(ValueError, match="not a DataFrame"):
+        summary(pd.DataFrame({"x": [1, 2]}), pebbles=True)
+
+
+def test_summary_pebbles_rejects_groupby():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame({"g": ["x", "x", "y"], "v": [1, 2, 3]})
+    with pytest.raises(ValueError, match="not a DataFrame"):
+        summary(df.groupby("g"), pebbles=True)
+
+
+def test_summary_pebbles_rejects_non_scalar_values():
+    with pytest.raises(ValueError, match="one value per label"):
+        summary({"col": [1, 2, 3]}, pebbles=True)
