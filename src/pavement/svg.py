@@ -1922,7 +1922,8 @@ def summary(
         all_present = [v for v in all_values if not _is_missing(v)]
         n_groups = len(group_keys)
         enable_drag = draggable and n_groups >= 2
-        count_part = _count_label(n_groups, 'group')
+        # pebbles reuses this branch but its rows are labels, not groups.
+        count_part = _count_label(n_groups, 'label' if pebbles else 'group')
         if series_name is not None:
             header_label = (f'<span style="{_NAME_STYLE}">'
                             f'{escape(str(series_name))}</span> {count_part}')

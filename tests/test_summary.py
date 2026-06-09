@@ -1273,9 +1273,15 @@ def test_summary_pebbles_header_pools_all_values():
     means = pd.Series([1.5, 11.0, 5.0], index=["a", "b", "c"], name="score")
     out = str(summary(means, pebbles=True))
     assert "score" in out          # the Series name labels the header
-    assert "3 groups" in out       # one entry per label, pooled in the header
+    assert "3 labels" in out       # "labels", not "groups", for pebbles
     # The header distribution spans the full range of the pebbles (1.5..11).
     assert ">1.5<" in out and ">11<" in out
+
+
+def test_summary_pebbles_singular_label_noun():
+    out = str(summary({"only": 42}, pebbles=True))
+    assert "1 label" in out
+    assert "1 labels" not in out and "1 group" not in out
 
 
 def test_summary_pebbles_defaults_to_shared_bounds():
