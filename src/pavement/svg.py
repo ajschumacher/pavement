@@ -1189,15 +1189,20 @@ def _format_group_key(key: Any) -> str:
     return str(key)
 
 
-def _as_pebbles(data: Any) -> dict[Any, list[Any]]:
-    """Expand a label->scalar input into a ``{label: [value]}`` dict.
+def _as_pebbles(data: Any) -> tuple[str, Any, list[str], list[list[Any]]]:
+    """Recast a label->scalar input as a synthetic SeriesGroupBy structure.
 
-    The shape ``summary(..., pebbles=True)`` wants: one single-value column per
-    label, so the table draws one row per label and — on the shared axis pebbles
-    enables — lays every value as a lone pebble on a common scale. The natural
-    source is a pandas ``Series`` whose index carries the labels, e.g. the
-    result of ``df.groupby("team")["score"].mean()``; a plain ``dict`` of
-    scalars, or any other mapping exposing ``.items()``, works too.
+    The shape ``summary(..., pebbles=True)`` wants: a header row pooling every
+    value into one full distribution, then one row per label showing just its
+    single value on the shared axis — exactly how a SeriesGroupBy displays.
+    Returning the same ``(_GROUPBY_SERIES, name, keys, groups)`` tuple that
+    `_detect_groupby` produces lets `summary` render it through that very path,
+    where each label's "group" is a single-element value list.
+
+    The natural source is a pandas ``Series`` whose index carries the labels,
+    e.g. the result of ``df.groupby("team")["score"].mean()``; a plain ``dict``
+    of scalars, or any other mapping exposing ``.items()``, works too. The
+    Series ``name`` (if any) becomes the header label.
 
     Raises ``ValueError`` for inputs that have no per-label scalar to spread —
     a DataFrame, a dict of columns, or a GroupBy — and for an unlabeled
@@ -1208,7 +1213,8 @@ def _as_pebbles(data: Any) -> dict[Any, list[Any]]:
             "summary(..., pebbles=True) expects a labeled 1D input such as a "
             "pandas Series, not a DataFrame, dict of columns, or GroupBy")
     if hasattr(data, 'items'):  # pandas Series, mapping of label -> scalar
-        out: dict[Any, list[Any]] = {}
+        keys: list[str] = []
+        groups: list[list[Any]] = []
         for k, v in data.items():
             # Each label must carry a single scalar; a sequence value means a
             # dict of columns (or similar), which has no per-label pebble.
@@ -1216,8 +1222,9 @@ def _as_pebbles(data: Any) -> dict[Any, list[Any]]:
                 raise ValueError(
                     "summary(..., pebbles=True) expects one value per label; "
                     f"label {k!r} maps to a sequence, not a scalar")
-            out[_format_group_key(k)] = [v]
-        return out
+            keys.append(_format_group_key(k))
+            groups.append([v])
+        return _GROUPBY_SERIES, getattr(data, 'name', None), keys, groups
     raise ValueError(
         "summary(..., pebbles=True) expects a labeled input with an index "
         "(e.g. a pandas Series); got an unlabeled sequence")
@@ -1712,16 +1719,18 @@ def summary(
         (disables the proportional scaling). Has no effect when all groups or
         columns have the same length.
     pebbles : bool, default: False
-        Treat *data* as a label-to-value mapping and show one value per label,
-        rather than pooling everything into a single distribution. The intended
-        input is a labeled 1D result — most often a pandas ``Series`` whose
-        index carries the labels, such as ``df.groupby("team")["score"].mean()``
-        — which is spread into a ``{label: [value]}`` dict so the table draws
-        one row per label, each a lone pebble. *shared_bounds* defaults to True
-        under *pebbles* (so the single values line up on one axis, the point of
-        the view); pass it explicitly to override. Raises ``ValueError`` if
-        *data* is not a per-label scalar input (a DataFrame, dict of columns,
-        GroupBy, or unlabeled sequence has nothing to spread).
+        Treat *data* as a label-to-value mapping and lay it out like a
+        SeriesGroupBy: a header row pooling every value into one full
+        distribution, then one row per label showing just its single value as a
+        lone pebble on the shared axis. The intended input is a labeled 1D
+        result — most often a pandas ``Series`` whose index carries the labels,
+        such as ``df.groupby("team")["score"].mean()`` (the Series ``name``, if
+        any, becomes the header label); a plain ``dict`` of scalars works too.
+        *shared_bounds* defaults to True under *pebbles* (so the single values
+        line up on one axis against the pooled header, the point of the view);
+        pass it explicitly to override. Raises ``ValueError`` if *data* is not a
+        per-label scalar input (a DataFrame, dict of columns, GroupBy, or
+        unlabeled sequence has nothing to spread).
     shared_bounds : bool or None, default: None
         Whether to place all distribution strips on a single shared value
         axis, so their positions can be compared directly. When True, the
@@ -1772,17 +1781,15 @@ def summary(
     proportion : The categorical distribution strip.
     spark : The numeric distribution sparkline.
     """
-    # pebbles spreads a label->scalar input (e.g. a groupby-mean Series) into a
-    # {label: [value]} dict, so it renders one row per label — a single pebble
-    # each, on a shared axis by default — instead of one pooled distribution.
-    if pebbles:
-        data = _as_pebbles(data)
-
-    groupby = _detect_groupby(data)
+    # pebbles recasts a label->scalar input (e.g. a groupby-mean Series) as a
+    # synthetic SeriesGroupBy: a header row pooling every value into one full
+    # distribution, then one row per label showing just its single pebble on the
+    # shared axis — exactly how a real SeriesGroupBy renders below.
+    groupby = _as_pebbles(data) if pebbles else _detect_groupby(data)
     # Resolve shared_bounds early — it shapes the column widths below: None
-    # auto-detects (True for a groupby or pebbles, else False).
+    # auto-detects (True for a groupby, including pebbles, else False).
     if shared_bounds is None:
-        shared_bounds = pebbles or groupby is not None
+        shared_bounds = groupby is not None
 
     # narrow_value_cols controls the layout (halve the extent columns flanking
     # the distribution, widen the distribution).  None follows shared_bounds —
@@ -1915,7 +1922,8 @@ def summary(
         all_present = [v for v in all_values if not _is_missing(v)]
         n_groups = len(group_keys)
         enable_drag = draggable and n_groups >= 2
-        count_part = _count_label(n_groups, 'group')
+        # pebbles reuses this branch but its rows are labels, not groups.
+        count_part = _count_label(n_groups, 'label' if pebbles else 'group')
         if series_name is not None:
             header_label = (f'<span style="{_NAME_STYLE}">'
                             f'{escape(str(series_name))}</span> {count_part}')

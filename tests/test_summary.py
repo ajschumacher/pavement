@@ -1249,8 +1249,9 @@ def test_summary_columns_wellformed_xml():
 
 
 # ---------------------------------------------------------------------------
-# pebbles: spread a label->scalar input (e.g. a groupby-mean Series) into one
-# single-value row per label, on a shared axis by default.
+# pebbles: lay a label->scalar input (e.g. a groupby-mean Series) out like a
+# SeriesGroupBy — a header pooling every value into one full distribution, then
+# one single-value pebble per label on the shared axis.
 # ---------------------------------------------------------------------------
 
 def test_summary_pebbles_one_row_per_label():
@@ -1259,16 +1260,28 @@ def test_summary_pebbles_one_row_per_label():
                        "score": [1, 2, 10, 12, 5]})
     means = df.groupby("team")["score"].mean()
     out = str(summary(means, pebbles=True))
-    # One pebble (spark) per label, plus header + per-label tallies.
-    assert out.count('class="pavement-spark"') == 3
-    assert out.count('class="pavement-tally"') == 4   # header + 3 labels
+    # Header pools all pebbles + one pebble per label -> 4 sparks and 4 tallies.
+    assert out.count('class="pavement-spark"') == 4   # header + 3 labels
+    assert out.count('class="pavement-tally"') == 4
     assert ">a<" in out and ">b<" in out and ">c<" in out
 
 
-def test_summary_pebbles_header_shows_n_by_one_shape():
+def test_summary_pebbles_header_pools_all_values():
+    # Like a groupby header, the top row shows the full distribution and names
+    # the Series, with a label/group count.
     pd = pytest.importorskip("pandas")
     means = pd.Series([1.5, 11.0, 5.0], index=["a", "b", "c"], name="score")
-    assert "3 by 1" in str(summary(means, pebbles=True))
+    out = str(summary(means, pebbles=True))
+    assert "score" in out          # the Series name labels the header
+    assert "3 labels" in out       # "labels", not "groups", for pebbles
+    # The header distribution spans the full range of the pebbles (1.5..11).
+    assert ">1.5<" in out and ">11<" in out
+
+
+def test_summary_pebbles_singular_label_noun():
+    out = str(summary({"only": 42}, pebbles=True))
+    assert "1 label" in out
+    assert "1 labels" not in out and "1 group" not in out
 
 
 def test_summary_pebbles_defaults_to_shared_bounds():
@@ -1282,7 +1295,7 @@ def test_summary_pebbles_defaults_to_shared_bounds():
 
 def test_summary_pebbles_accepts_dict_of_scalars():
     out = str(summary({"a": 1, "b": 2, "c": 3}, pebbles=True))
-    assert out.count('class="pavement-spark"') == 3
+    assert out.count('class="pavement-spark"') == 4   # header + 3 labels
     assert ">a<" in out and ">c<" in out
 
 
