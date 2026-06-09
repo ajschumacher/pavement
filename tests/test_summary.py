@@ -1305,6 +1305,19 @@ def test_summary_pebbles_accepts_dict_of_scalars():
     assert ">a<" in out and ">c<" in out
 
 
+def test_summary_pebbles_scales_each_pebble_to_one_nth():
+    # Each label is a single value, so its tally scales to its 1/n share of all
+    # n entries — only the pooled header is full width. min_fill=0 keeps it pure.
+    out = str(summary({"a": 1, "b": 2, "c": 3, "d": 4}, pebbles=True, min_fill=0.0))
+    widths = _tally_box_widths(out)
+    # Header (pools all 4) + one strip per label, each 1/4 of full width.
+    assert len(widths) == 5
+    header_w, *label_ws = widths
+    assert header_w == pytest.approx(140.0)
+    for w in label_ws:
+        assert w == pytest.approx(140.0 / 4, abs=0.05)
+
+
 def test_summary_pebbles_preserves_label_order():
     out = str(summary({"z": 1, "m": 2, "a": 3}, pebbles=True))
     assert out.index(">z<") < out.index(">m<") < out.index(">a<")

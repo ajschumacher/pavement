@@ -926,9 +926,9 @@ def tally(
         1.0 (default) the boxes fill edge to edge. Values below 1.0 leave
         the right (or bottom, when vertical) portion of the strip empty —
         transparent, with no box drawn. Used by `summary` to make each
-        group's tally proportional to its row count relative to the largest
-        group, so a smaller group appears visually narrower. Clamped to
-        [0, 1]; the tooltips always report the true counts.
+        group's tally proportional to its row count relative to the total
+        across groups, so a smaller group appears visually narrower. Clamped
+        to [0, 1]; the tooltips always report the true counts.
     height : str, default: '1em'
         CSS height baked onto the root when *inline* is True, so the strip
         tracks the font size; width follows the aspect.
@@ -1949,11 +1949,11 @@ def summary(
         group_sizes = [len(col) for col in group_cols]
         # Scale each group's tally to its share of *all* entries, so the pooled
         # header (every entry) is the only full-width strip and the groups read
-        # on the same scale as it. Pebbles rows are single values, not groups,
-        # so keep them full-width (scaled to the largest, i.e. each other).
-        denom = max(group_sizes, default=1) if pebbles else sum(group_sizes)
+        # on the same scale as it. Pebbles rows are single values, so each
+        # scales to 1/n of the full width against the header's pooled n.
+        total_size = sum(group_sizes)
         for key, values, size in zip(group_keys, group_cols, group_sizes):
-            fr = max(min_fill, size / denom) if denom else 1.0
+            fr = max(min_fill, size / total_size) if total_size else 1.0
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
