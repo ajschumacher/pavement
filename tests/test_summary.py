@@ -807,10 +807,11 @@ def test_summary_min_fill_series_groupby_unequal_groups():
     # Three strips: header (all 11), group "a" (1), group "b" (10).
     assert len(widths) == 3
     header_w, small_w, big_w = widths
-    # Header is full width (~140), big group is also full (~140), small is less.
+    # Only the pooled header is full width; the groups scale to their share of
+    # the 11 total entries, so the big group (10/11) falls short of the header.
     assert header_w == pytest.approx(140.0)
-    assert big_w == pytest.approx(140.0)
-    assert small_w < big_w
+    assert big_w == pytest.approx(140.0 * 10 / 11, abs=0.05)
+    assert small_w < big_w < header_w
 
 
 def test_summary_min_fill_series_groupby_floor_applied():
@@ -822,8 +823,10 @@ def test_summary_min_fill_series_groupby_floor_applied():
     keys = pd.Series(["big"] * 100 + ["tiny"])
     out = str(summary(s.groupby(keys)))
     widths = _tally_box_widths(out)
-    _, big_w, small_w = widths
-    assert big_w == pytest.approx(140.0)
+    header_w, big_w, small_w = widths
+    # Groups scale to their share of all 101 entries; only the header is full.
+    assert header_w == pytest.approx(140.0)
+    assert big_w == pytest.approx(140.0 * 100 / 101, abs=0.05)
     assert small_w >= 140.0 * 0.1
 
 
@@ -834,10 +837,11 @@ def test_summary_min_fill_zero_is_fully_proportional():
     keys = pd.Series(["big"] * 100 + ["tiny"])
     out = str(summary(s.groupby(keys), min_fill=0.0))
     widths = _tally_box_widths(out)
-    _, big_w, small_w = widths
-    assert big_w == pytest.approx(140.0)
-    # With min_fill=0, small group (1/100 of big) gets ~1.4 units.
-    assert small_w == pytest.approx(140.0 / 100, rel=0.1)
+    header_w, big_w, small_w = widths
+    # With min_fill=0 groups are purely proportional to the 101 total entries.
+    assert header_w == pytest.approx(140.0)
+    assert big_w == pytest.approx(140.0 * 100 / 101, abs=0.05)
+    assert small_w == pytest.approx(140.0 / 101, rel=0.1)
 
 
 def test_summary_min_fill_one_all_strips_full_width():
@@ -862,9 +866,11 @@ def test_summary_min_fill_dataframe_groupby_unequal_groups():
     # Header + "a" (1 row) + "b" (10 rows)
     assert len(widths) == 3
     header_w, small_w, big_w = widths
+    # Only the pooled header (all 11 rows) is full width; groups scale to their
+    # share of the total, so the big group (10/11) falls short of it.
     assert header_w == pytest.approx(140.0)
-    assert big_w == pytest.approx(140.0)
-    assert small_w < big_w
+    assert big_w == pytest.approx(140.0 * 10 / 11, abs=0.05)
+    assert small_w < big_w < header_w
 
 
 def test_summary_min_fill_dict_unequal_columns():
@@ -1297,6 +1303,19 @@ def test_summary_pebbles_accepts_dict_of_scalars():
     out = str(summary({"a": 1, "b": 2, "c": 3}, pebbles=True))
     assert out.count('class="pavement-spark"') == 4   # header + 3 labels
     assert ">a<" in out and ">c<" in out
+
+
+def test_summary_pebbles_scales_each_pebble_to_one_nth():
+    # Each label is a single value, so its tally scales to its 1/n share of all
+    # n entries — only the pooled header is full width. min_fill=0 keeps it pure.
+    out = str(summary({"a": 1, "b": 2, "c": 3, "d": 4}, pebbles=True, min_fill=0.0))
+    widths = _tally_box_widths(out)
+    # Header (pools all 4) + one strip per label, each 1/4 of full width.
+    assert len(widths) == 5
+    header_w, *label_ws = widths
+    assert header_w == pytest.approx(140.0)
+    for w in label_ws:
+        assert w == pytest.approx(140.0 / 4, abs=0.05)
 
 
 def test_summary_pebbles_preserves_label_order():
