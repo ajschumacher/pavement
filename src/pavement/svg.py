@@ -1711,13 +1711,16 @@ def summary(
     min_fill : float, default: 0.1
         When groups or columns have different row counts (a groupby or a dict
         with unequal-length values), each tally strip is scaled so its visible
-        width is proportional to its row count relative to the largest group or
-        column. *min_fill* is the floor: even the smallest tally strip uses at
-        least this fraction of the full strip width, so it stays visible. ``0``
-        makes the scaling fully proportional (a very small group's strip can
-        shrink to nearly nothing); ``1`` makes every strip fill its full width
-        (disables the proportional scaling). Has no effect when all groups or
-        columns have the same length.
+        width is proportional to its row count. For a groupby the reference is
+        the *total* number of entries, so each group reads on the same scale as
+        the pooled header row — which, covering every entry, is the only
+        full-width strip. For a dict with unequal-length columns the reference
+        is the largest column. *min_fill* is the floor: even the smallest tally
+        strip uses at least this fraction of the full strip width, so it stays
+        visible. ``0`` makes the scaling fully proportional (a very small
+        group's strip can shrink to nearly nothing); ``1`` makes every strip
+        fill its full width (disables the proportional scaling). Has no effect
+        when all groups or columns have the same length.
     pebbles : bool, default: False
         Treat *data* as a label-to-value mapping and lay it out like a
         SeriesGroupBy: a header row pooling every value into one full
@@ -1896,9 +1899,12 @@ def summary(
             _tally_strip(all_row_keys, 'row', opts, strip_width=w_tally),
             '', '', '', total=True, copy_btn=enable_drag))
         group_sizes = [len(rks) for rks in row_key_lists]
-        max_size = max(group_sizes, default=1)
+        # Scale each group's tally to its share of *all* rows, so the pooled
+        # header (every row) is the only full-width strip and the groups read
+        # on the same scale as it.
+        total_size = sum(group_sizes)
         for key, row_keys, size in zip(group_keys, row_key_lists, group_sizes):
-            fr = max(min_fill, size / max_size) if max_size else 1.0
+            fr = max(min_fill, size / total_size) if total_size else 1.0
             rows.append(_summary_row(
                 f'<span style="{_NAME_STYLE}">{escape(key)}</span>',
                 _tally_strip(row_keys, 'row', opts, strip_width=w_tally,
@@ -1941,9 +1947,13 @@ def summary(
                                 strip_width=w_dist, view_width=dist_view_w),
             global_hi, total=True, copy_btn=enable_drag))
         group_sizes = [len(col) for col in group_cols]
-        max_size = max(group_sizes, default=1)
+        # Scale each group's tally to its share of *all* entries, so the pooled
+        # header (every entry) is the only full-width strip and the groups read
+        # on the same scale as it. Pebbles rows are single values, not groups,
+        # so keep them full-width (scaled to the largest, i.e. each other).
+        denom = max(group_sizes, default=1) if pebbles else sum(group_sizes)
         for key, values, size in zip(group_keys, group_cols, group_sizes):
-            fr = max(min_fill, size / max_size) if max_size else 1.0
+            fr = max(min_fill, size / denom) if denom else 1.0
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
