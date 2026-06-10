@@ -270,8 +270,10 @@ def pavement_glyphs(
     # percentile). One composed field, rather than a fixed multi-field
     # template, is what lets those empties fall out cleanly. See `hover_html`.
 
-    # Bins: one borderless filled quad each, hovering anywhere inside.
-    if fill_alpha > 0:
+    # Bins: one borderless filled quad each, hovering anywhere inside. A rug
+    # over a single distinct value has no bins at all (its only "bins" are
+    # the zero-width ones `hover_bins` drops), so there is nothing to fill.
+    if fill_alpha > 0 and geom["bins"]:
         left, right, bottom, top, band, value_range, counts = zip(*geom["bins"])
         hover = [hover_html(name_str, v, q, c)
                  for v, q, c in zip(value_range, band, counts)]

@@ -6,9 +6,12 @@ summaries live at the top level with no plotting dependency.
 
 !!! tip "One API, many canvases"
     ```python
-    import pavement.matplotlib as pavement   # or .bokeh / .plotly / .holoviews / .svg
+    import pavement.matplotlib as pavement   # or .bokeh / .plotly / .holoviews
     pavement.plot([1, 2, 3, 4, 5])
     ```
+
+    `pavement.svg` is the one exception: it draws single-row sparklines
+    (`spark`), not multi-row `plot`s.
 
 ## Top-level package (`pavement`)
 

@@ -28,6 +28,8 @@ from dataclasses import dataclass
 from html import escape as _html_escape
 from typing import Any, Callable, Literal
 
+from .core import _is_missing
+
 Orientation = Literal["vertical", "horizontal"]
 
 
@@ -132,12 +134,14 @@ def row_spec(
     range, a tick's value); it defaults to `fmt`. The quantile/percent
     strings are unaffected, as they aren't data values.
 
-    *data*, if given, is the raw values the plot is drawn from — the
-    non-missing values, of which there are ``len(data)``. When present, each
-    bin and tick gets a ``count`` hover string, ``"P% (X of Y values)"``,
-    where Y is ``len(data)``, X is how many data points fall *strictly
-    inside* the bin (low < d < high) or fall *exactly* at the tick's value,
-    and P is that share. Every data point lands in exactly one bin or tick —
+    *data*, if given, is the raw values the plot is drawn from. Missing
+    values (``NaN``, ``None``, pandas ``NA``/``NaT``) are dropped before
+    counting, mirroring `pavement.core.pavement_stats` — a missing value is
+    in no bin and on no tick. When present, each bin and tick gets a
+    ``count`` hover string, ``"P% (X of Y values)"``, where Y is the number
+    of non-missing values, X is how many fall *strictly inside* the bin
+    (low < d < high) or fall *exactly* at the tick's value, and P is that
+    share. Every data point lands in exactly one bin or tick —
     a point on a bin edge is the edge's tick, never either neighbouring bin —
     so the counts (and shares) partition the data. Counts are unweighted,
     even when *values* came from weighted quantiles.
@@ -150,8 +154,15 @@ def row_spec(
     n_bins = len(values) - 1
     half = width / 2
 
-    ordered = sorted(data) if data is not None else None
-    total = len(ordered) if ordered is not None else 0
+    # Drop missing values before counting: the quantiles dropped them too,
+    # and a None breaks the sort (TypeError) while a NaN silently corrupts
+    # the bisect counts below by landing anywhere in the "sorted" list.
+    if data is not None:
+        ordered = sorted(v for v in data if not _is_missing(v))
+        total = len(ordered)
+    else:
+        ordered = None
+        total = 0
 
     def pctl(frac: float) -> str:
         """A percentile cut point, e.g. 0.25 -> ``"p25"``."""

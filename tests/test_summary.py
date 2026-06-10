@@ -1358,3 +1358,23 @@ def test_summary_pebbles_rejects_groupby():
 def test_summary_pebbles_rejects_non_scalar_values():
     with pytest.raises(ValueError, match="one value per label"):
         summary({"col": [1, 2, 3]}, pebbles=True)
+
+
+def test_summary_dict_of_scalars_suggests_pebbles():
+    # A dict of scalars isn't a dict of columns; the error names the fix
+    # rather than leaking an opaque TypeError from list(1).
+    with pytest.raises(ValueError, match="pebbles=True"):
+        summary({"a": 1, "b": 2})
+
+
+def test_summary_dict_of_strings_suggests_pebbles():
+    # A string value would otherwise explode into a column of characters.
+    with pytest.raises(ValueError, match="pebbles=True"):
+        summary({"a": "high", "b": "low"})
+
+
+def test_summary_labels_on_sequence_raises():
+    # labels selects columns/groups; a bare sequence has none, so passing it
+    # is an error rather than a silent no-op.
+    with pytest.raises(ValueError, match="no columns to select"):
+        summary([1, 2, 3], labels=["a"])

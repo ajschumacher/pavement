@@ -31,8 +31,11 @@ skewed one.*
      *  **`pavement.svg`** — dependency-free inline `<svg>` sparklines for the web
 
 ```python
-import pavement.matplotlib as pavement   # or .bokeh / .plotly / .holoviews / .svg
+import pavement.matplotlib as pavement   # or .bokeh / .plotly / .holoviews
 pavement.plot([1, 2, 3, 4, 5])
+
+import pavement.svg                      # sparklines for HTML: svg has spark, not plot
+pavement.svg.spark([1, 2, 3, 4, 5])     # an <svg>...</svg> string
 ```
 
 

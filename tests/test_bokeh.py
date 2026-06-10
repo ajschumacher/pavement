@@ -53,6 +53,32 @@ def test_glyphs_rug_drops_box_by_default():
     assert _box_segments(fig) == []
 
 
+def test_glyphs_rug_single_distinct_value_has_no_fills():
+    # A rug over one distinct value has no hover bins at all (its only
+    # "bins" are the zero-width ones at the repeated value, which
+    # `hover_bins` drops), so there is nothing to fill — no quad renderer,
+    # rather than a crash unpacking an empty bin list.
+    fig = figure()
+    rends = pavement_glyphs(fig, [5, 5, 5], bins=None)
+    assert rends["fills"] is None
+    assert type(rends["ticks"].glyph).__name__ == "Segment"
+
+
+def test_plot_single_point_rug():
+    # Same shape from the headline entry point: one data point, as a rug.
+    fig = plot([5], bins=None)
+    assert _tick_segments(fig)
+
+
+def test_plot_missing_values_dropped_from_hover():
+    # None/NaN don't crash and don't inflate the hover totals: the counts
+    # read "of 4 values" for the four present values.
+    fig = plot([1.0, 2.0, None, float("nan"), 3.0, 4.0], bins=2)
+    hovers = [h for r in _quads(fig) + _tick_segments(fig)
+              for h in r.data_source.data["hover"]]
+    assert hovers and all("of 4 values" in h for h in hovers)
+
+
 def test_glyphs_show_box_true_keeps_box_on_rug():
     fig = figure()
     rends = pavement_glyphs(fig, [1, 2, 2, 3, 5], bins=None, show_box=True)

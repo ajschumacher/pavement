@@ -2,7 +2,9 @@ site_name: Pavement plots
 site_description: >-
   Quantile-based pavement plots for matplotlib, Bokeh, Plotly, and HoloViews —
   a quantile plot you can take in at a glance.
-site_url: https://ajschumacher.github.io/pavement/
+# The live site (GitHub Pages behind the planspace.org custom domain; the
+# github.io URL 301-redirects here). Keep in sync with pyproject's Homepage.
+site_url: https://planspace.org/pavement/
 repo_url: https://github.com/ajschumacher/pavement
 repo_name: ajschumacher/pavement
 edit_uri: edit/main/docs/
