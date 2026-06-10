@@ -2006,26 +2006,24 @@ def summary(
                     f"{', '.join(map(repr, missing))}")
             names = list(labels)
             col_values = [col_values[name_to_idx[lab]] for lab in labels]
-        n_rows = len(col_values[0]) if col_values else 0
-        # The frame as a whole: "N by M" shape label on the left, a tally
-        # over whole rows in the middle, distribution cell empty.
-        keys = [_row_key(row) for row in zip(*col_values)] if col_values else []
         n_cols = len(names)
         enable_drag = draggable and n_cols >= 2
-        shape_label = (f'<span style="{_COUNT_STYLE}">'
-                       f'{n_cols:,} by {n_rows:,}</span>')
-        rows.append(_summary_row(
-            shape_label,
-            _tally_strip(keys, 'row', opts, strip_width=w_tally),
-            '', '', '', total=True, copy_btn=enable_drag))
         col_sizes = [len(col) for col in col_values]
-        max_size = max(col_sizes, default=1)
-        all_col_present = [v for col in col_values for v in col if not _is_missing(v)]
+        total_size = sum(col_sizes)
+        all_col_values = [v for col in col_values for v in col]
+        all_col_present = [v for v in all_col_values if not _is_missing(v)]
+        # Header: "N labels", a tally over every value pooled across all
+        # columns (the reference the per-column fill_ratios scale against),
+        # and an empty distribution cell — columns often have different units.
+        rows.append(_summary_row(
+            _count_label(n_cols, 'label'),
+            _tally_strip(all_col_values, 'value', opts, strip_width=w_tally),
+            '', '', '', total=True, copy_btn=enable_drag))
         frame_global_domain = (_global_domain(all_col_present)
                                if shared_bounds and _pavement_column(all_col_present)
                                else None)
         for name, values, size in zip(names, col_values, col_sizes):
-            fr = max(min_fill, size / max_size) if max_size else 1.0
+            fr = max(min_fill, size / total_size) if total_size else 1.0
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(

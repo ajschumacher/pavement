@@ -36,7 +36,7 @@ def test_summary_on_polars_dataframe():
     })
     out = str(summary(df))
     _wellformed(out)
-    assert "60 rows" in out
+    assert "3 labels" in out        # 3 columns → "3 labels" header
     assert 'class="pavement-spark"' in out
     assert 'class="pavement-proportion"' in out
     for name in ("id", "grp", "flag"):
@@ -51,13 +51,14 @@ def test_summary_polars_numeric_with_nulls_is_a_spark():
     _wellformed(out)
 
 
-def test_summary_polars_row_tally_counts_whole_rows():
-    # rows: (1,x), (1,x)=repeat, all-null, (2,y)
+def test_summary_polars_header_tally_pools_all_values():
+    # Header pools all 8 values: [1,1,None,2] + ["x","x",None,"y"]
+    # → 4 distinct, 2 repeated, 2 missing
     df = pl.DataFrame({"a": [1, 1, None, 2], "b": ["x", "x", None, "y"]})
     top = _titles(str(summary(df)))
-    assert any("distinct" in t and "2 of 4 rows" in t for t in top)
-    assert any("duplicate" in t and "1 of 4 rows" in t for t in top)
-    assert any("missing" in t and "1 of 4 rows" in t for t in top)
+    assert any("distinct" in t and "4 of 8 values" in t for t in top)
+    assert any("duplicate" in t and "2 of 8 values" in t for t in top)
+    assert any("missing" in t and "2 of 8 values" in t for t in top)
 
 
 def test_summary_on_polars_series():
@@ -82,7 +83,7 @@ def test_df_pave_call_and_summary_return_a_summary():
     df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "x"]})
     assert isinstance(df.pave(), Summary)
     assert isinstance(df.pave.summary(), Summary)
-    assert "3 rows" in str(df.pave())
+    assert "2 labels" in str(df.pave())    # 2 columns → "2 labels" header
 
 
 def test_df_pave_forwards_kwargs():
