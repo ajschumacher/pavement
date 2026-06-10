@@ -40,7 +40,7 @@ def test_df_pave_call_and_summary_return_a_summary():
     assert isinstance(df.pave(), Summary)
     assert isinstance(df.pave.summary(), Summary)
     assert "<table" in str(df.pave())
-    assert "3 rows" in str(df.pave())          # the whole-frame summary
+    assert "2 labels" in str(df.pave())        # 2 columns → "2 labels" header
 
 
 def test_df_pave_forwards_kwargs_to_summary():

@@ -495,7 +495,7 @@ def test_summary_dataframe_has_total_row_and_one_row_per_column():
     out = str(summary({"a": [1, 2, 3], "b": ["x", "y", "z"], "c": [1.0, 2.0, 3.0]}))
     # Top header row + 3 column rows -> 4 tally strips.
     assert out.count('class="pavement-tally"') == 4
-    assert "3 by 3" in out      # shape label: columns by rows
+    assert "3 labels" in out    # header: N labels (like a groupby)
     for name in ("a", "b", "c"):
         assert f">{name}</span>" in out        # each column labelled
 
@@ -507,18 +507,19 @@ def test_summary_dataframe_total_row_distribution_cell_is_empty():
     assert out.count('class="pavement-spark"') == 2
 
 
-def test_summary_dataframe_row_tally_counts_whole_rows():
-    # rows: (1,x), (1,x)=repeat, all-missing, (2,y)
+def test_summary_dataframe_header_tally_pools_all_values():
+    # Header tally covers all values across every column (8 total):
+    # [1, 1, None, 2] + ["x", "x", None, "y"] -> 4 distinct, 2 repeat, 2 missing
     out = str(summary({"a": [1, 1, None, 2], "b": ["x", "x", None, "y"]}))
     top = _titles(out)
-    assert any("distinct" in t and "2 of 4 rows" in t for t in top)
-    assert any("duplicate" in t and "1 of 4 rows" in t for t in top)
-    assert any("missing" in t and "1 of 4 rows" in t for t in top)
+    assert any("distinct" in t and "4 of 8 values" in t for t in top)
+    assert any("duplicate" in t and "2 of 8 values" in t for t in top)
+    assert any("missing" in t and "2 of 8 values" in t for t in top)
 
 
-def test_summary_dataframe_row_tally_uses_row_noun():
+def test_summary_dataframe_header_tally_uses_value_noun():
     out = str(summary({"a": [1, 2], "b": [3, 4]}))
-    assert "rows" in _titles(out)[0]           # the top tally talks of rows
+    assert "values" in _titles(out)[0]         # the top tally pools values
 
 
 def test_summary_all_missing_column_has_tally_but_no_distribution():
@@ -529,9 +530,9 @@ def test_summary_all_missing_column_has_tally_but_no_distribution():
     assert 'class="pavement-proportion"' not in out
 
 
-def test_summary_empty_dict_is_zero_rows():
+def test_summary_empty_dict_is_zero_labels():
     out = str(summary({}))
-    assert "0 by 0" in out
+    assert "0 labels" in out
     _wellformed(out)
 
 
@@ -631,7 +632,7 @@ def test_summary_accepts_a_pandas_dataframe():
         "flag": [True, False] * 100,
     })
     out = str(summary(df))
-    assert "200 rows" in out
+    assert "4 labels" in out                      # 4 columns → "4 labels"
     assert 'class="pavement-spark"' in out        # numeric id/score
     assert 'class="pavement-proportion"' in out   # grp / flag
     _wellformed(out)
@@ -874,24 +875,31 @@ def test_summary_min_fill_dataframe_groupby_unequal_groups():
 
 
 def test_summary_min_fill_dict_unequal_columns():
-    # Dict with two differently-sized columns; smaller gets a narrower strip.
+    # Dict with two differently-sized columns; the header pools all 22 values
+    # and is full width; each column scales to its share of the total.
     out = str(summary({"short": [1, 2], "long": list(range(20))}))
     widths = _tally_box_widths(out)
-    # Header row (whole-row tally, zip-truncated to 2) + short + long.
+    # Header (22 values, full) + short (2) + long (20).
     assert len(widths) == 3
-    _, short_w, long_w = widths
-    assert long_w == pytest.approx(140.0)
-    assert short_w < long_w
+    header_w, short_w, long_w = widths
+    assert header_w == pytest.approx(140.0)
+    assert long_w == pytest.approx(140.0 * 20 / 22, abs=0.1)
+    assert short_w == pytest.approx(140.0 * 0.1)   # clamped to min_fill=0.1
+    assert short_w < long_w < header_w
 
 
-def test_summary_min_fill_equal_columns_no_scaling():
+def test_summary_min_fill_equal_columns_scale_uniformly():
     pd = pytest.importorskip("pandas")
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     out = str(summary(df))
     widths = _tally_box_widths(out)
-    # All strips should be full width when columns are the same length.
-    for w in widths:
-        assert w == pytest.approx(140.0)
+    # Header pools all 6 values (full width); each equal-length column is
+    # 3/6 = half of total, so each tally fills half the strip.
+    assert len(widths) == 3
+    header_w, a_w, b_w = widths
+    assert header_w == pytest.approx(140.0)
+    assert a_w == pytest.approx(70.0, abs=0.1)
+    assert b_w == pytest.approx(70.0, abs=0.1)
 
 
 # ---------------------------------------------------------------------------
