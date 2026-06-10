@@ -535,6 +535,44 @@ def test_summary_empty_dict_is_zero_rows():
     _wellformed(out)
 
 
+def test_summary_single_column_dict_is_rectangular():
+    # One column is trivially "all the same length", so it stays a 1-by-N frame
+    # ("1 by 3" only appears via the rectangular path, never the ragged one).
+    out = str(summary({"a": [1, 2, 3]}))
+    assert "1 by 3" in out
+
+
+# ---------------------------------------------------------------------------
+# Ragged dict (columns of unequal length): no "N by M" rectangle, so it
+# renders like a groupby — an "N labels" header pooling every value.
+# ---------------------------------------------------------------------------
+
+def test_summary_ragged_dict_header_shows_label_count():
+    out = str(summary({"short": [1, 2], "long": list(range(20))}))
+    assert "2 labels" in out      # column count, like a groupby
+    assert "2 by" not in out      # no invented "N by M" shape
+
+
+def test_summary_ragged_dict_header_tally_pools_all_values():
+    # Pooled across both columns: [1, 1, None, 2] + ["x", "x", "y"] = 7 values
+    # -> 4 distinct, 2 repeated, 1 missing; noun is "entry/entries".
+    out = str(summary({"a": [1, 1, None, 2], "b": ["x", "x", "y"]}))
+    top = _titles(out)
+    assert any("distinct" in t and "4 of 7 entries" in t for t in top)
+    assert any("duplicate" in t and "2 of 7 entries" in t for t in top)
+    assert any("missing" in t and "1 of 7 entries" in t for t in top)
+
+
+def test_summary_ragged_dict_keeps_per_column_distributions():
+    # Each column still draws its own distribution: a spark for the numeric
+    # column, a proportion strip for the categorical one. The header has none.
+    out = str(summary({"nums": [1, 2, 3, 4, 5], "cats": ["x", "y"]}))
+    assert out.count('class="pavement-spark"') == 1        # nums
+    assert out.count('class="pavement-proportion"') == 1   # cats
+    assert out.count('class="pavement-tally"') == 3        # header + 2 columns
+    _wellformed(out)
+
+
 def test_summary_constant_numeric_column_does_not_crash():
     _wellformed(str(summary({"k": [5, 5, 5, 5]})))
 
@@ -874,14 +912,18 @@ def test_summary_min_fill_dataframe_groupby_unequal_groups():
 
 
 def test_summary_min_fill_dict_unequal_columns():
-    # Dict with two differently-sized columns; smaller gets a narrower strip.
+    # A ragged dict (columns of differing lengths) renders like a groupby: the
+    # header pools all 22 values and is the only full-width strip, and each
+    # column scales to its share of that total (not its share of the longest).
     out = str(summary({"short": [1, 2], "long": list(range(20))}))
     widths = _tally_box_widths(out)
-    # Header row (whole-row tally, zip-truncated to 2) + short + long.
+    # Header (22 values, full) + short (2) + long (20).
     assert len(widths) == 3
-    _, short_w, long_w = widths
-    assert long_w == pytest.approx(140.0)
-    assert short_w < long_w
+    header_w, short_w, long_w = widths
+    assert header_w == pytest.approx(140.0)
+    assert long_w == pytest.approx(140.0 * 20 / 22, abs=0.1)
+    assert short_w == pytest.approx(140.0 * 0.1)   # clamped to min_fill=0.1
+    assert short_w < long_w < header_w
 
 
 def test_summary_min_fill_equal_columns_no_scaling():
@@ -889,7 +931,7 @@ def test_summary_min_fill_equal_columns_no_scaling():
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     out = str(summary(df))
     widths = _tally_box_widths(out)
-    # All strips should be full width when columns are the same length.
+    # A rectangular frame is unchanged: every strip is full width.
     for w in widths:
         assert w == pytest.approx(140.0)
 

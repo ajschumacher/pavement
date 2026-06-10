@@ -1686,6 +1686,13 @@ def summary(
       rows), its tally treats each *whole row* as the entity (so "duplicate"
       means a duplicated row and "missing" a row that is entirely blank), and
       its distribution cell is empty (a frame has no single distribution).
+    - **A ragged dict** — a plain ``dict`` whose columns are *not* all the same
+      length (so there is no rectangular "N by M" shape). Renders like a
+      groupby instead: the header shows ``"N labels"`` (the column count) and a
+      tally over every value pooled across all columns — the only full-width
+      strip — and each column's tally is scaled to its share of that pooled
+      total (see *min_fill*). A real ``DataFrame``, always rectangular, never
+      takes this path.
     - **A pandas DataFrameGroupBy** — e.g. ``df.groupby("team")``. Renders
       one row per group under a top row showing the group and column counts;
       each row's tally treats whole rows as the entity (same as the plain
@@ -1738,18 +1745,18 @@ def summary(
         column rows to reorder — a single column, single group, or bare sequence
         gets no handle (nothing to rearrange).
     min_fill : float, default: 0.1
-        When groups or columns have different row counts (a groupby or a dict
-        with unequal-length values), each tally strip is scaled so its visible
-        width is proportional to its row count. For a groupby the reference is
-        the *total* number of entries, so each group reads on the same scale as
-        the pooled header row — which, covering every entry, is the only
-        full-width strip. For a dict with unequal-length columns the reference
-        is the largest column. *min_fill* is the floor: even the smallest tally
-        strip uses at least this fraction of the full strip width, so it stays
-        visible. ``0`` makes the scaling fully proportional (a very small
-        group's strip can shrink to nearly nothing); ``1`` makes every strip
-        fill its full width (disables the proportional scaling). Has no effect
-        when all groups or columns have the same length.
+        When groups or columns have different row counts (a groupby or a
+        ragged dict with unequal-length values), each tally strip is scaled so
+        its visible width is proportional to its row count. The reference is the
+        *total* number of entries — pooled across every group, or every column
+        of a ragged dict — so each strip reads on the same scale as the pooled
+        header row, which, covering every entry, is the only full-width strip.
+        *min_fill* is the floor: even the smallest tally strip uses at least
+        this fraction of the full strip width, so it stays visible. ``0`` makes
+        the scaling fully proportional (a very small group's strip can shrink to
+        nearly nothing); ``1`` makes every strip fill its full width (disables
+        the proportional scaling). Has no effect on a rectangular frame, where
+        all columns share one length (every per-column strip is full width).
     pebbles : bool, default: False
         Treat *data* as a label-to-value mapping and lay it out like a
         SeriesGroupBy: a header row pooling every value into one full
@@ -2006,26 +2013,42 @@ def summary(
                     f"{', '.join(map(repr, missing))}")
             names = list(labels)
             col_values = [col_values[name_to_idx[lab]] for lab in labels]
-        n_rows = len(col_values[0]) if col_values else 0
-        # The frame as a whole: "N by M" shape label on the left, a tally
-        # over whole rows in the middle, distribution cell empty.
-        keys = [_row_key(row) for row in zip(*col_values)] if col_values else []
         n_cols = len(names)
         enable_drag = draggable and n_cols >= 2
-        shape_label = (f'<span style="{_COUNT_STYLE}">'
-                       f'{n_cols:,} by {n_rows:,}</span>')
-        rows.append(_summary_row(
-            shape_label,
-            _tally_strip(keys, 'row', opts, strip_width=w_tally),
-            '', '', '', total=True, copy_btn=enable_drag))
         col_sizes = [len(col) for col in col_values]
-        max_size = max(col_sizes, default=1)
         all_col_present = [v for col in col_values for v in col if not _is_missing(v)]
         frame_global_domain = (_global_domain(all_col_present)
                                if shared_bounds and _pavement_column(all_col_present)
                                else None)
+        # A rectangular frame (a real DataFrame, or a dict whose columns are all
+        # the same length) has an "N by M" shape, so its header summarizes whole
+        # rows: the shape label, a tally keyed on whole rows, and each column at
+        # full width (every column is the same length as the longest).  A ragged
+        # dict (columns of differing lengths) has no such rectangle — `zip` would
+        # silently truncate the row tally to the shortest column and "N by M"
+        # would invent an M — so it renders like a groupby instead: an "N labels"
+        # header whose tally pools every value across all columns (the full-width
+        # reference) and per-column tallies scaled to their share of that total.
+        ragged = len(set(col_sizes)) > 1
+        if ragged:
+            header_label = _count_label(n_cols, 'label')
+            header_tally = _tally_strip(
+                [v for col in col_values for v in col], 'entry', opts,
+                strip_width=w_tally)
+            denom = sum(col_sizes)
+        else:
+            n_rows = col_sizes[0] if col_sizes else 0
+            header_label = (f'<span style="{_COUNT_STYLE}">'
+                            f'{n_cols:,} by {n_rows:,}</span>')
+            keys = ([_row_key(row) for row in zip(*col_values)]
+                    if col_values else [])
+            header_tally = _tally_strip(keys, 'row', opts, strip_width=w_tally)
+            denom = max(col_sizes, default=1)
+        rows.append(_summary_row(
+            header_label, header_tally, '', '', '',
+            total=True, copy_btn=enable_drag))
         for name, values, size in zip(names, col_values, col_sizes):
-            fr = max(min_fill, size / max_size) if max_size else 1.0
+            fr = max(min_fill, size / denom) if denom else 1.0
             present = [v for v in values if not _is_missing(v)]
             lo, hi = _column_extent(values, present)
             rows.append(_summary_row(
