@@ -1,12 +1,13 @@
 """
 Backend-agnostic pavement statistics.
 
-The pure-math core of the package: quantile computation and the
-quantile values that define 1D and 2D pavement plots. Nothing here
-imports a plotting library, so it is the shared foundation every
-backend (`pavement.matplotlib`, `pavement.holoviews`, `pavement.plotly`,
+The pure-math core of the package: quantile computation, the quantile
+values that define 1D and 2D pavement plots, and the column summaries
+(`tally_stats`, `proportion_stats`). Nothing here imports a plotting
+library, so it is the shared foundation every backend
+(`pavement.matplotlib`, `pavement.holoviews`, `pavement.plotly`,
 `pavement.bokeh`) builds on. The top-level ``pavement`` package
-re-exports these three functions.
+re-exports everything in ``__all__``.
 """
 
 from __future__ import annotations

@@ -42,9 +42,12 @@ core stays dependency-free.
 
 from __future__ import annotations
 
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = version("pavement")
+try:
+    __version__ = version("pavement")
+except PackageNotFoundError:  # a source checkout with no installed metadata
+    __version__ = "0+unknown"
 
 from .core import (
     pavement_stats,

@@ -124,6 +124,18 @@ def test_row_spec_count_noun_singular_for_one_value():
     assert spec.ticks[0].count == "100% (1 of 1 value)"
 
 
+def test_row_spec_counts_drop_missing_values():
+    # Missing values are in no bin and on no tick: a None must not break the
+    # internal sort, and a NaN must not corrupt the bisect counts — the total
+    # is the number of *present* values, matching pavement_stats.
+    data = [1.0, 2.0, None, float("nan"), 3.0, 4.0]
+    spec = row_spec(pavement_stats(data, bins=2), data=data)
+    counts = [s.count for s in (*spec.bins, *spec.ticks)]
+    assert all("of 4 values" in c for c in counts)
+    xs = [int(c.split("(")[1].split()[0]) for c in counts]
+    assert sum(xs) == 4
+
+
 def test_row_spec_default_reach_is_half():
     spec = row_spec([1, 2, 3, 4, 5], width=0.6)
     assert all(t.reach == 0.3 for t in spec.ticks)  # no repeats -> no tassel

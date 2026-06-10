@@ -27,10 +27,12 @@ That makes it the natural fit for an inline sparkline:
   value line under the cursor highlights, signalling the interactivity.
   Both optional.
 
-Only `spark` is exposed; richer multi-row or marginal pavements belong to
-the matplotlib and interactive backends. The shared geometry comes from
-`pavement._geometry`, so an SVG spark lines up box-for-box with the other
-backends.
+The pavement itself is single-row only (`spark`); richer multi-row or
+marginal pavements belong to the matplotlib and interactive backends.
+Alongside it live the column-summary strips `tally` and `proportion`, and
+`summary`, which composes all three into a whole-dataframe table. The
+shared geometry comes from `pavement._geometry`, so an SVG spark lines up
+box-for-box with the other backends.
 
 Examples
 --------
@@ -262,13 +264,15 @@ def spark(
     Parameters
     ----------
     data : iterable of float
-        The values to summarize as a single pavement row. Besides plain
-        numbers, an ordered non-float family is accepted and projected onto a
-        numeric axis: ``Decimal``; ``date``/``datetime`` (including pandas
-        ``Timestamp`` and polars temporals), shown as dates in the tooltips;
-        ``timedelta`` (including ``pandas.Timedelta`` and polars ``Duration``),
-        shown as durations; and numpy ``datetime64``/``timedelta64`` arrays
-        (see *value_format* and `_project`).
+        The values to summarize as a single pavement row. Missing values
+        (``NaN``, ``None``, pandas ``NA``/``NaT``) are dropped, each taking
+        its weight with it. Besides plain numbers, an ordered non-float
+        family is accepted and projected onto a numeric axis: ``Decimal``;
+        ``date``/``datetime`` (including pandas ``Timestamp`` and polars
+        temporals), shown as dates in the tooltips; ``timedelta`` (including
+        ``pandas.Timedelta`` and polars ``Duration``), shown as durations;
+        and numpy ``datetime64``/``timedelta64`` arrays (see *value_format*
+        and `_project`).
     weights : sequence of float, optional
         Positive weights parallel to *data*.
     bins : int or None, default: 4
@@ -388,7 +392,21 @@ def spark(
     pavement.matplotlib.spark : The raster (PNG) counterpart, for print.
     pavement_stats : Compute the quantile values a spark draws.
     """
+    # Drop missing values (each taking its weight with it) before anything
+    # looks at the data: `_project` picks its branch from the first value,
+    # the frequency rug counts occurrences, and the aria-label and summary
+    # tooltip report a value count — all of which should see the present
+    # values only, mirroring `pavement_stats`.
     data = list(data)
+    if weights is not None:
+        if len(weights) != len(data):
+            raise ValueError(
+                f"weights has length {len(weights)}, expected {len(data)}")
+        kept = [(v, w) for v, w in zip(data, weights) if not _is_missing(v)]
+        data = [v for v, _ in kept]
+        weights = [w for _, w in kept]
+    else:
+        data = [v for v in data if not _is_missing(v)]
     n = len(data)
     if n == 0:
         raise ValueError("data must be non-empty")
@@ -1167,7 +1185,18 @@ def _as_columns(data: Any) -> tuple[list[Any], list[list[Any]]] | None:
     Each column is materialized as a list of its values.
     """
     if isinstance(data, dict):
-        return list(data.keys()), [list(values) for values in data.values()]
+        columns = []
+        for name, values in data.items():
+            # A scalar value (or a string, which would explode into
+            # characters) means this isn't a dict of columns; the likely
+            # intent is one value per label — the pebbles view.
+            if isinstance(values, (str, bytes)) or not hasattr(values, '__iter__'):
+                raise ValueError(
+                    f"summary() expects each dict value to be a column (a "
+                    f"sequence of values); key {name!r} maps to a scalar. "
+                    f"For one value per label, pass pebbles=True.")
+            columns.append(list(values))
+        return list(data.keys()), columns
     if hasattr(data, 'columns') and hasattr(data, 'items'):  # pandas DataFrame
         names: list[Any] = []
         columns: list[list[Any]] = []
@@ -1559,11 +1588,11 @@ _EXTENT_CROP = 128  # max display length for a categorical extent label (cell sc
 def _crop_value(v: Any) -> str:
     """Render *v* as a string for an extent label cell.
 
-    Long values are truncated to ``_EXTENT_CROP`` characters (15 chars + ``…``).
-    Values that would appear blank — empty strings, or whose stripped form is
-    empty or non-printable (e.g. whitespace-only, control characters) — are
-    wrapped in straight quotation marks (``”…”``) so the cell visibly
-    conveys that a value is present.
+    Long values are truncated to ``_EXTENT_CROP`` characters (one is given up
+    to the trailing ``…``). Values that would appear blank — empty strings, or
+    whose stripped form is empty or non-printable (e.g. whitespace-only,
+    control characters) — are wrapped in straight quotation marks (``"…"``)
+    so the cell visibly conveys that a value is present.
     """
     s = str(v)
     cropped = s[:_EXTENT_CROP - 1] + '…' if len(s) > _EXTENT_CROP else s
@@ -2010,6 +2039,11 @@ def summary(
                                     view_width=dist_view_w),
                 hi, draggable=enable_drag))
     else:
+        if labels is not None:
+            raise ValueError(
+                "labels selects columns or groups, so it applies to a "
+                "DataFrame, dict, or GroupBy input — a single sequence has "
+                "no columns to select")
         values = list(data)
         present = [v for v in values if not _is_missing(v)]
         lo, hi = _column_extent(values, present)

@@ -483,3 +483,28 @@ def test_spark_domain_with_binned_spark():
 
 def test_spark_domain_wellformed_xml():
     _wellformed(spark([1, 2, 3], bins=None, domain=(0.0, 5.0)))
+
+
+def test_spark_drops_missing_values():
+    # None/NaN are dropped before anything looks at the data, so the value
+    # counts (hover totals and the aria-label) cover the present values only.
+    out = spark([1.0, 2.0, None, float("nan"), 3.0, 4.0])
+    assert "of 4 values" in out
+    assert "of 6 values" not in out
+    assert "pavement sparkline of 4 values" in out
+
+
+def test_spark_missing_value_takes_its_weight():
+    # A dropped value takes its weight with it, so the kept weights stay
+    # parallel — same markup as filtering by hand.
+    assert (spark([1, 2, None, 3], weights=[1, 1, 99, 1])
+            == spark([1, 2, 3], weights=[1, 1, 1]))
+
+
+def test_spark_leading_missing_value_still_projects_dates():
+    # `_project` picks its branch from the first value; a leading None must
+    # not hide a date column from the temporal projection.
+    import datetime as dt
+    out = spark([None, dt.date(2024, 1, 1), dt.date(2024, 6, 1),
+                 dt.date(2024, 12, 31)], bins=None)
+    assert "2024-01-01" in out  # tooltip renders dates, not epoch seconds

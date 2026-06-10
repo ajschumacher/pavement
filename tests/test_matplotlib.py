@@ -548,3 +548,12 @@ def test_draw_pavement2d_from_stats():
     assert set(artists) == {"fills", "verticals", "horizontals"}
     assert artists["fills"] is None  # no box_props
     plt.close()
+
+
+def test_plot_accepts_missing_values():
+    # None/NaN are dropped (by pavement_stats for the quantiles and by
+    # row_spec for the box-edge counts), not a TypeError from sorting.
+    plt.figure()
+    artists = plot([1.0, 2.0, None, float("nan"), 3.0, 4.0])
+    assert artists[0]["ticks"] is not None
+    plt.close()

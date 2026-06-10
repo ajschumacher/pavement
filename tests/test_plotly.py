@@ -374,3 +374,12 @@ def test_pavement_color_length_mismatch():
 def test_pavement_labels_length_mismatch():
     with pytest.raises(ValueError, match="labels"):
         plot([[1, 2], [3, 4]], labels=["only-one"])
+
+
+def test_plot_missing_values_dropped_from_hover():
+    # None/NaN don't crash and don't inflate the hover totals: the counts
+    # read "of 4 values" for the four present values.
+    fig = plot([1.0, 2.0, None, float("nan"), 3.0, 4.0], bins=2)
+    texts = [t.text for t in fig.data if t.text]
+    flat = [s for t in texts for s in ((t,) if isinstance(t, str) else t)]
+    assert flat and all("of 4 values" in s for s in flat)
