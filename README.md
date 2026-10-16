@@ -338,6 +338,24 @@ The skill itself is plain Markdown at
 without Claude Code.
 
 
+## Pavement plots in R (`ggpaver`)
+
+Pavement plots aren't only a Python thing: David Williams has made
+[`ggpaver`](https://github.com/git-dwilliams/ggpaver), a ggplot2 extension
+that brings them to R.
+
+    # install.packages("pak")
+    pak::pak("git-dwilliams/ggpaver")
+
+    library(ggplot2)
+    library(ggpaver)
+    ggplot(df, aes(x = value)) + geom_pavement(bins = 16)
+
+It's a separate project (MIT, like this one) and early days — not on CRAN
+yet — so questions and issues about it belong on
+[its tracker](https://github.com/git-dwilliams/ggpaver/issues), not here.
+
+
 ## Development
 
     pip install -e '.[test]'              # core only
